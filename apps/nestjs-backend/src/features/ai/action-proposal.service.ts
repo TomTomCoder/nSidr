@@ -125,18 +125,21 @@ export class ActionProposalService {
 
     // Resolve baseId if missing — look up via conversationId → spaceId → first base
     let resolvedArgs = { ...metadata.args };
-    if (!resolvedArgs.baseId) {
+    if (!resolvedArgs.baseId || (metadata.action === 'create_base' && !resolvedArgs.spaceId)) {
       const conversation = await this.prismaService.workspaceConversation.findUnique({
         where: { id: message.conversationId },
         select: { spaceId: true },
       });
       if (conversation?.spaceId) {
-        const firstBase = await this.prismaService.base.findFirst({
-          where: { spaceId: conversation.spaceId, deletedTime: null },
-          select: { id: true },
-          orderBy: { createdTime: 'asc' },
-        });
-        if (firstBase) resolvedArgs.baseId = firstBase.id;
+        if (!resolvedArgs.spaceId) resolvedArgs.spaceId = conversation.spaceId;
+        if (!resolvedArgs.baseId) {
+          const firstBase = await this.prismaService.base.findFirst({
+            where: { spaceId: conversation.spaceId, deletedTime: null },
+            select: { id: true },
+            orderBy: { createdTime: 'asc' },
+          });
+          if (firstBase) resolvedArgs.baseId = firstBase.id;
+        }
       }
     }
 

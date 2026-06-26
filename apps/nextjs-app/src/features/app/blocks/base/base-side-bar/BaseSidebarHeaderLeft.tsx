@@ -32,7 +32,7 @@ import { ArrowLeft, MessageSquare, Send } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useTranslation } from 'next-i18next';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { TeableLogo } from '@/components/TeableLogo';
 import { Emoji } from '@/features/app/components/emoji/Emoji';
 import { useChatPanelStore } from '@/features/app/components/sidebar/useChatPanelStore';
@@ -245,6 +245,9 @@ export const BaseSidebarHeaderLeft = ({ creditUsage }: { creditUsage?: React.Rea
   const router = useRouter();
   const [renaming, setRenaming] = useState<boolean>();
   const [baseName, setBaseName] = useState<string>(base.name);
+  useEffect(() => {
+    if (!renaming) setBaseName(base.name);
+  }, [base.name]); // eslint-disable-line react-hooks/exhaustive-deps
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const isReadOnlyPreview = useIsReadOnlyPreview();
