@@ -1,0 +1,1 @@
+/Users/tommylambert/Documents/Claude_Folder/teable/apps/nextjs-app/next-i18next.config.js

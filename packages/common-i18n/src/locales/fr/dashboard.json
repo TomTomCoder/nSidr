@@ -1,0 +1,18 @@
+{
+  "empty": {
+    "title": "Aucun tableau de bord",
+    "description": "Les tableaux de bord vous aident à visualiser et gérer vos données plus efficacement.",
+    "create": "Créer un tableau de bord"
+  },
+  "addPlugin": "Ajouter un plugin",
+  "createDashboard": {
+    "button": "Créer un tableau de bord",
+    "title": "Nouveau tableau de bord",
+    "placeholder": "Saisir le nom du tableau de bord"
+  },
+  "findDashboard": "Rechercher un tableau de bord…",
+  "deprecation": {
+    "title": "La fonctionnalité de tableau de bord va être abandonnée",
+    "description": "Pour vous offrir une expérience plus intelligente et efficace, nous cesserons de prendre en charge la fonctionnalité de nœud tableau de bord. Vous pouvez facilement créer de nouveaux tableaux de bord via l'IA dans l'application générée par IA pour une expérience plus fluide."
+  }
+}

@@ -1,0 +1,36 @@
+# Phase 18 — External DB Connectors: Qdrant test fixture
+#
+# Qdrant REST base URL: http://localhost:6333
+# Qdrant gRPC port:    6334
+#
+# Usage:
+#   docker compose -f docker-compose.qdrant.yml up -d
+#   curl http://localhost:6333/healthz     (or open http://localhost:6333/dashboard)
+#
+# Image tag pinned to a specific stable release (threat model T-18-00-SC).
+# Does NOT collide with Teable's dev Postgres (:5432) or Redis (:6379).
+# Embedding dimension expected: 1536 (OpenAI text-embedding-3-small — matches internal pgvector).
+
+version: '3.9'
+
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.9.4
+    container_name: teable-ext-qdrant
+    restart: unless-stopped
+    ports:
+      - '6333:6333'   # REST API
+      - '6334:6334'   # gRPC
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT__SERVICE__HTTP_PORT: '6333'
+      QDRANT__SERVICE__GRPC_PORT: '6334'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://localhost:6333/healthz || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  qdrant_data:

@@ -1,0 +1,371 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 880" width="1400" height="880"><defs><linearGradient id="g1" x1="520.0" y1="150.0" x2="520.0" y2="234.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#E4F8F6"/><stop offset="9%" stop-color="#62D4C8"/><stop offset="34%" stop-color="#1EC2B0"/><stop offset="55%" stop-color="#0E5951"/><stop offset="72%" stop-color="#093A35"/><stop offset="87%" stop-color="#8EE0D8"/><stop offset="100%" stop-color="#0F6158"/></linearGradient>
+<linearGradient id="g2" x1="604.0" y1="150.0" x2="634.0" y2="234.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#148074"/><stop offset="45%" stop-color="#0B463F"/><stop offset="72%" stop-color="#66D6C9"/><stop offset="100%" stop-color="#0E5951"/></linearGradient>
+<linearGradient id="g3" x1="550.0" y1="120.0" x2="520.0" y2="187.8" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#EDFAF9"/><stop offset="28%" stop-color="#8EE0D8"/><stop offset="62%" stop-color="#2CC6B5"/><stop offset="100%" stop-color="#13786D"/></linearGradient>
+<radialGradient id="spec4" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="g5" x1="430.0" y1="150.0" x2="430.0" y2="234.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#E5F4F8"/><stop offset="9%" stop-color="#65BCD4"/><stop offset="34%" stop-color="#23A0C2"/><stop offset="55%" stop-color="#104A59"/><stop offset="72%" stop-color="#0A303A"/><stop offset="87%" stop-color="#91D0E0"/><stop offset="100%" stop-color="#125061"/></linearGradient>
+<linearGradient id="g6" x1="514.0" y1="150.0" x2="544.0" y2="234.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#176A80"/><stop offset="45%" stop-color="#0D3A46"/><stop offset="72%" stop-color="#69BED6"/><stop offset="100%" stop-color="#104A59"/></linearGradient>
+<linearGradient id="g7" x1="460.0" y1="120.0" x2="430.0" y2="187.8" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#EDF7FA"/><stop offset="28%" stop-color="#91D0E0"/><stop offset="62%" stop-color="#30A6C6"/><stop offset="100%" stop-color="#166378"/></linearGradient>
+<radialGradient id="spec8" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="g9" x1="430.0" y1="240.0" x2="430.0" y2="324.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#E5F4F8"/><stop offset="9%" stop-color="#65BCD4"/><stop offset="34%" stop-color="#23A0C2"/><stop offset="55%" stop-color="#104A59"/><stop offset="72%" stop-color="#0A303A"/><stop offset="87%" stop-color="#91D0E0"/><stop offset="100%" stop-color="#125061"/></linearGradient>
+<linearGradient id="g10" x1="514.0" y1="240.0" x2="544.0" y2="324.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#176A80"/><stop offset="45%" stop-color="#0D3A46"/><stop offset="72%" stop-color="#69BED6"/><stop offset="100%" stop-color="#104A59"/></linearGradient>
+<linearGradient id="g11" x1="460.0" y1="210.0" x2="430.0" y2="277.8" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#EDF7FA"/><stop offset="28%" stop-color="#91D0E0"/><stop offset="62%" stop-color="#30A6C6"/><stop offset="100%" stop-color="#166378"/></linearGradient>
+<radialGradient id="spec12" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="g13" x1="340.0" y1="240.0" x2="340.0" y2="324.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#E5F0FA"/><stop offset="9%" stop-color="#68A5E1"/><stop offset="34%" stop-color="#277ED4"/><stop offset="55%" stop-color="#123A62"/><stop offset="72%" stop-color="#0C2640"/><stop offset="87%" stop-color="#93BEEA"/><stop offset="100%" stop-color="#143F6A"/></linearGradient>
+<linearGradient id="g14" x1="424.0" y1="240.0" x2="454.0" y2="324.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#1A538C"/><stop offset="45%" stop-color="#0E2D4C"/><stop offset="72%" stop-color="#6CA7E2"/><stop offset="100%" stop-color="#123A62"/></linearGradient>
+<linearGradient id="g15" x1="370.0" y1="210.0" x2="340.0" y2="277.8" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#EEF5FC"/><stop offset="28%" stop-color="#93BEEA"/><stop offset="62%" stop-color="#3486D7"/><stop offset="100%" stop-color="#184E83"/></linearGradient>
+<radialGradient id="spec16" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="g17" x1="340.0" y1="330.0" x2="340.0" y2="414.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#E5F0FA"/><stop offset="9%" stop-color="#68A5E1"/><stop offset="34%" stop-color="#277ED4"/><stop offset="55%" stop-color="#123A62"/><stop offset="72%" stop-color="#0C2640"/><stop offset="87%" stop-color="#93BEEA"/><stop offset="100%" stop-color="#143F6A"/></linearGradient>
+<linearGradient id="g18" x1="424.0" y1="330.0" x2="454.0" y2="414.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#1A538C"/><stop offset="45%" stop-color="#0E2D4C"/><stop offset="72%" stop-color="#6CA7E2"/><stop offset="100%" stop-color="#123A62"/></linearGradient>
+<linearGradient id="g19" x1="370.0" y1="300.0" x2="340.0" y2="367.8" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#EEF5FC"/><stop offset="28%" stop-color="#93BEEA"/><stop offset="62%" stop-color="#3486D7"/><stop offset="100%" stop-color="#184E83"/></linearGradient>
+<radialGradient id="spec20" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="g21" x1="250.0" y1="330.0" x2="250.0" y2="414.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#E6EBFC"/><stop offset="9%" stop-color="#6B8DEE"/><stop offset="34%" stop-color="#2C5CE6"/><stop offset="55%" stop-color="#142A6A"/><stop offset="72%" stop-color="#0D1C45"/><stop offset="87%" stop-color="#96AEF2"/><stop offset="100%" stop-color="#162E73"/></linearGradient>
+<linearGradient id="g22" x1="334.0" y1="330.0" x2="364.0" y2="414.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#1D3D98"/><stop offset="45%" stop-color="#102153"/><stop offset="72%" stop-color="#7090EE"/><stop offset="100%" stop-color="#142A6A"/></linearGradient>
+<linearGradient id="g23" x1="280.0" y1="300.0" x2="250.0" y2="367.8" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#EEF2FD"/><stop offset="28%" stop-color="#96AEF2"/><stop offset="62%" stop-color="#3966E8"/><stop offset="100%" stop-color="#1B398F"/></linearGradient>
+<radialGradient id="spec24" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="g25" x1="340.0" y1="420.0" x2="340.0" y2="504.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#E5F0FA"/><stop offset="9%" stop-color="#68A5E1"/><stop offset="34%" stop-color="#277ED4"/><stop offset="55%" stop-color="#123A62"/><stop offset="72%" stop-color="#0C2640"/><stop offset="87%" stop-color="#93BEEA"/><stop offset="100%" stop-color="#143F6A"/></linearGradient>
+<linearGradient id="g26" x1="424.0" y1="420.0" x2="454.0" y2="504.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#1A538C"/><stop offset="45%" stop-color="#0E2D4C"/><stop offset="72%" stop-color="#6CA7E2"/><stop offset="100%" stop-color="#123A62"/></linearGradient>
+<linearGradient id="g27" x1="370.0" y1="390.0" x2="340.0" y2="457.8" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#EEF5FC"/><stop offset="28%" stop-color="#93BEEA"/><stop offset="62%" stop-color="#3486D7"/><stop offset="100%" stop-color="#184E83"/></linearGradient>
+<radialGradient id="spec28" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="g29" x1="430.0" y1="510.0" x2="430.0" y2="594.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#E5F4F8"/><stop offset="9%" stop-color="#65BCD4"/><stop offset="34%" stop-color="#23A0C2"/><stop offset="55%" stop-color="#104A59"/><stop offset="72%" stop-color="#0A303A"/><stop offset="87%" stop-color="#91D0E0"/><stop offset="100%" stop-color="#125061"/></linearGradient>
+<linearGradient id="g30" x1="514.0" y1="510.0" x2="544.0" y2="594.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#176A80"/><stop offset="45%" stop-color="#0D3A46"/><stop offset="72%" stop-color="#69BED6"/><stop offset="100%" stop-color="#104A59"/></linearGradient>
+<linearGradient id="g31" x1="460.0" y1="480.0" x2="430.0" y2="547.8" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#EDF7FA"/><stop offset="28%" stop-color="#91D0E0"/><stop offset="62%" stop-color="#30A6C6"/><stop offset="100%" stop-color="#166378"/></linearGradient>
+<radialGradient id="spec32" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="g33" x1="520.0" y1="600.0" x2="520.0" y2="684.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#E4F8F6"/><stop offset="9%" stop-color="#62D4C8"/><stop offset="34%" stop-color="#1EC2B0"/><stop offset="55%" stop-color="#0E5951"/><stop offset="72%" stop-color="#093A35"/><stop offset="87%" stop-color="#8EE0D8"/><stop offset="100%" stop-color="#0F6158"/></linearGradient>
+<linearGradient id="g34" x1="604.0" y1="600.0" x2="634.0" y2="684.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#148074"/><stop offset="45%" stop-color="#0B463F"/><stop offset="72%" stop-color="#66D6C9"/><stop offset="100%" stop-color="#0E5951"/></linearGradient>
+<linearGradient id="g35" x1="550.0" y1="570.0" x2="520.0" y2="637.8" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#EDFAF9"/><stop offset="28%" stop-color="#8EE0D8"/><stop offset="62%" stop-color="#2CC6B5"/><stop offset="100%" stop-color="#13786D"/></linearGradient>
+<radialGradient id="spec36" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="g37" x1="250.0" y1="420.0" x2="250.0" y2="504.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#E6EBFC"/><stop offset="9%" stop-color="#6B8DEE"/><stop offset="34%" stop-color="#2C5CE6"/><stop offset="55%" stop-color="#142A6A"/><stop offset="72%" stop-color="#0D1C45"/><stop offset="87%" stop-color="#96AEF2"/><stop offset="100%" stop-color="#162E73"/></linearGradient>
+<linearGradient id="g38" x1="334.0" y1="420.0" x2="364.0" y2="504.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#1D3D98"/><stop offset="45%" stop-color="#102153"/><stop offset="72%" stop-color="#7090EE"/><stop offset="100%" stop-color="#142A6A"/></linearGradient>
+<linearGradient id="g39" x1="280.0" y1="390.0" x2="250.0" y2="457.8" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#EEF2FD"/><stop offset="28%" stop-color="#96AEF2"/><stop offset="62%" stop-color="#3966E8"/><stop offset="100%" stop-color="#1B398F"/></linearGradient>
+<radialGradient id="spec40" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="g41" x1="340.0" y1="510.0" x2="340.0" y2="594.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#E5F0FA"/><stop offset="9%" stop-color="#68A5E1"/><stop offset="34%" stop-color="#277ED4"/><stop offset="55%" stop-color="#123A62"/><stop offset="72%" stop-color="#0C2640"/><stop offset="87%" stop-color="#93BEEA"/><stop offset="100%" stop-color="#143F6A"/></linearGradient>
+<linearGradient id="g42" x1="424.0" y1="510.0" x2="454.0" y2="594.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#1A538C"/><stop offset="45%" stop-color="#0E2D4C"/><stop offset="72%" stop-color="#6CA7E2"/><stop offset="100%" stop-color="#123A62"/></linearGradient>
+<linearGradient id="g43" x1="370.0" y1="480.0" x2="340.0" y2="547.8" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#EEF5FC"/><stop offset="28%" stop-color="#93BEEA"/><stop offset="62%" stop-color="#3486D7"/><stop offset="100%" stop-color="#184E83"/></linearGradient>
+<radialGradient id="spec44" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="g45" x1="430.0" y1="600.0" x2="430.0" y2="684.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#E5F4F8"/><stop offset="9%" stop-color="#65BCD4"/><stop offset="34%" stop-color="#23A0C2"/><stop offset="55%" stop-color="#104A59"/><stop offset="72%" stop-color="#0A303A"/><stop offset="87%" stop-color="#91D0E0"/><stop offset="100%" stop-color="#125061"/></linearGradient>
+<linearGradient id="g46" x1="514.0" y1="600.0" x2="544.0" y2="684.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#176A80"/><stop offset="45%" stop-color="#0D3A46"/><stop offset="72%" stop-color="#69BED6"/><stop offset="100%" stop-color="#104A59"/></linearGradient>
+<linearGradient id="g47" x1="460.0" y1="570.0" x2="430.0" y2="637.8" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#EDF7FA"/><stop offset="28%" stop-color="#91D0E0"/><stop offset="62%" stop-color="#30A6C6"/><stop offset="100%" stop-color="#166378"/></linearGradient>
+<radialGradient id="spec48" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="g49" x1="886.0" y1="150.0" x2="886.0" y2="234.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#F0FAE5"/><stop offset="9%" stop-color="#A8E268"/><stop offset="34%" stop-color="#83D528"/><stop offset="55%" stop-color="#3C6212"/><stop offset="72%" stop-color="#27400C"/><stop offset="87%" stop-color="#C1EA94"/><stop offset="100%" stop-color="#426A14"/></linearGradient>
+<linearGradient id="g50" x1="970.0" y1="150.0" x2="1000.0" y2="234.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#568D1A"/><stop offset="45%" stop-color="#2F4D0E"/><stop offset="72%" stop-color="#ABE26D"/><stop offset="100%" stop-color="#3C6212"/></linearGradient>
+<linearGradient id="g51" x1="916.0" y1="120.0" x2="886.0" y2="187.8" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#F5FCEE"/><stop offset="28%" stop-color="#C1EA94"/><stop offset="62%" stop-color="#8AD835"/><stop offset="100%" stop-color="#518419"/></linearGradient>
+<radialGradient id="spec52" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="g53" x1="976.0" y1="240.0" x2="976.0" y2="324.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#F5FAE5"/><stop offset="9%" stop-color="#C4E265"/><stop offset="34%" stop-color="#ABD623"/><stop offset="55%" stop-color="#4F6210"/><stop offset="72%" stop-color="#33400A"/><stop offset="87%" stop-color="#D5EA91"/><stop offset="100%" stop-color="#566B12"/></linearGradient>
+<linearGradient id="g54" x1="1060.0" y1="240.0" x2="1090.0" y2="324.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#718D17"/><stop offset="45%" stop-color="#3E4D0D"/><stop offset="72%" stop-color="#C6E369"/><stop offset="100%" stop-color="#4F6210"/></linearGradient>
+<linearGradient id="g55" x1="1006.0" y1="210.0" x2="976.0" y2="277.8" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#F8FCED"/><stop offset="28%" stop-color="#D5EA91"/><stop offset="62%" stop-color="#B0D830"/><stop offset="100%" stop-color="#6A8516"/></linearGradient>
+<radialGradient id="spec56" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="g57" x1="1066.0" y1="330.0" x2="1066.0" y2="414.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#FAFAE4"/><stop offset="9%" stop-color="#E0E362"/><stop offset="34%" stop-color="#D3D71E"/><stop offset="55%" stop-color="#61630E"/><stop offset="72%" stop-color="#3F4009"/><stop offset="87%" stop-color="#E9EB8E"/><stop offset="100%" stop-color="#6A6C0F"/></linearGradient>
+<linearGradient id="g58" x1="1150.0" y1="330.0" x2="1180.0" y2="414.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#8B8E14"/><stop offset="45%" stop-color="#4C4D0B"/><stop offset="72%" stop-color="#E1E466"/><stop offset="100%" stop-color="#61630E"/></linearGradient>
+<linearGradient id="g59" x1="1096.0" y1="300.0" x2="1066.0" y2="367.8" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#FBFCED"/><stop offset="28%" stop-color="#E9EB8E"/><stop offset="62%" stop-color="#D6D92C"/><stop offset="100%" stop-color="#838513"/></linearGradient>
+<radialGradient id="spec60" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="g61" x1="796.0" y1="150.0" x2="796.0" y2="234.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#ECFAE6"/><stop offset="9%" stop-color="#91E16B"/><stop offset="34%" stop-color="#62D42C"/><stop offset="55%" stop-color="#2D6214"/><stop offset="72%" stop-color="#1D400D"/><stop offset="87%" stop-color="#B0EA96"/><stop offset="100%" stop-color="#316A16"/></linearGradient>
+<linearGradient id="g62" x1="880.0" y1="150.0" x2="910.0" y2="234.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#418C1D"/><stop offset="45%" stop-color="#234C10"/><stop offset="72%" stop-color="#94E270"/><stop offset="100%" stop-color="#2D6214"/></linearGradient>
+<linearGradient id="g63" x1="826.0" y1="120.0" x2="796.0" y2="187.8" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#F2FCEE"/><stop offset="28%" stop-color="#B0EA96"/><stop offset="62%" stop-color="#6BD739"/><stop offset="100%" stop-color="#3D831B"/></linearGradient>
+<radialGradient id="spec64" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="g65" x1="886.0" y1="240.0" x2="886.0" y2="324.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#F1FAE5"/><stop offset="9%" stop-color="#ADE268"/><stop offset="34%" stop-color="#8AD527"/><stop offset="55%" stop-color="#3F6212"/><stop offset="72%" stop-color="#29400C"/><stop offset="87%" stop-color="#C4EA93"/><stop offset="100%" stop-color="#456A14"/></linearGradient>
+<linearGradient id="g66" x1="970.0" y1="240.0" x2="1000.0" y2="324.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#5B8D1A"/><stop offset="45%" stop-color="#324D0E"/><stop offset="72%" stop-color="#AFE26C"/><stop offset="100%" stop-color="#3F6212"/></linearGradient>
+<linearGradient id="g67" x1="916.0" y1="210.0" x2="886.0" y2="277.8" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#F6FCEE"/><stop offset="28%" stop-color="#C4EA93"/><stop offset="62%" stop-color="#91D834"/><stop offset="100%" stop-color="#568418"/></linearGradient>
+<radialGradient id="spec68" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="g69" x1="976.0" y1="330.0" x2="976.0" y2="414.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#F6FAE4"/><stop offset="9%" stop-color="#CAE264"/><stop offset="34%" stop-color="#B3D622"/><stop offset="55%" stop-color="#526210"/><stop offset="72%" stop-color="#36400A"/><stop offset="87%" stop-color="#D9EA90"/><stop offset="100%" stop-color="#5A6B11"/></linearGradient>
+<linearGradient id="g70" x1="1060.0" y1="330.0" x2="1090.0" y2="414.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#768D16"/><stop offset="45%" stop-color="#404D0C"/><stop offset="72%" stop-color="#CBE369"/><stop offset="100%" stop-color="#526210"/></linearGradient>
+<linearGradient id="g71" x1="1006.0" y1="300.0" x2="976.0" y2="367.8" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#F9FCED"/><stop offset="28%" stop-color="#D9EA90"/><stop offset="62%" stop-color="#B8D82F"/><stop offset="100%" stop-color="#6F8515"/></linearGradient>
+<radialGradient id="spec72" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="g73" x1="1066.0" y1="420.0" x2="1066.0" y2="504.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#FBFAE4"/><stop offset="9%" stop-color="#E6E461"/><stop offset="34%" stop-color="#DBD81D"/><stop offset="55%" stop-color="#65630D"/><stop offset="72%" stop-color="#424109"/><stop offset="87%" stop-color="#EDEC8E"/><stop offset="100%" stop-color="#6E6C0E"/></linearGradient>
+<linearGradient id="g74" x1="1150.0" y1="420.0" x2="1180.0" y2="504.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#918F13"/><stop offset="45%" stop-color="#4F4E0A"/><stop offset="72%" stop-color="#E7E465"/><stop offset="100%" stop-color="#65630D"/></linearGradient>
+<linearGradient id="g75" x1="1096.0" y1="390.0" x2="1066.0" y2="457.8" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#FCFCED"/><stop offset="28%" stop-color="#EDEC8E"/><stop offset="62%" stop-color="#DDDA2B"/><stop offset="100%" stop-color="#888612"/></linearGradient>
+<radialGradient id="spec76" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="g77" x1="976.0" y1="420.0" x2="976.0" y2="504.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#F7FAE4"/><stop offset="9%" stop-color="#CFE364"/><stop offset="34%" stop-color="#BAD721"/><stop offset="55%" stop-color="#56630F"/><stop offset="72%" stop-color="#38400A"/><stop offset="87%" stop-color="#DCEB90"/><stop offset="100%" stop-color="#5D6C10"/></linearGradient>
+<linearGradient id="g78" x1="1060.0" y1="420.0" x2="1090.0" y2="504.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#7B8E16"/><stop offset="45%" stop-color="#434D0C"/><stop offset="72%" stop-color="#D0E468"/><stop offset="100%" stop-color="#56630F"/></linearGradient>
+<linearGradient id="g79" x1="1006.0" y1="390.0" x2="976.0" y2="457.8" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#F9FCED"/><stop offset="28%" stop-color="#DCEB90"/><stop offset="62%" stop-color="#BED92E"/><stop offset="100%" stop-color="#738514"/></linearGradient>
+<radialGradient id="spec80" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="g81" x1="976.0" y1="510.0" x2="976.0" y2="594.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#F8FAE4"/><stop offset="9%" stop-color="#D4E363"/><stop offset="34%" stop-color="#C2D720"/><stop offset="55%" stop-color="#59630F"/><stop offset="72%" stop-color="#3A400A"/><stop offset="87%" stop-color="#E0EB90"/><stop offset="100%" stop-color="#616C10"/></linearGradient>
+<linearGradient id="g82" x1="1060.0" y1="510.0" x2="1090.0" y2="594.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#808E15"/><stop offset="45%" stop-color="#464D0C"/><stop offset="72%" stop-color="#D6E467"/><stop offset="100%" stop-color="#59630F"/></linearGradient>
+<linearGradient id="g83" x1="1006.0" y1="480.0" x2="976.0" y2="547.8" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#FAFCED"/><stop offset="28%" stop-color="#E0EB90"/><stop offset="62%" stop-color="#C6D92D"/><stop offset="100%" stop-color="#788514"/></linearGradient>
+<radialGradient id="spec84" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="g85" x1="886.0" y1="510.0" x2="886.0" y2="594.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#F4FAE5"/><stop offset="9%" stop-color="#BDE266"/><stop offset="34%" stop-color="#A1D624"/><stop offset="55%" stop-color="#4A6211"/><stop offset="72%" stop-color="#30400B"/><stop offset="87%" stop-color="#D0EA92"/><stop offset="100%" stop-color="#506B12"/></linearGradient>
+<linearGradient id="g86" x1="970.0" y1="510.0" x2="1000.0" y2="594.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#6A8D18"/><stop offset="45%" stop-color="#3A4D0D"/><stop offset="72%" stop-color="#BFE36A"/><stop offset="100%" stop-color="#4A6211"/></linearGradient>
+<linearGradient id="g87" x1="916.0" y1="480.0" x2="886.0" y2="547.8" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#F7FCED"/><stop offset="28%" stop-color="#D0EA92"/><stop offset="62%" stop-color="#A7D831"/><stop offset="100%" stop-color="#648516"/></linearGradient>
+<radialGradient id="spec88" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="g89" x1="886.0" y1="600.0" x2="886.0" y2="684.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#F5FAE5"/><stop offset="9%" stop-color="#C3E265"/><stop offset="34%" stop-color="#A9D623"/><stop offset="55%" stop-color="#4E6210"/><stop offset="72%" stop-color="#33400A"/><stop offset="87%" stop-color="#D4EA91"/><stop offset="100%" stop-color="#546B12"/></linearGradient>
+<linearGradient id="g90" x1="970.0" y1="600.0" x2="1000.0" y2="684.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#708D17"/><stop offset="45%" stop-color="#3D4D0D"/><stop offset="72%" stop-color="#C5E369"/><stop offset="100%" stop-color="#4E6210"/></linearGradient>
+<linearGradient id="g91" x1="916.0" y1="570.0" x2="886.0" y2="637.8" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#F8FCED"/><stop offset="28%" stop-color="#D4EA91"/><stop offset="62%" stop-color="#AED830"/><stop offset="100%" stop-color="#698516"/></linearGradient>
+<radialGradient id="spec92" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="g93" x1="796.0" y1="600.0" x2="796.0" y2="684.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#F1FAE5"/><stop offset="9%" stop-color="#ACE268"/><stop offset="34%" stop-color="#88D527"/><stop offset="55%" stop-color="#3F6212"/><stop offset="72%" stop-color="#29400C"/><stop offset="87%" stop-color="#C4EA93"/><stop offset="100%" stop-color="#446A14"/></linearGradient>
+<linearGradient id="g94" x1="880.0" y1="600.0" x2="910.0" y2="684.0" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#5A8D1A"/><stop offset="45%" stop-color="#314D0E"/><stop offset="72%" stop-color="#AEE26C"/><stop offset="100%" stop-color="#3F6212"/></linearGradient>
+<linearGradient id="g95" x1="826.0" y1="570.0" x2="796.0" y2="637.8" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#F5FCEE"/><stop offset="28%" stop-color="#C4EA93"/><stop offset="62%" stop-color="#8FD834"/><stop offset="100%" stop-color="#548418"/></linearGradient>
+<radialGradient id="spec96" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/><stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.55"/><stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<radialGradient id="bg" cx="50%" cy="40%" r="78%">
+ <stop offset="0%" stop-color="#F6F8FA"/><stop offset="58%" stop-color="#E9ECEF"/>
+ <stop offset="100%" stop-color="#D9DDE2"/></radialGradient>
+<filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+ <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#0F1B2D" flood-opacity="0.22"/></filter>
+<filter id="contact" x="-50%" y="-50%" width="200%" height="200%">
+ <feGaussianBlur stdDeviation="7"/></filter>
+<filter id="blur8" x="-60%" y="-60%" width="220%" height="220%">
+ <feGaussianBlur stdDeviation="9"/></filter>
+<linearGradient id="caustic" x1="0%" y1="0%" x2="100%" y2="0%">
+ <stop offset="0%" stop-color="#FF7A18" stop-opacity="0.5"/>
+ <stop offset="50%" stop-color="#D34BF0" stop-opacity="0.5"/>
+ <stop offset="100%" stop-color="#22D3EE" stop-opacity="0.5"/></linearGradient>
+<linearGradient id="gemFront" x1="0%" y1="100%" x2="100%" y2="0%">
+ <stop offset="0%" stop-color="#FF7A18"/><stop offset="28%" stop-color="#FF3D9A"/>
+ <stop offset="56%" stop-color="#D34BF0"/><stop offset="80%" stop-color="#5B8DF7"/>
+ <stop offset="100%" stop-color="#22D3EE"/></linearGradient>
+<linearGradient id="gemTop" x1="0%" y1="100%" x2="100%" y2="0%">
+ <stop offset="0%" stop-color="#FFCE8A"/><stop offset="40%" stop-color="#FF9AD8"/>
+ <stop offset="74%" stop-color="#C0AEFF"/><stop offset="100%" stop-color="#9CEAFF"/></linearGradient>
+<linearGradient id="gemRight" x1="0%" y1="100%" x2="100%" y2="0%">
+ <stop offset="0%" stop-color="#FF5BA0"/><stop offset="50%" stop-color="#9A5FE6"/>
+ <stop offset="100%" stop-color="#37B6F0"/></linearGradient>
+<radialGradient id="gemGlow" cx="45%" cy="40%" r="62%">
+ <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/>
+ <stop offset="45%" stop-color="#FFFFFF" stop-opacity="0.30"/>
+ <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+<linearGradient id="metalBand" x1="0%" y1="0%" x2="0%" y2="100%">
+ <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.85"/>
+ <stop offset="14%" stop-color="#FFFFFF" stop-opacity="0.05"/>
+ <stop offset="40%" stop-color="#000000" stop-opacity="0.10"/>
+ <stop offset="58%" stop-color="#000000" stop-opacity="0.35"/>
+ <stop offset="78%" stop-color="#FFFFFF" stop-opacity="0.55"/>
+ <stop offset="100%" stop-color="#000000" stop-opacity="0.30"/></linearGradient>
+<linearGradient id="metalBandTop" x1="0%" y1="100%" x2="100%" y2="0%">
+ <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.7"/>
+ <stop offset="45%" stop-color="#FFFFFF" stop-opacity="0.05"/>
+ <stop offset="100%" stop-color="#000000" stop-opacity="0.18"/></linearGradient></defs><rect x="0" y="0" width="1400" height="880" fill="url(#bg)"/>
+<g filter="url(#contact)">
+<ellipse cx="472.0" cy="240.0" rx="42.0" ry="10" fill="#11233A" fill-opacity="0.25"/>
+<ellipse cx="562.0" cy="240.0" rx="42.0" ry="10" fill="#11233A" fill-opacity="0.25"/>
+<ellipse cx="382.0" cy="330.0" rx="42.0" ry="10" fill="#11233A" fill-opacity="0.25"/>
+<ellipse cx="472.0" cy="330.0" rx="42.0" ry="10" fill="#11233A" fill-opacity="0.25"/>
+<ellipse cx="292.0" cy="420.0" rx="42.0" ry="10" fill="#11233A" fill-opacity="0.25"/>
+<ellipse cx="382.0" cy="420.0" rx="42.0" ry="10" fill="#11233A" fill-opacity="0.25"/>
+<ellipse cx="292.0" cy="510.0" rx="42.0" ry="10" fill="#11233A" fill-opacity="0.25"/>
+<ellipse cx="382.0" cy="510.0" rx="42.0" ry="10" fill="#11233A" fill-opacity="0.25"/>
+<ellipse cx="382.0" cy="600.0" rx="42.0" ry="10" fill="#11233A" fill-opacity="0.25"/>
+<ellipse cx="472.0" cy="600.0" rx="42.0" ry="10" fill="#11233A" fill-opacity="0.25"/>
+<ellipse cx="472.0" cy="690.0" rx="42.0" ry="10" fill="#11233A" fill-opacity="0.25"/>
+<ellipse cx="562.0" cy="690.0" rx="42.0" ry="10" fill="#11233A" fill-opacity="0.25"/>
+<ellipse cx="838.0" cy="240.0" rx="42.0" ry="10" fill="#11233A" fill-opacity="0.25"/>
+<ellipse cx="928.0" cy="240.0" rx="42.0" ry="10" fill="#11233A" fill-opacity="0.25"/>
+<ellipse cx="928.0" cy="330.0" rx="42.0" ry="10" fill="#11233A" fill-opacity="0.25"/>
+<ellipse cx="1018.0" cy="330.0" rx="42.0" ry="10" fill="#11233A" fill-opacity="0.25"/>
+<ellipse cx="1018.0" cy="420.0" rx="42.0" ry="10" fill="#11233A" fill-opacity="0.25"/>
+<ellipse cx="1108.0" cy="420.0" rx="42.0" ry="10" fill="#11233A" fill-opacity="0.25"/>
+<ellipse cx="1018.0" cy="510.0" rx="42.0" ry="10" fill="#11233A" fill-opacity="0.25"/>
+<ellipse cx="1108.0" cy="510.0" rx="42.0" ry="10" fill="#11233A" fill-opacity="0.25"/>
+<ellipse cx="928.0" cy="600.0" rx="42.0" ry="10" fill="#11233A" fill-opacity="0.25"/>
+<ellipse cx="1018.0" cy="600.0" rx="42.0" ry="10" fill="#11233A" fill-opacity="0.25"/>
+<ellipse cx="838.0" cy="690.0" rx="42.0" ry="10" fill="#11233A" fill-opacity="0.25"/>
+<ellipse cx="928.0" cy="690.0" rx="42.0" ry="10" fill="#11233A" fill-opacity="0.25"/>
+</g>
+<g filter="url(#soft)">
+<polygon points="604.0,150.0 634.0,120.0 634.0,204.0 604.0,234.0" fill="url(#g2)" stroke="url(#g2)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="520.0,150.0 604.0,150.0 604.0,234.0 520.0,234.0" fill="url(#g1)" stroke="url(#g1)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="520.0,150.0 604.0,150.0 634.0,120.0 550.0,120.0" fill="url(#g3)" stroke="url(#g3)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="527.0" y1="150.0" x2="597.0" y2="150.0" stroke="#DDF6F3" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="550.0" y1="120.0" x2="634.0" y2="120.0" stroke="#DDF6F3" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="604.0" y1="150.0" x2="634.0" y2="120.0" stroke="#DDF6F3" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="520.0" y1="157.0" x2="520.0" y2="227.0" stroke="#DDF6F3" stroke-opacity="0.35" stroke-width="2.0" stroke-linecap="round"/>
+<ellipse cx="558.9" cy="135.0" rx="13.4" ry="7.1" fill="url(#spec4)"/>
+<polygon points="514.0,150.0 544.0,120.0 544.0,204.0 514.0,234.0" fill="url(#g6)" stroke="url(#g6)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="430.0,150.0 514.0,150.0 514.0,234.0 430.0,234.0" fill="url(#g5)" stroke="url(#g5)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="430.0,150.0 514.0,150.0 544.0,120.0 460.0,120.0" fill="url(#g7)" stroke="url(#g7)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="437.0" y1="150.0" x2="507.0" y2="150.0" stroke="#DEF1F6" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="460.0" y1="120.0" x2="544.0" y2="120.0" stroke="#DEF1F6" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="514.0" y1="150.0" x2="544.0" y2="120.0" stroke="#DEF1F6" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="430.0" y1="157.0" x2="430.0" y2="227.0" stroke="#DEF1F6" stroke-opacity="0.35" stroke-width="2.0" stroke-linecap="round"/>
+<ellipse cx="468.9" cy="135.0" rx="13.4" ry="7.1" fill="url(#spec8)"/>
+<polygon points="514.0,240.0 544.0,210.0 544.0,294.0 514.0,324.0" fill="url(#g10)" stroke="url(#g10)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="430.0,240.0 514.0,240.0 514.0,324.0 430.0,324.0" fill="url(#g9)" stroke="url(#g9)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="430.0,240.0 514.0,240.0 544.0,210.0 460.0,210.0" fill="url(#g11)" stroke="url(#g11)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="437.0" y1="240.0" x2="507.0" y2="240.0" stroke="#DEF1F6" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="460.0" y1="210.0" x2="544.0" y2="210.0" stroke="#DEF1F6" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="514.0" y1="240.0" x2="544.0" y2="210.0" stroke="#DEF1F6" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="430.0" y1="247.0" x2="430.0" y2="317.0" stroke="#DEF1F6" stroke-opacity="0.35" stroke-width="2.0" stroke-linecap="round"/>
+<ellipse cx="468.9" cy="225.0" rx="13.4" ry="7.1" fill="url(#spec12)"/>
+<polygon points="424.0,240.0 454.0,210.0 454.0,294.0 424.0,324.0" fill="url(#g14)" stroke="url(#g14)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="340.0,240.0 424.0,240.0 424.0,324.0 340.0,324.0" fill="url(#g13)" stroke="url(#g13)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="340.0,240.0 424.0,240.0 454.0,210.0 370.0,210.0" fill="url(#g15)" stroke="url(#g15)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="347.0" y1="240.0" x2="417.0" y2="240.0" stroke="#DFECF9" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="370.0" y1="210.0" x2="454.0" y2="210.0" stroke="#DFECF9" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="424.0" y1="240.0" x2="454.0" y2="210.0" stroke="#DFECF9" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="340.0" y1="247.0" x2="340.0" y2="317.0" stroke="#DFECF9" stroke-opacity="0.35" stroke-width="2.0" stroke-linecap="round"/>
+<ellipse cx="378.9" cy="225.0" rx="13.4" ry="7.1" fill="url(#spec16)"/>
+<polygon points="424.0,330.0 454.0,300.0 454.0,384.0 424.0,414.0" fill="url(#g18)" stroke="url(#g18)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="340.0,330.0 424.0,330.0 424.0,414.0 340.0,414.0" fill="url(#g17)" stroke="url(#g17)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="340.0,330.0 424.0,330.0 454.0,300.0 370.0,300.0" fill="url(#g19)" stroke="url(#g19)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="347.0" y1="330.0" x2="417.0" y2="330.0" stroke="#DFECF9" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="370.0" y1="300.0" x2="454.0" y2="300.0" stroke="#DFECF9" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="424.0" y1="330.0" x2="454.0" y2="300.0" stroke="#DFECF9" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="340.0" y1="337.0" x2="340.0" y2="407.0" stroke="#DFECF9" stroke-opacity="0.35" stroke-width="2.0" stroke-linecap="round"/>
+<ellipse cx="378.9" cy="315.0" rx="13.4" ry="7.1" fill="url(#spec20)"/>
+<polygon points="334.0,330.0 364.0,300.0 364.0,384.0 334.0,414.0" fill="url(#g22)" stroke="url(#g22)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="250.0,330.0 334.0,330.0 334.0,414.0 250.0,414.0" fill="url(#g21)" stroke="url(#g21)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="250.0,330.0 334.0,330.0 364.0,300.0 280.0,300.0" fill="url(#g23)" stroke="url(#g23)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="257.0" y1="330.0" x2="327.0" y2="330.0" stroke="#DFE7FB" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="280.0" y1="300.0" x2="364.0" y2="300.0" stroke="#DFE7FB" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="334.0" y1="330.0" x2="364.0" y2="300.0" stroke="#DFE7FB" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="250.0" y1="337.0" x2="250.0" y2="407.0" stroke="#DFE7FB" stroke-opacity="0.35" stroke-width="2.0" stroke-linecap="round"/>
+<ellipse cx="288.9" cy="315.0" rx="13.4" ry="7.1" fill="url(#spec24)"/>
+<polygon points="424.0,420.0 454.0,390.0 454.0,474.0 424.0,504.0" fill="url(#g26)" stroke="url(#g26)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="340.0,420.0 424.0,420.0 424.0,504.0 340.0,504.0" fill="url(#g25)" stroke="url(#g25)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="340.0,420.0 424.0,420.0 454.0,390.0 370.0,390.0" fill="url(#g27)" stroke="url(#g27)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="347.0" y1="420.0" x2="417.0" y2="420.0" stroke="#DFECF9" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="370.0" y1="390.0" x2="454.0" y2="390.0" stroke="#DFECF9" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="424.0" y1="420.0" x2="454.0" y2="390.0" stroke="#DFECF9" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="340.0" y1="427.0" x2="340.0" y2="497.0" stroke="#DFECF9" stroke-opacity="0.35" stroke-width="2.0" stroke-linecap="round"/>
+<ellipse cx="378.9" cy="405.0" rx="13.4" ry="7.1" fill="url(#spec28)"/>
+<polygon points="514.0,510.0 544.0,480.0 544.0,564.0 514.0,594.0" fill="url(#g30)" stroke="url(#g30)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="430.0,510.0 514.0,510.0 514.0,594.0 430.0,594.0" fill="url(#g29)" stroke="url(#g29)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="430.0,510.0 514.0,510.0 544.0,480.0 460.0,480.0" fill="url(#g31)" stroke="url(#g31)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="437.0" y1="510.0" x2="507.0" y2="510.0" stroke="#DEF1F6" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="460.0" y1="480.0" x2="544.0" y2="480.0" stroke="#DEF1F6" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="514.0" y1="510.0" x2="544.0" y2="480.0" stroke="#DEF1F6" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="430.0" y1="517.0" x2="430.0" y2="587.0" stroke="#DEF1F6" stroke-opacity="0.35" stroke-width="2.0" stroke-linecap="round"/>
+<ellipse cx="468.9" cy="495.0" rx="13.4" ry="7.1" fill="url(#spec32)"/>
+<polygon points="604.0,600.0 634.0,570.0 634.0,654.0 604.0,684.0" fill="url(#g34)" stroke="url(#g34)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="520.0,600.0 604.0,600.0 604.0,684.0 520.0,684.0" fill="url(#g33)" stroke="url(#g33)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="520.0,600.0 604.0,600.0 634.0,570.0 550.0,570.0" fill="url(#g35)" stroke="url(#g35)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="527.0" y1="600.0" x2="597.0" y2="600.0" stroke="#DDF6F3" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="550.0" y1="570.0" x2="634.0" y2="570.0" stroke="#DDF6F3" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="604.0" y1="600.0" x2="634.0" y2="570.0" stroke="#DDF6F3" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="520.0" y1="607.0" x2="520.0" y2="677.0" stroke="#DDF6F3" stroke-opacity="0.35" stroke-width="2.0" stroke-linecap="round"/>
+<ellipse cx="558.9" cy="585.0" rx="13.4" ry="7.1" fill="url(#spec36)"/>
+<polygon points="334.0,420.0 364.0,390.0 364.0,474.0 334.0,504.0" fill="url(#g38)" stroke="url(#g38)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="250.0,420.0 334.0,420.0 334.0,504.0 250.0,504.0" fill="url(#g37)" stroke="url(#g37)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="250.0,420.0 334.0,420.0 364.0,390.0 280.0,390.0" fill="url(#g39)" stroke="url(#g39)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="257.0" y1="420.0" x2="327.0" y2="420.0" stroke="#DFE7FB" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="280.0" y1="390.0" x2="364.0" y2="390.0" stroke="#DFE7FB" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="334.0" y1="420.0" x2="364.0" y2="390.0" stroke="#DFE7FB" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="250.0" y1="427.0" x2="250.0" y2="497.0" stroke="#DFE7FB" stroke-opacity="0.35" stroke-width="2.0" stroke-linecap="round"/>
+<ellipse cx="288.9" cy="405.0" rx="13.4" ry="7.1" fill="url(#spec40)"/>
+<polygon points="424.0,510.0 454.0,480.0 454.0,564.0 424.0,594.0" fill="url(#g42)" stroke="url(#g42)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="340.0,510.0 424.0,510.0 424.0,594.0 340.0,594.0" fill="url(#g41)" stroke="url(#g41)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="340.0,510.0 424.0,510.0 454.0,480.0 370.0,480.0" fill="url(#g43)" stroke="url(#g43)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="347.0" y1="510.0" x2="417.0" y2="510.0" stroke="#DFECF9" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="370.0" y1="480.0" x2="454.0" y2="480.0" stroke="#DFECF9" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="424.0" y1="510.0" x2="454.0" y2="480.0" stroke="#DFECF9" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="340.0" y1="517.0" x2="340.0" y2="587.0" stroke="#DFECF9" stroke-opacity="0.35" stroke-width="2.0" stroke-linecap="round"/>
+<ellipse cx="378.9" cy="495.0" rx="13.4" ry="7.1" fill="url(#spec44)"/>
+<polygon points="514.0,600.0 544.0,570.0 544.0,654.0 514.0,684.0" fill="url(#g46)" stroke="url(#g46)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="430.0,600.0 514.0,600.0 514.0,684.0 430.0,684.0" fill="url(#g45)" stroke="url(#g45)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="430.0,600.0 514.0,600.0 544.0,570.0 460.0,570.0" fill="url(#g47)" stroke="url(#g47)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="437.0" y1="600.0" x2="507.0" y2="600.0" stroke="#DEF1F6" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="460.0" y1="570.0" x2="544.0" y2="570.0" stroke="#DEF1F6" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="514.0" y1="600.0" x2="544.0" y2="570.0" stroke="#DEF1F6" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="430.0" y1="607.0" x2="430.0" y2="677.0" stroke="#DEF1F6" stroke-opacity="0.35" stroke-width="2.0" stroke-linecap="round"/>
+<ellipse cx="468.9" cy="585.0" rx="13.4" ry="7.1" fill="url(#spec48)"/>
+<polygon points="970.0,150.0 1000.0,120.0 1000.0,204.0 970.0,234.0" fill="url(#g50)" stroke="url(#g50)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="886.0,150.0 970.0,150.0 970.0,234.0 886.0,234.0" fill="url(#g49)" stroke="url(#g49)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="886.0,150.0 970.0,150.0 1000.0,120.0 916.0,120.0" fill="url(#g51)" stroke="url(#g51)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="893.0" y1="150.0" x2="963.0" y2="150.0" stroke="#ECF9DF" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="916.0" y1="120.0" x2="1000.0" y2="120.0" stroke="#ECF9DF" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="970.0" y1="150.0" x2="1000.0" y2="120.0" stroke="#ECF9DF" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="886.0" y1="157.0" x2="886.0" y2="227.0" stroke="#ECF9DF" stroke-opacity="0.35" stroke-width="2.0" stroke-linecap="round"/>
+<ellipse cx="924.9" cy="135.0" rx="13.4" ry="7.1" fill="url(#spec52)"/>
+<polygon points="1060.0,240.0 1090.0,210.0 1090.0,294.0 1060.0,324.0" fill="url(#g54)" stroke="url(#g54)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="976.0,240.0 1060.0,240.0 1060.0,324.0 976.0,324.0" fill="url(#g53)" stroke="url(#g53)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="976.0,240.0 1060.0,240.0 1090.0,210.0 1006.0,210.0" fill="url(#g55)" stroke="url(#g55)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="983.0" y1="240.0" x2="1053.0" y2="240.0" stroke="#F2F9DE" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="1006.0" y1="210.0" x2="1090.0" y2="210.0" stroke="#F2F9DE" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="1060.0" y1="240.0" x2="1090.0" y2="210.0" stroke="#F2F9DE" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="976.0" y1="247.0" x2="976.0" y2="317.0" stroke="#F2F9DE" stroke-opacity="0.35" stroke-width="2.0" stroke-linecap="round"/>
+<ellipse cx="1014.9" cy="225.0" rx="13.4" ry="7.1" fill="url(#spec56)"/>
+<polygon points="1150.0,330.0 1180.0,300.0 1180.0,384.0 1150.0,414.0" fill="url(#g58)" stroke="url(#g58)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="1066.0,330.0 1150.0,330.0 1150.0,414.0 1066.0,414.0" fill="url(#g57)" stroke="url(#g57)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="1066.0,330.0 1150.0,330.0 1180.0,300.0 1096.0,300.0" fill="url(#g59)" stroke="url(#g59)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="1073.0" y1="330.0" x2="1143.0" y2="330.0" stroke="#F8F9DD" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="1096.0" y1="300.0" x2="1180.0" y2="300.0" stroke="#F8F9DD" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="1150.0" y1="330.0" x2="1180.0" y2="300.0" stroke="#F8F9DD" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="1066.0" y1="337.0" x2="1066.0" y2="407.0" stroke="#F8F9DD" stroke-opacity="0.35" stroke-width="2.0" stroke-linecap="round"/>
+<ellipse cx="1104.9" cy="315.0" rx="13.4" ry="7.1" fill="url(#spec60)"/>
+<polygon points="880.0,150.0 910.0,120.0 910.0,204.0 880.0,234.0" fill="url(#g62)" stroke="url(#g62)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="796.0,150.0 880.0,150.0 880.0,234.0 796.0,234.0" fill="url(#g61)" stroke="url(#g61)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="796.0,150.0 880.0,150.0 910.0,120.0 826.0,120.0" fill="url(#g63)" stroke="url(#g63)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="803.0" y1="150.0" x2="873.0" y2="150.0" stroke="#E7F9DF" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="826.0" y1="120.0" x2="910.0" y2="120.0" stroke="#E7F9DF" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="880.0" y1="150.0" x2="910.0" y2="120.0" stroke="#E7F9DF" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="796.0" y1="157.0" x2="796.0" y2="227.0" stroke="#E7F9DF" stroke-opacity="0.35" stroke-width="2.0" stroke-linecap="round"/>
+<ellipse cx="834.9" cy="135.0" rx="13.4" ry="7.1" fill="url(#spec64)"/>
+<polygon points="970.0,240.0 1000.0,210.0 1000.0,294.0 970.0,324.0" fill="url(#g66)" stroke="url(#g66)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="886.0,240.0 970.0,240.0 970.0,324.0 886.0,324.0" fill="url(#g65)" stroke="url(#g65)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="886.0,240.0 970.0,240.0 1000.0,210.0 916.0,210.0" fill="url(#g67)" stroke="url(#g67)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="893.0" y1="240.0" x2="963.0" y2="240.0" stroke="#EDF9DF" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="916.0" y1="210.0" x2="1000.0" y2="210.0" stroke="#EDF9DF" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="970.0" y1="240.0" x2="1000.0" y2="210.0" stroke="#EDF9DF" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="886.0" y1="247.0" x2="886.0" y2="317.0" stroke="#EDF9DF" stroke-opacity="0.35" stroke-width="2.0" stroke-linecap="round"/>
+<ellipse cx="924.9" cy="225.0" rx="13.4" ry="7.1" fill="url(#spec68)"/>
+<polygon points="1060.0,330.0 1090.0,300.0 1090.0,384.0 1060.0,414.0" fill="url(#g70)" stroke="url(#g70)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="976.0,330.0 1060.0,330.0 1060.0,414.0 976.0,414.0" fill="url(#g69)" stroke="url(#g69)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="976.0,330.0 1060.0,330.0 1090.0,300.0 1006.0,300.0" fill="url(#g71)" stroke="url(#g71)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="983.0" y1="330.0" x2="1053.0" y2="330.0" stroke="#F4F9DE" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="1006.0" y1="300.0" x2="1090.0" y2="300.0" stroke="#F4F9DE" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="1060.0" y1="330.0" x2="1090.0" y2="300.0" stroke="#F4F9DE" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="976.0" y1="337.0" x2="976.0" y2="407.0" stroke="#F4F9DE" stroke-opacity="0.35" stroke-width="2.0" stroke-linecap="round"/>
+<ellipse cx="1014.9" cy="315.0" rx="13.4" ry="7.1" fill="url(#spec72)"/>
+<polygon points="1150.0,420.0 1180.0,390.0 1180.0,474.0 1150.0,504.0" fill="url(#g74)" stroke="url(#g74)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="1066.0,420.0 1150.0,420.0 1150.0,504.0 1066.0,504.0" fill="url(#g73)" stroke="url(#g73)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="1066.0,420.0 1150.0,420.0 1180.0,390.0 1096.0,390.0" fill="url(#g75)" stroke="url(#g75)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="1073.0" y1="420.0" x2="1143.0" y2="420.0" stroke="#FAF9DD" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="1096.0" y1="390.0" x2="1180.0" y2="390.0" stroke="#FAF9DD" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="1150.0" y1="420.0" x2="1180.0" y2="390.0" stroke="#FAF9DD" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="1066.0" y1="427.0" x2="1066.0" y2="497.0" stroke="#FAF9DD" stroke-opacity="0.35" stroke-width="2.0" stroke-linecap="round"/>
+<ellipse cx="1104.9" cy="405.0" rx="13.4" ry="7.1" fill="url(#spec76)"/>
+<polygon points="1060.0,420.0 1090.0,390.0 1090.0,474.0 1060.0,504.0" fill="url(#g78)" stroke="url(#g78)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="976.0,420.0 1060.0,420.0 1060.0,504.0 976.0,504.0" fill="url(#g77)" stroke="url(#g77)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="976.0,420.0 1060.0,420.0 1090.0,390.0 1006.0,390.0" fill="url(#g79)" stroke="url(#g79)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="983.0" y1="420.0" x2="1053.0" y2="420.0" stroke="#F5F9DE" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="1006.0" y1="390.0" x2="1090.0" y2="390.0" stroke="#F5F9DE" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="1060.0" y1="420.0" x2="1090.0" y2="390.0" stroke="#F5F9DE" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="976.0" y1="427.0" x2="976.0" y2="497.0" stroke="#F5F9DE" stroke-opacity="0.35" stroke-width="2.0" stroke-linecap="round"/>
+<ellipse cx="1014.9" cy="405.0" rx="13.4" ry="7.1" fill="url(#spec80)"/>
+<polygon points="1060.0,510.0 1090.0,480.0 1090.0,564.0 1060.0,594.0" fill="url(#g82)" stroke="url(#g82)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="976.0,510.0 1060.0,510.0 1060.0,594.0 976.0,594.0" fill="url(#g81)" stroke="url(#g81)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="976.0,510.0 1060.0,510.0 1090.0,480.0 1006.0,480.0" fill="url(#g83)" stroke="url(#g83)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="983.0" y1="510.0" x2="1053.0" y2="510.0" stroke="#F6F9DE" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="1006.0" y1="480.0" x2="1090.0" y2="480.0" stroke="#F6F9DE" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="1060.0" y1="510.0" x2="1090.0" y2="480.0" stroke="#F6F9DE" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="976.0" y1="517.0" x2="976.0" y2="587.0" stroke="#F6F9DE" stroke-opacity="0.35" stroke-width="2.0" stroke-linecap="round"/>
+<ellipse cx="1014.9" cy="495.0" rx="13.4" ry="7.1" fill="url(#spec84)"/>
+<polygon points="970.0,510.0 1000.0,480.0 1000.0,564.0 970.0,594.0" fill="url(#g86)" stroke="url(#g86)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="886.0,510.0 970.0,510.0 970.0,594.0 886.0,594.0" fill="url(#g85)" stroke="url(#g85)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="886.0,510.0 970.0,510.0 1000.0,480.0 916.0,480.0" fill="url(#g87)" stroke="url(#g87)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="893.0" y1="510.0" x2="963.0" y2="510.0" stroke="#F1F9DE" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="916.0" y1="480.0" x2="1000.0" y2="480.0" stroke="#F1F9DE" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="970.0" y1="510.0" x2="1000.0" y2="480.0" stroke="#F1F9DE" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="886.0" y1="517.0" x2="886.0" y2="587.0" stroke="#F1F9DE" stroke-opacity="0.35" stroke-width="2.0" stroke-linecap="round"/>
+<ellipse cx="924.9" cy="495.0" rx="13.4" ry="7.1" fill="url(#spec88)"/>
+<polygon points="970.0,600.0 1000.0,570.0 1000.0,654.0 970.0,684.0" fill="url(#g90)" stroke="url(#g90)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="886.0,600.0 970.0,600.0 970.0,684.0 886.0,684.0" fill="url(#g89)" stroke="url(#g89)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="886.0,600.0 970.0,600.0 1000.0,570.0 916.0,570.0" fill="url(#g91)" stroke="url(#g91)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="893.0" y1="600.0" x2="963.0" y2="600.0" stroke="#F2F9DE" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="916.0" y1="570.0" x2="1000.0" y2="570.0" stroke="#F2F9DE" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="970.0" y1="600.0" x2="1000.0" y2="570.0" stroke="#F2F9DE" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="886.0" y1="607.0" x2="886.0" y2="677.0" stroke="#F2F9DE" stroke-opacity="0.35" stroke-width="2.0" stroke-linecap="round"/>
+<ellipse cx="924.9" cy="585.0" rx="13.4" ry="7.1" fill="url(#spec92)"/>
+<polygon points="880.0,600.0 910.0,570.0 910.0,654.0 880.0,684.0" fill="url(#g94)" stroke="url(#g94)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="796.0,600.0 880.0,600.0 880.0,684.0 796.0,684.0" fill="url(#g93)" stroke="url(#g93)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<polygon points="796.0,600.0 880.0,600.0 910.0,570.0 826.0,570.0" fill="url(#g95)" stroke="url(#g95)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="803.0" y1="600.0" x2="873.0" y2="600.0" stroke="#EDF9DF" stroke-opacity="0.85" stroke-width="3.5" stroke-linecap="round"/>
+<line x1="826.0" y1="570.0" x2="910.0" y2="570.0" stroke="#EDF9DF" stroke-opacity="0.55" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="880.0" y1="600.0" x2="910.0" y2="570.0" stroke="#EDF9DF" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+<line x1="796.0" y1="607.0" x2="796.0" y2="677.0" stroke="#EDF9DF" stroke-opacity="0.35" stroke-width="2.0" stroke-linecap="round"/>
+<ellipse cx="834.9" cy="585.0" rx="13.4" ry="7.1" fill="url(#spec96)"/>
+</g>
+<ellipse cx="700.0" cy="481.0" rx="67.1" ry="14" fill="url(#caustic)" filter="url(#blur8)"/>
+<g filter="url(#soft)">
+<polygon points="639.0,341.0 761.0,341.0 803.0,299.0 681.0,299.0"   fill="url(#gemTop)"   stroke="url(#gemTop)"   stroke-width="14" stroke-linejoin="round"/>
+<polygon points="761.0,341.0 803.0,299.0 803.0,421.0 761.0,463.0" fill="url(#gemRight)" stroke="url(#gemRight)" stroke-width="14" stroke-linejoin="round"/>
+<polygon points="639.0,341.0 761.0,341.0 761.0,463.0 639.0,463.0" fill="url(#gemFront)" stroke="url(#gemFront)" stroke-width="14" stroke-linejoin="round"/>
+<polygon points="639.0,341.0 761.0,341.0 761.0,463.0 639.0,463.0" fill="url(#metalBand)"/>
+<polygon points="639.0,341.0 761.0,341.0 803.0,299.0 681.0,299.0"   fill="url(#metalBandTop)"/>
+<line x1="639.0" y1="341.0" x2="761.0" y2="341.0" stroke="#FFFFFF" stroke-opacity="0.7" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="761.0" y1="341.0" x2="803.0" y2="299.0" stroke="#FFFFFF" stroke-opacity="0.7" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="681.0" y1="299.0" x2="639.0" y2="341.0" stroke="#FFFFFF" stroke-opacity="0.7" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="803.0" y1="299.0" x2="681.0" y2="299.0" stroke="#FFFFFF" stroke-opacity="0.7" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="639.0" y1="341.0" x2="761.0" y2="341.0" stroke="#FFFFFF" stroke-opacity="0.7" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="761.0" y1="341.0" x2="761.0" y2="463.0" stroke="#FFFFFF" stroke-opacity="0.7" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="639.0" y1="341.0" x2="639.0" y2="463.0" stroke="#FFFFFF" stroke-opacity="0.7" stroke-width="2.4" stroke-linecap="round"/>
+<line x1="803.0" y1="299.0" x2="803.0" y2="421.0" stroke="#FFFFFF" stroke-opacity="0.7" stroke-width="2.4" stroke-linecap="round"/>
+<ellipse cx="680.5" cy="372.7" rx="19.5" ry="12.2" fill="url(#gemGlow)"/>
+</g></svg>

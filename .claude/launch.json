@@ -1,0 +1,16 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "teable-app",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@teable/app", "dev"],
+      "port": 3000,
+      "env": {
+        "BACKEND_URL": "http://localhost:3002",
+        "BACKEND_PORT": "3002",
+        "PORT": "3000"
+      }
+    }
+  ]
+}

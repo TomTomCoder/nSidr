@@ -1,0 +1,37 @@
+# Phase 18 — External DB Connectors: throwaway external Postgres test fixture
+#
+# External Postgres connection URL: postgresql://extuser:extpass@localhost:5433/extdb
+#
+# Usage:
+#   docker compose -f docker-compose.ext-pg.yml up -d
+#   # Seed data is applied via the init SQL below on first start.
+#   # Connect: psql postgresql://extuser:extpass@localhost:5433/extdb
+#
+# Image tag pinned to a specific stable release (threat model T-18-00-SC).
+# Host port 5433 does NOT collide with Teable's dev Postgres (:5432).
+# This fixture is used by 18-04/18-05 schema introspection + virtual-table tests — read-only.
+
+version: '3.9'
+
+services:
+  ext-postgres:
+    image: postgres:16.3
+    container_name: teable-ext-postgres
+    restart: unless-stopped
+    ports:
+      - '5433:5432'
+    environment:
+      POSTGRES_USER: extuser
+      POSTGRES_PASSWORD: extpass
+      POSTGRES_DB: extdb
+    volumes:
+      - ext_pg_data:/var/lib/postgresql/data
+      - ./scripts/ext-pg-seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U extuser -d extdb']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  ext_pg_data:

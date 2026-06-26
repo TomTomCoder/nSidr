@@ -1,0 +1,61 @@
+
+services:
+  teable:
+    image: ghcr.io/teableio/teable:latest
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      resources:
+        limits:
+          memory: 1g
+          cpus: '1.0'
+        reservations:
+          memory: 256m
+          cpus: '0.25'
+    expose:
+      - '3000'
+    environment:
+      - TZ=${TIMEZONE}
+      - PUBLIC_ORIGIN=${PUBLIC_ORIGIN}
+      - PRISMA_DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      - PUBLIC_DATABASE_PROXY=${PUBLIC_DATABASE_PROXY}
+      - BACKEND_CACHE_PROVIDER=redis
+      # FIX: use REDIS_PASSWORD, not POSTGRES_PASSWORD
+      - BACKEND_CACHE_REDIS_URI=redis://default:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_PORT}/${REDIS_DB}
+      - BACKEND_STORAGE_PROVIDER=${BACKEND_STORAGE_PROVIDER}
+      - BACKEND_STORAGE_PUBLIC_BUCKET=${BACKEND_STORAGE_PUBLIC_BUCKET}
+      - BACKEND_STORAGE_PRIVATE_BUCKET=${BACKEND_STORAGE_PRIVATE_BUCKET}
+      - BACKEND_STORAGE_MINIO_ENDPOINT=${BACKEND_STORAGE_MINIO_ENDPOINT}
+      - BACKEND_STORAGE_MINIO_PORT=${BACKEND_STORAGE_MINIO_PORT}
+      - BACKEND_STORAGE_MINIO_USE_SSL=${BACKEND_STORAGE_MINIO_USE_SSL}
+      - BACKEND_STORAGE_MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - BACKEND_STORAGE_MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - STORAGE_PREFIX=${STORAGE_PREFIX}
+      # AI / LLM — configure at least one provider for the AI chat to work
+      # - AI_PROVIDER=openai        # openai | anthropic | openai_compatible
+      # - OPENAI_API_KEY=sk-...
+      # - ANTHROPIC_API_KEY=sk-ant-...
+      # - AI_MODEL=gpt-4o           # or claude-3-5-sonnet-20241022
+      # Mail — optional
+      # - BACKEND_MAIL_HOST=${BACKEND_MAIL_HOST}
+      # - BACKEND_MAIL_PORT=${BACKEND_MAIL_PORT}
+      # - BACKEND_MAIL_SECURE=${BACKEND_MAIL_SECURE}
+      # - BACKEND_MAIL_SENDER=${BACKEND_MAIL_SENDER}
+      # - BACKEND_MAIL_SENDER_NAME=${BACKEND_MAIL_SENDER_NAME}
+      # - BACKEND_MAIL_AUTH_USER=${BACKEND_MAIL_AUTH_USER}
+      # - BACKEND_MAIL_AUTH_PASS=${BACKEND_MAIL_AUTH_PASS}
+    networks:
+      - teable-frontend   # accepts traffic from gateway
+      - teable-backend    # reaches db, cache, storage
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
+      # Increased from 5s — startup includes Prisma migrations which can take 20-30s on first boot
+      start_period: 30s
+      interval: 10s
+      timeout: 5s
+      retries: 3

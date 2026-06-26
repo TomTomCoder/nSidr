@@ -1,0 +1,116 @@
+# graphify output (can be very large — generated locally, not committed)
+graphify-out/
+
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# and https://github.com/github/gitignore for examples
+
+# local env files (followinf dotenv-flow / nextjs convention)
+
+.env.local
+.env.*.local
+
+# security: atlassian/changeset
+
+**/.netrc
+
+# dependencies
+node_modules
+.pnpm-store/
+.pnp.*
+
+# testing
+/coverage
+.out/
+
+# Debug
+
+**/.debug
+
+# Build directories (next.js...)
+/.next/
+/out/
+/build
+/dist/
+
+# v2 packages build output
+packages/v2/**/dist/
+
+# Next.js auto-generated type definitions
+**/next-env.d.ts
+
+# Cache
+*.tsbuildinfo
+**/.eslintcache
+.cache/*
+.swc/
+apps/playground/src/routeTree.gen.ts
+
+# Misc
+.DS_Store
+*.pem
+.worktrees/
+
+# Debug
+npm-debug.log*
+pnpm-debug.log*
+
+
+# IDE
+**/.idea/*
+!**/.idea/modules.xml
+!**/.idea/*.iml
+.project
+.classpath
+*.launch
+*.sublime-workspace
+
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+
+# Docker overrides
+
+./docker-compose.override.yml
+
+# Deployment platforms
+
+.vercel
+
+# LocalStorage assets
+
+**/.assets
+.github/workflows/
+
+# graphify outputs anywhere in the monorepo
+apps/*/graphify-out/
+
+# Playwright MCP profiles + caches (per-machine, not portable)
+.playwright-mcp/
+playwright_chromiumdev_profile-*/
+playwright-transform-cache-*/
+
+# Node compile cache (machine-local)
+node-compile-cache/
+
+# Claude tool caches (machine-local)
+.claude/.cache/
+
+# Ad-hoc screenshots at repo root (Playwright debug captures)
+/*.png
+/*.jpeg
+/*.jpg
+
+# Ad-hoc debug notes at repo root
+/fix-console-errors.txt
+
+# graphify ignore manifest (machine-local; canonical config lives elsewhere)
+.graphifyignore
+
+# Tool-output subdirs (machine-local / per-session)
+.planning/debug/
+.planning/forensics/
+.planning/graphs/
+.planning/ui-reviews/

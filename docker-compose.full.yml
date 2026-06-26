@@ -1,0 +1,89 @@
+# Option 3 — Full Docker stack (Postgres + Redis + Teable app).
+# Everything runs in containers. No local Node.js setup required.
+# Works on any machine with Docker installed (macOS, Linux, Windows/WSL2).
+#
+# First run (build image from source, ~5-10 min):
+#   pnpm start:docker:build      # builds image from local source
+#   pnpm start:docker            # starts the full stack
+#
+# Subsequent runs (no rebuild needed unless code changed):
+#   pnpm start:docker
+#
+# Stop:
+#   pnpm stop:docker             # stop containers (data persisted)
+#   pnpm stop:docker:clean       # stop + wipe all volumes (full reset)
+#
+# App:   http://localhost:3000
+# Logs:  docker compose -f docker-compose.full.yml logs -f teable-app
+
+services:
+  teable-full-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    volumes:
+      - teable-full-db-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: teable
+      POSTGRES_USER: teable
+      POSTGRES_PASSWORD: teable
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U teable -d teable']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  teable-full-cache:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - teable-full-cache-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  teable-full-migrate:
+    image: teable-local:latest
+    command: node /app/apps/nestjs-backend/dist/migrate.js
+    environment:
+      PRISMA_DATABASE_URL: postgresql://teable:teable@teable-full-db:5432/teable
+    depends_on:
+      teable-full-db:
+        condition: service_healthy
+    restart: on-failure
+
+  teable-app:
+    image: teable-local:latest
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+      - '3001:3001'
+      - '3002:3002'
+    environment:
+      # Database
+      PRISMA_DATABASE_URL: postgresql://teable:teable@teable-full-db:5432/teable
+      # Redis
+      BACKEND_CACHE_PROVIDER: redis
+      BACKEND_CACHE_REDIS_URI: redis://teable-full-cache:6379
+      # App
+      PUBLIC_ORIGIN: http://localhost:3000
+      BACKEND_PORT: '3002'
+      NEXTJS_PORT: '3000'
+      SOCKET_PORT: '3001'
+      BACKEND_SKIP_NEXT_START: 'false'
+      NODE_ENV: production
+      # Secrets (change for any non-local deployment)
+      BACKEND_JWT_SECRET: local-docker-jwt-secret-change-in-prod
+      INTEGRATION_SECRET_KEY: local-docker-integration-key-32chars
+    depends_on:
+      teable-full-db:
+        condition: service_healthy
+      teable-full-cache:
+        condition: service_healthy
+      teable-full-migrate:
+        condition: service_completed_successfully
+
+volumes:
+  teable-full-db-data: {}
+  teable-full-cache-data: {}

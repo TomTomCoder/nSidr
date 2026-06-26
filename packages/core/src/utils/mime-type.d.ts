@@ -1,0 +1,10 @@
+export declare const isImage: (mimetype: string) => boolean;
+export declare const isVideo: (mimetype: string) => boolean;
+export declare const isAudio: (mimetype: string) => boolean;
+export declare const isText: (mimetype: string) => boolean;
+export declare const isPdf: (mimetype: string) => boolean;
+export declare const isWord: (mimetype: string) => boolean;
+export declare const isExcel: (mimetype: string) => boolean;
+export declare const isPpt: (mimetype: string) => boolean;
+export declare const isMarkdown: (mimetype: string) => boolean;
+export declare const isPackage: (mimetype: string) => boolean;

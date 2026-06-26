@@ -1,0 +1,46 @@
+# Option 2 — Docker services only (Postgres + Redis).
+# The Node.js app (backend + frontend) runs natively on your machine.
+#
+# Usage:
+#   pnpm start:services          # start Postgres + Redis in background
+#   pnpm start:local             # then launch the app as usual
+#
+#   pnpm stop:services           # stop containers (data persisted in volumes)
+#   pnpm stop:services:clean     # stop + wipe all volumes (full reset)
+#
+# Credentials match apps/nestjs-backend/.env defaults so no env change is needed.
+
+services:
+  teable-db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    ports:
+      - '5432:5432'
+    volumes:
+      - teable-db-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: teable
+      POSTGRES_USER: teable
+      POSTGRES_PASSWORD: teable
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U teable -d teable']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  teable-cache:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - teable-cache-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  teable-db-data: {}
+  teable-cache-data: {}

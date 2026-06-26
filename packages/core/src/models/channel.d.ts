@@ -1,0 +1,13 @@
+export declare function getCollaboratorsChannel(tableId: string): string;
+export declare function getCellCollaboratorsChannel(tableId: string): string;
+export declare function getUserNotificationChannel(userId: string): string;
+export declare function getActionTriggerChannel(tableIdOrViewId: string): string;
+export declare function getBasePermissionUpdateChannel(baseId: string): string;
+export declare function getTableImportChannel(tableId: string): string;
+export declare function getCommentChannel(tableId: string, recordId: string): string;
+export declare function getTableCommentChannel(tableId: string): string;
+export declare function getTableButtonClickChannel(tableId: string): string;
+export declare function getToolCallChannel(toolCallId: string): string;
+export declare function getChatChannel(chatId: string): string;
+export declare function getBaseNodeChannel(baseId: string): string;
+export declare function getWorkflowTestChannel(workflowId: string): string;

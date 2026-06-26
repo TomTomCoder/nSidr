@@ -1,0 +1,97 @@
+# Local development environment
+# Provides Postgres + Redis + MinIO so devs can run the app with `nest start -w` + Next.js
+# without installing these services natively.
+#
+# Usage:
+#   docker compose -f docker-compose.dev.yml up -d
+#   # Then in two separate terminals:
+#   pnpm -F @teable/backend start:dev
+#   pnpm -F @teable/app dev
+#
+# Stop:
+#   docker compose -f docker-compose.dev.yml down
+#
+# Wipe volumes (full reset):
+#   docker compose -f docker-compose.dev.yml down -v
+
+services:
+  teable-dev-db:
+    image: postgres:15
+    restart: unless-stopped
+    ports:
+      - '5432:5432'
+    volumes:
+      - teable-dev-db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: teable_dev
+      POSTGRES_USER: teable
+      POSTGRES_PASSWORD: teable_dev_password
+    networks:
+      - teable-dev
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U teable -d teable_dev']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  teable-dev-cache:
+    image: redis:7.2
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - teable-dev-cache:/data
+    command: redis-server --appendonly yes --requirepass teable_dev_password
+    networks:
+      - teable-dev
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', 'teable_dev_password', '--raw', 'incr', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  teable-dev-storage:
+    image: minio/minio:RELEASE.2024-11-07T00-52-20Z
+    restart: unless-stopped
+    ports:
+      - '9000:9000'   # S3 API
+      - '9001:9001'   # MinIO console → http://localhost:9001
+    volumes:
+      - teable-dev-storage:/data
+    environment:
+      MINIO_ROOT_USER: teable_dev
+      MINIO_ROOT_PASSWORD: teable_dev_password
+    command: server /data --console-address ':9001'
+    networks:
+      - teable-dev
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      teable-dev-storage:
+        condition: service_healthy
+    networks:
+      - teable-dev
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc alias set dev http://teable-dev-storage:9000 teable_dev teable_dev_password;
+      /usr/bin/mc mb --ignore-existing dev/public;
+      /usr/bin/mc anonymous set public dev/public;
+      /usr/bin/mc mb --ignore-existing dev/private;
+      exit 0;
+      "
+
+networks:
+  teable-dev:
+    name: teable-dev-network
+    driver: bridge
+
+volumes:
+  teable-dev-db: {}
+  teable-dev-cache: {}
+  teable-dev-storage: {}

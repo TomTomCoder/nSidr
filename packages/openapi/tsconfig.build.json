@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "skipLibCheck": true,
+    "noEmit": false,
+    "outDir": "dist",
+    "rootDir": "src",
+    "paths": {
+      "@teable/core": ["../core/dist"]
+    }
+  },
+  "exclude": ["**/node_modules", "**/.*/", "**/*spec.ts", "./dist", "./coverage"],
+  "include": ["src"]
+}

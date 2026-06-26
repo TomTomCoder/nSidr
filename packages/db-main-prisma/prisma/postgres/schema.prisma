@@ -1,0 +1,1502 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("PRISMA_DATABASE_URL")
+  extensions = [vector(map: "vector")]
+}
+
+enum ProvisionState {
+  pending
+  ready
+  error
+  deleting
+}
+
+model Space {
+  id               String    @id @default(cuid())
+  name             String
+  credit           Int?
+  deletedTime      DateTime? @map("deleted_time")
+  createdTime      DateTime  @default(now()) @map("created_time")
+  createdBy        String    @map("created_by")
+  lastModifiedBy   String?   @map("last_modified_by")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+  isTemplate       Boolean?  @map("is_template")
+
+  baseGroup Base[]
+  oauthIntegrations OAuthIntegration[]
+  importedDocs ImportedDoc[]
+  docFolders DocFolder[]
+  workspaceConversations WorkspaceConversation[]
+  externalConnections ExternalConnection[]
+
+  @@map("space")
+}
+
+model PinResource {
+  id          String   @id @default(cuid())
+  type        String   @map("type")
+  resourceId  String   @map("resource_id")
+  createdTime DateTime @default(now()) @map("created_time")
+  createdBy   String   @map("created_by")
+  order       Float    @map("order")
+
+  @@unique([createdBy, resourceId])
+  @@index([order])
+  @@map("pin_resource")
+}
+
+model Base {
+  id               String      @id @default(cuid())
+  spaceId          String      @map("space_id")
+  name             String
+  order            Float
+  icon             String?
+  schemaPass       String?     @map("schema_pass")
+  v2Enabled        Boolean     @default(false) @map("v2_enabled")
+  provisionState   ProvisionState @default(ready) @map("provision_state")
+  deletedTime      DateTime?   @map("deleted_time")
+  createdTime      DateTime    @default(now()) @map("created_time")
+  createdBy        String      @map("created_by")
+  lastModifiedBy   String?     @map("last_modified_by")
+  lastModifiedTime DateTime?   @updatedAt @map("last_modified_time")
+  space             Space             @relation(fields: [spaceId], references: [id])
+  tables            TableMeta[]
+  authorityMatrices AuthorityMatrix[]
+
+  @@index([order])
+  @@map("base")
+}
+
+model TableMeta {
+  id                String              @id
+  baseId            String              @map("base_id")
+  name              String
+  description       String?
+  icon              String?
+  dbTableName       String              @map("db_table_name")
+  dbViewName        String?             @map("db_view_name")
+  provisionState    ProvisionState      @default(ready) @map("provision_state")
+  version           Int
+  order             Float
+  createdTime       DateTime            @default(now()) @map("created_time")
+  lastModifiedTime  DateTime?           @updatedAt @map("last_modified_time")
+  deletedTime       DateTime?           @map("deleted_time")
+  createdBy         String              @map("created_by")
+  lastModifiedBy    String?             @map("last_modified_by")
+  base              Base                @relation(fields: [baseId], references: [id])
+  fields            Field[]
+  views             View[]
+  pluginPanel       PluginPanel[]
+  pluginContextMenu PluginContextMenu[]
+
+  @@index([order])
+  @@index([dbTableName])
+  @@index([baseId, deletedTime])
+  @@index([baseId, deletedTime, order])
+  @@map("table_meta")
+}
+
+model AuthorityMatrix {
+  id               String              @id
+  baseId           String              @map("base_id")
+  name             String
+  description      String?
+  createdTime      DateTime            @default(now()) @map("created_time")
+  createdBy        String              @map("created_by")
+  lastModifiedTime DateTime?           @updatedAt @map("last_modified_time")
+  lastModifiedBy   String?             @map("last_modified_by")
+
+  base             Base                @relation(fields: [baseId], references: [id])
+  roles            AuthorityMatrixRole[]
+
+  @@index([baseId])
+  @@map("authority_matrix")
+}
+
+model AuthorityMatrixRole {
+  id                String    @id
+  authorityMatrixId String    @map("authority_matrix_id")
+  name              String
+  actions           Json      @map("actions")
+  createdTime       DateTime  @default(now()) @map("created_time")
+  createdBy         String    @map("created_by")
+  lastModifiedTime  DateTime? @updatedAt @map("last_modified_time")
+  lastModifiedBy    String?   @map("last_modified_by")
+
+  authorityMatrix   AuthorityMatrix @relation(fields: [authorityMatrixId], references: [id], onDelete: Cascade)
+
+  @@index([authorityMatrixId])
+  @@map("authority_matrix_role")
+}
+
+model SchemaOperation {
+  id               String    @id
+  type             String
+  status           String
+  phase            String
+  resourceType     String    @map("resource_type")
+  resourceId       String    @map("resource_id")
+  baseId           String?   @map("base_id")
+  tableId          String?   @map("table_id")
+  idempotencyKey   String    @unique @map("idempotency_key")
+  payload          Json?
+  result           Json?
+  attempts         Int       @default(0)
+  maxAttempts      Int       @default(8) @map("max_attempts")
+  nextRunAt        DateTime  @default(now()) @map("next_run_at")
+  lockedAt         DateTime? @map("locked_at")
+  lockedBy         String?   @map("locked_by")
+  lastError        String?   @map("last_error")
+  createdTime      DateTime  @default(now()) @map("created_time")
+  createdBy        String    @map("created_by")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+  lastModifiedBy   String?   @map("last_modified_by")
+
+  @@index([status, nextRunAt])
+  @@index([resourceType, resourceId, status])
+  @@index([baseId, status])
+  @@index([tableId, status])
+  @@map("schema_operation")
+}
+
+model Field {
+  id                  String    @id
+  name                String
+  description         String?
+  options             String?
+  meta                String?
+  aiConfig            String?   @map("ai_config")
+  type                String
+  cellValueType       String    @map("cell_value_type")
+  isMultipleCellValue Boolean?  @map("is_multiple_cell_value")
+  dbFieldType         String    @map("db_field_type")
+  dbFieldName         String    @map("db_field_name")
+  provisionState      ProvisionState @default(ready) @map("provision_state")
+  notNull             Boolean?  @map("not_null")
+  unique              Boolean?
+  isPrimary           Boolean?  @map("is_primary")
+  isComputed          Boolean?  @map("is_computed")
+  isLookup            Boolean?  @map("is_lookup")
+  isConditionalLookup Boolean?  @map("is_conditional_lookup")
+  isPending           Boolean?  @map("is_pending")
+  hasError            Boolean?  @map("has_error")
+  // the link field id that a lookup field is linked to
+  lookupLinkedFieldId String?   @map("lookup_linked_field_id")
+  lookupOptions       String?   @map("lookup_options")
+  tableId             String    @map("table_id")
+  order               Float
+  version             Int
+  createdTime         DateTime  @default(now()) @map("created_time")
+  lastModifiedTime    DateTime? @updatedAt @map("last_modified_time")
+  deletedTime         DateTime? @map("deleted_time")
+  createdBy           String    @map("created_by")
+  lastModifiedBy      String?   @map("last_modified_by")
+  table               TableMeta @relation(fields: [tableId], references: [id])
+
+  @@index([lookupLinkedFieldId])
+  @@index([tableId, deletedTime])
+  @@index([tableId, deletedTime, isPrimary])
+  @@index([tableId, type, deletedTime])
+  @@map("field")
+}
+
+model ComputedUpdateOutbox {
+  id                 String   @id @default(cuid())
+  baseId             String   @map("base_id")
+  seedTableId        String   @map("seed_table_id")
+  seedRecordIds      Json?    @map("seed_record_ids")
+  changeType         String   @map("change_type")
+  steps              Json?
+  edges              Json?
+  status             String
+  attempts           Int      @default(0)
+  maxAttempts        Int      @default(8) @map("max_attempts")
+  nextRunAt          DateTime @default(now()) @map("next_run_at")
+  lockedAt           DateTime? @map("locked_at")
+  lockedBy           String?  @map("locked_by")
+  lastError          String?  @map("last_error")
+  estimatedComplexity Int     @default(0) @map("estimated_complexity")
+  planHash           String   @map("plan_hash")
+  dirtyStats         Json?    @map("dirty_stats")
+  runId              String   @map("run_id")
+  originRunIds       String[] @default([]) @map("origin_run_ids")
+  runTotalSteps      Int      @default(0) @map("run_total_steps")
+  runCompletedStepsBefore Int @default(0) @map("run_completed_steps_before")
+  affectedTableIds   String[] @default([]) @map("affected_table_ids")
+  affectedFieldIds   String[] @default([]) @map("affected_field_ids")
+  syncMaxLevel       Int?     @map("sync_max_level")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  seeds ComputedUpdateOutboxSeed[]
+
+  @@index([status, nextRunAt])
+  @@index([baseId, seedTableId])
+  @@index([planHash])
+  @@index([runId])
+  @@map("computed_update_outbox")
+}
+
+model ComputedUpdateOutboxSeed {
+  id       String               @id @default(cuid())
+  taskId   String               @map("task_id")
+  tableId  String               @map("table_id")
+  recordId String               @map("record_id")
+  task     ComputedUpdateOutbox @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, tableId, recordId])
+  @@index([taskId])
+  @@map("computed_update_outbox_seed")
+}
+
+model ComputedUpdateDeadLetter {
+  id                 String   @id
+  baseId             String   @map("base_id")
+  seedTableId        String   @map("seed_table_id")
+  seedRecordIds      Json?    @map("seed_record_ids")
+  changeType         String   @map("change_type")
+  steps              Json?
+  edges              Json?
+  status             String
+  attempts           Int      @default(0)
+  maxAttempts        Int      @default(8) @map("max_attempts")
+  nextRunAt          DateTime @map("next_run_at")
+  lockedAt           DateTime? @map("locked_at")
+  lockedBy           String?  @map("locked_by")
+  lastError          String?  @map("last_error")
+  estimatedComplexity Int     @default(0) @map("estimated_complexity")
+  planHash           String   @map("plan_hash")
+  dirtyStats         Json?    @map("dirty_stats")
+  runId              String   @map("run_id")
+  originRunIds       String[] @default([]) @map("origin_run_ids")
+  runTotalSteps      Int      @default(0) @map("run_total_steps")
+  runCompletedStepsBefore Int @default(0) @map("run_completed_steps_before")
+  affectedTableIds   String[] @default([]) @map("affected_table_ids")
+  affectedFieldIds   String[] @default([]) @map("affected_field_ids")
+  syncMaxLevel       Int?     @map("sync_max_level")
+  traceData          Json?    @map("trace_data")
+  failedAt           DateTime @map("failed_at")
+  createdAt          DateTime @map("created_at")
+  updatedAt          DateTime @map("updated_at")
+
+  @@index([baseId, seedTableId])
+  @@index([planHash])
+  @@index([runId])
+  @@map("computed_update_dead_letter")
+}
+
+model ComputedUpdatePauseScope {
+  id        String    @id
+  scopeType String    @map("scope_type")
+  scopeId   String    @map("scope_id")
+  pausedAt  DateTime  @default(now()) @map("paused_at")
+  pausedBy  String?   @map("paused_by")
+  resumeAt  DateTime? @map("resume_at")
+  reason    String?
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  updatedBy String?   @map("updated_by")
+
+  @@unique([scopeType, scopeId])
+  @@index([resumeAt])
+  @@map("computed_update_pause_scope")
+}
+
+model View {
+  id               String    @id
+  name             String
+  description      String?
+  tableId          String    @map("table_id")
+  type             String
+  sort             String?
+  filter           String?
+  group            String?
+  options          String?
+  order            Float
+  version          Int
+  columnMeta       String    @map("column_meta")
+  isLocked         Boolean?  @map("is_locked")
+  enableShare      Boolean?  @map("enable_share")
+  shareId          String?   @unique @map("share_id")
+  shareMeta        String?   @map("share_meta")
+  createdTime      DateTime  @default(now()) @map("created_time")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+  deletedTime      DateTime? @map("deleted_time")
+  createdBy        String    @map("created_by")
+  lastModifiedBy   String?   @map("last_modified_by")
+  table            TableMeta @relation(fields: [tableId], references: [id])
+
+  @@index([order])
+  @@index([tableId, deletedTime])
+  @@index([tableId, deletedTime, type])
+  @@index([tableId, order, deletedTime])
+  @@map("view")
+}
+
+model Ops {
+  id          String   @id @default(cuid())
+  collection  String
+  docId       String   @map("doc_id")
+  docType     String   @map("doc_type")
+  version     Int
+  operation   String
+  createdTime DateTime @default(now()) @map("created_time")
+  createdBy   String   @map("created_by")
+
+  @@unique([collection, docId, version])
+  @@index([collection, createdTime])
+  @@map("ops")
+}
+
+model Reference {
+  id          String   @id @default(cuid())
+  fromFieldId String   @map("from_field_id")
+  toFieldId   String   @map("to_field_id")
+  createdTime DateTime @default(now()) @map("created_time")
+
+  @@unique([toFieldId, fromFieldId])
+  @@index([fromFieldId])
+  @@index([toFieldId])
+  @@map("reference")
+}
+
+model User {
+  id                   String    @id @default(cuid())
+  name                 String
+  password             String?
+  salt                 String?
+  phone                String?   @unique
+  email                String    @unique
+  avatar               String?
+  isSystem             Boolean?  @map("is_system")
+  isAdmin              Boolean?  @map("is_admin")
+  isTrialUsed          Boolean?  @map("is_trial_used")
+  lang                 String?   @map("lang")
+  notifyMeta           String?   @map("notify_meta")
+  lastSignTime         DateTime? @map("last_sign_time")
+  deactivatedTime      DateTime? @map("deactivated_time")
+  createdTime          DateTime  @default(now()) @map("created_time")
+  deletedTime          DateTime? @map("deleted_time")
+  lastModifiedTime     DateTime? @updatedAt @map("last_modified_time")
+  permanentDeletedTime DateTime? @map("permanent_deleted_time")
+  refMeta              String?   @map("ref_meta")
+
+  accounts Account[]
+  oauthIntegrations OAuthIntegration[]
+  createdDocs ImportedDoc[] @relation("DocCreator")
+
+  @@map("users")
+}
+
+model Account {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  type        String
+  provider    String
+  providerId  String   @map("provider_id")
+  createdTime DateTime @default(now()) @map("created_time")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId])
+  @@map("account")
+}
+
+model Attachments {
+  id             String    @id @default(cuid())
+  token          String    @unique
+  hash           String
+  size           BigInt
+  mimetype       String
+  path           String
+  width          Int?
+  height         Int?
+  deletedTime    DateTime? @map("deleted_time")
+  createdTime    DateTime  @default(now()) @map("created_time")
+  createdBy      String    @map("created_by")
+  lastModifiedBy String?   @map("last_modified_by")
+  thumbnailPath  String?   @map("thumbnail_path")
+
+  @@map("attachments")
+}
+
+model AttachmentsTable {
+  id               String    @id @default(cuid())
+  attachmentId     String    @map("attachment_id")
+  name             String
+  token            String
+  tableId          String    @map("table_id")
+  recordId         String    @map("record_id")
+  fieldId          String    @map("field_id")
+  createdTime      DateTime  @default(now()) @map("created_time")
+  createdBy        String    @map("created_by")
+  lastModifiedBy   String?   @map("last_modified_by")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+
+  @@index([tableId, recordId])
+  @@index([tableId, fieldId])
+  @@index([attachmentId])
+  @@map("attachments_table")
+}
+
+model Collaborator {
+  id               String    @id @default(cuid())
+  roleName         String    @map("role_name")
+  resourceType     String    @map("resource_type")
+  resourceId       String    @map("resource_id")
+  principalId      String    @map("principal_id")
+  principalType    String    @map("principal_type")
+  createdBy        String    @map("created_by")
+  createdTime      DateTime  @default(now()) @map("created_time")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+  lastModifiedBy   String?   @map("last_modified_by")
+
+  @@unique([resourceType, resourceId, principalId, principalType])
+  @@index([resourceId])
+  @@index([principalId])
+  @@map("collaborator")
+}
+
+model Invitation {
+  id               String    @id @default(cuid())
+  baseId           String?   @map("base_id")
+  spaceId          String?   @map("space_id")
+  type             String    @map("type")
+  role             String
+  invitationCode   String    @map("invitation_code")
+  expiredTime      DateTime? @map("expired_time")
+  createdBy        String    @map("create_by")
+  createdTime      DateTime  @default(now()) @map("created_time")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+  lastModifiedBy   String?   @map("last_modified_by")
+  deletedTime      DateTime? @map("deleted_time")
+
+  @@index([baseId])
+  @@index([spaceId])
+  @@map("invitation")
+}
+
+model InvitationRecord {
+  id           String   @id @default(cuid())
+  invitationId String   @map("invitation_id")
+  baseId       String?  @map("base_id")
+  spaceId      String?  @map("space_id")
+  type         String   @map("type")
+  inviter      String   @map("inviter")
+  accepter     String   @map("accepter")
+  createdTime  DateTime @default(now()) @map("created_time")
+
+  @@index([invitationId])
+  @@index([baseId])
+  @@index([spaceId])
+  @@map("invitation_record")
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  fromUserId  String   @map("from_user_id")
+  toUserId    String   @map("to_user_id")
+  type        String   @map("type")
+  message     String   @map("message")
+  messageI18n String?  @map("message_i18n")
+  urlPath     String?  @map("url_path")
+  isRead      Boolean  @default(false) @map("is_read")
+  createdTime DateTime @default(now()) @map("created_time")
+  createdBy   String   @map("created_by")
+
+  @@index([toUserId, isRead, createdTime])
+  @@map("notification")
+}
+
+model AccessToken {
+  id               String    @id @default(cuid())
+  name             String
+  description      String?
+  userId           String    @map("user_id")
+  scopes           String
+  spaceIds         String?   @map("space_ids")
+  baseIds          String?   @map("base_ids")
+  sign             String
+  clientId         String?   @map("client_id")
+  hasFullAccess    Boolean?  @map("has_full_access")
+  expiredTime      DateTime  @map("expired_time")
+  lastUsedTime     DateTime? @map("last_used_time")
+  createdTime      DateTime  @default(now()) @map("created_time")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+
+  @@index([userId])
+  @@index([clientId])
+  @@map("access_token")
+}
+
+model Setting {
+  name             String    @unique
+  content          String?
+  createdTime      DateTime  @default(now()) @map("created_time")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+  createdBy        String    @map("created_by")
+  lastModifiedBy   String?   @map("last_modified_by")
+
+  @@map("setting")
+}
+
+model OAuthApp {
+  id               String    @id @default(cuid())
+  name             String
+  logo             String?
+  homepage         String
+  description      String?
+  clientId         String    @unique @map("client_id")
+  redirectUris     String?   @map("redirect_uris")
+  scopes           String?
+  createdTime      DateTime  @default(now()) @map("created_time")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+  createdBy        String    @map("created_by")
+  secrets          OAuthAppSecret[]
+  authorized       OAuthAppAuthorized[]
+  tokens           OAuthAppToken[]
+
+  @@map("oauth_app")
+}
+
+model OAuthAppAuthorized {
+  id             String   @id @default(cuid())
+  clientId       String   @map("client_id")
+  userId         String   @map("user_id")
+  authorizedTime DateTime @map("authorized_time")
+
+  oAuthApp OAuthApp @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+
+  @@unique([clientId, userId])
+  @@map("oauth_app_authorized")
+}
+
+model OAuthAppSecret {
+  id           String    @id @default(cuid())
+  clientId     String    @map("client_id")
+  secret       String    @unique
+  maskedSecret String    @map("masked_secret")
+  createdTime  DateTime  @default(now()) @map("created_time")
+  createdBy    String    @map("created_by")
+  lastUsedTime DateTime? @map("last_used_time")
+  tokens       OAuthAppToken[]
+
+  oAuthApp OAuthApp @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+
+  @@map("oauth_app_secret")
+}
+
+model OAuthAppToken {
+  id               String   @id @default(cuid())
+  clientId         String   @map("client_id")
+  appSecretId      String?  @map("app_secret_id")
+  refreshTokenSign String   @unique @map("refresh_token_sign")
+  expiredTime      DateTime @map("expired_time")
+  createdTime      DateTime @default(now()) @map("created_time")
+  createdBy        String   @map("created_by")
+
+  oAuthAppSecret OAuthAppSecret? @relation(fields: [appSecretId], references: [id], onDelete: Cascade)
+  oAuthApp OAuthApp @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
+
+  @@index([clientId])
+
+  @@map("oauth_app_token")
+}
+
+model RecordHistory {
+  id          String   @id @default(cuid())
+  tableId     String   @map("table_id")
+  recordId    String   @map("record_id")
+  fieldId     String   @map("field_id")
+  before      String   @map("before")
+  after       String   @map("after")
+  createdTime DateTime @default(now()) @map("created_time")
+  createdBy   String   @map("created_by")
+
+  @@index([tableId, recordId, createdTime])
+  @@index([tableId, createdTime])
+  @@map("record_history")
+}
+
+model Trash {
+  id           String   @id @default(cuid())
+  resourceType String   @map("resource_type")
+  resourceId   String   @map("resource_id")
+  parentId     String?  @map("parent_id")
+  deletedTime  DateTime @default(now()) @map("deleted_time")
+  deletedBy    String   @map("deleted_by")
+
+  @@unique([resourceType, resourceId])
+  @@map("trash")
+}
+
+model TableTrash {
+  id           String   @id @default(cuid())
+  tableId      String   @map("table_id")
+  resourceType String   @map("resource_type")
+  snapshot     String   @map("snapshot")
+  createdTime  DateTime @default(now()) @map("created_time")
+  createdBy    String   @map("created_by")
+
+  @@index([tableId])
+  @@map("table_trash")
+}
+
+model RecordTrash {
+  id          String   @id @default(cuid())
+  tableId     String   @map("table_id")
+  recordId    String   @map("record_id")
+  snapshot    String   @map("snapshot")
+  createdTime DateTime @default(now()) @map("created_time")
+  createdBy   String   @map("created_by")
+
+  @@index([tableId, recordId])
+  @@map("record_trash")
+}
+
+model Plugin {
+  id               String    @id @default(cuid())
+  name             String
+  description      String?
+  detailDesc       String?   @map("detail_desc")
+  logo             String
+  helpUrl          String?   @map("help_url")
+  status           String
+  positions        String
+  url              String?
+  secret           String    @unique
+  maskedSecret     String    @map("masked_secret")
+  i18n             String?
+  config           String?
+  pluginUser       String?   @map("plugin_user")
+  /// Optional MCP server URL. When set, the plugin declares an MCP-capable endpoint.
+  /// Only honored from installed plugin records (never client-supplied). T-17-08.
+  mcpUrl           String?   @map("mcp_url")
+  /// Optional inline tool manifest (JSON). Allows plugins to declare tools without
+  /// running a full MCP server. Shape: McpToolDescriptor[]. T-17-07.
+  toolManifest     Json?     @map("tool_manifest")
+  /// True when this plugin was installed as a third-party MCP extension (EXT-02).
+  isExtension      Boolean   @default(false) @map("is_extension")
+  /// JSON array of tool names this extension declared on install (requested scopes).
+  requestedScopes  Json?     @map("requested_scopes")
+  /// Timestamp when a space manager consented to this extension's scopes.
+  /// NULL = not yet consented. Discovery service skips extensions with null consentedAt.
+  consentedAt      DateTime? @map("consented_at")
+  createdTime      DateTime  @default(now()) @map("created_time")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+  createdBy        String    @map("created_by")
+  lastModifiedBy   String?   @map("last_modified_by")
+
+  pluginInstall PluginInstall[]
+
+  @@map("plugin")
+}
+
+model PluginInstall {
+  id               String    @id @default(cuid())
+  pluginId         String    @map("plugin_id")
+  baseId           String    @map("base_id")
+  name             String
+  positionId       String    @map("position_id")
+  position         String
+  storage          String?
+  createdTime      DateTime  @default(now()) @map("created_time")
+  createdBy        String    @map("created_by")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+  lastModifiedBy   String?   @map("last_modified_by")
+
+  plugin Plugin @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+
+  @@index([positionId])
+  @@index([baseId])
+  @@map("plugin_install")
+}
+
+model App {
+  id               String    @id
+  name             String
+  baseId           String    @map("base_id")
+  content          Json?
+  createdBy        String    @map("created_by")
+  createdTime      DateTime  @default(now()) @map("created_time")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+  lastModifiedBy   String?   @map("last_modified_by")
+
+  @@index([baseId])
+  @@map("app_builder")
+}
+
+model Workflow {
+  id               String        @id
+  name             String
+  baseId           String        @map("base_id")
+  config           Json?
+  isActive         Boolean       @default(false) @map("is_active")
+  createdBy        String        @map("created_by")
+  createdTime      DateTime      @default(now()) @map("created_time")
+  lastModifiedTime DateTime?     @updatedAt @map("last_modified_time")
+  lastModifiedBy   String?       @map("last_modified_by")
+  runs             WorkflowRun[]
+
+  @@index([baseId])
+  @@map("workflow")
+}
+
+model WorkflowRun {
+  id          String   @id @default(cuid())
+  workflowId  String   @map("workflow_id")
+  trigger     String
+  status      String
+  durationMs  Int      @map("duration_ms")
+  steps       Json
+  startedAt   DateTime @map("started_at")
+  workflow    Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId, startedAt(sort: Desc)])
+  @@map("workflow_run")
+}
+
+model Dashboard {
+  id               String    @id @default(cuid())
+  name             String
+  baseId           String    @map("base_id")
+  layout           String?
+  createdBy        String    @map("created_by")
+  createdTime      DateTime  @default(now()) @map("created_time")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+  lastModifiedBy   String?   @map("last_modified_by")
+
+  @@index([baseId])
+  @@map("dashboard")
+}
+
+model Comment {
+  id       String  @id @default(cuid())
+  tableId  String  @map("table_id")
+  recordId String  @map("record_id")
+  quoteId  String? @map("quote_Id")
+  content  String?
+  reaction String?
+
+  deletedTime      DateTime? @map("deleted_time")
+  createdTime      DateTime  @default(now()) @map("created_time")
+  createdBy        String    @map("created_by")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+
+  @@index([tableId, recordId])
+  @@map("comment")
+}
+
+model CommentSubscription {
+  id          String   @id @default(cuid())
+  tableId     String   @map("table_id")
+  recordId    String   @map("record_id")
+  createdBy   String   @map("created_by")
+  createdTime DateTime @default(now()) @map("created_time")
+
+  @@unique([tableId, recordId])
+  @@index([tableId, recordId])
+  @@map("comment_subscription")
+}
+
+model Integration {
+  id               String    @id @default(cuid())
+  resourceId       String    @unique @map("resource_id")
+  config           String    @map("config")
+  type             String    @map("type")
+  enable           Boolean?  @map("enable")
+  createdTime      DateTime  @default(now()) @map("created_time")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+
+  @@index([resourceId])
+  @@map("integration")
+}
+
+// User-scoped "connected accounts" (Gmail, Google Calendar, Slack, Outlook, ...).
+// Distinct from the space-scoped OAuthIntegration used by automations.
+model UserIntegration {
+  id               String    @id @default(cuid())
+  userId           String    @map("user_id")
+  provider         String    @map("provider") // lowercase UserIntegrationProvider value
+  name             String    @map("name")
+  clientId         String?   @map("client_id") // bring-your-own OAuth app (optional; else server env)
+  clientSecret     String?   @map("client_secret") // AES-256 encrypted
+  accessToken      String?   @map("access_token") // AES-256 encrypted (null until connected)
+  refreshToken     String?   @map("refresh_token") // AES-256 encrypted
+  tokenExpiry      DateTime? @map("token_expiry")
+  scopes           String[]  @map("scopes")
+  metadata         Json?     @map("metadata")
+  isActive         Boolean   @default(true) @map("is_active")
+  lastUsedTime     DateTime? @map("last_used_time")
+  connectedTime    DateTime? @map("connected_time")
+  createdTime      DateTime  @default(now()) @map("created_time")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+
+  @@index([userId])
+  @@map("user_integration")
+}
+
+model PluginPanel {
+  id               String    @id @default(cuid())
+  name             String
+  tableId          String    @map("table_id")
+  layout           String?
+  createdBy        String    @map("created_by")
+  createdTime      DateTime  @default(now()) @map("created_time")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+  lastModifiedBy   String?   @map("last_modified_by")
+
+  table TableMeta @relation(fields: [tableId], references: [id], onDelete: Cascade)
+
+  @@map("plugin_panel")
+}
+
+model PluginContextMenu {
+  id               String    @id @default(cuid())
+  tableId          String    @map("table_id")
+  pluginInstallId  String    @unique @map("plugin_install_id")
+  order            Float     @map("order")
+  createdTime      DateTime  @default(now()) @map("created_time")
+  createdBy        String    @map("created_by")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+  lastModifiedBy   String?   @map("last_modified_by")
+
+  table TableMeta @relation(fields: [tableId], references: [id], onDelete: Cascade)
+
+  @@map("plugin_context_menu")
+}
+
+model UserLastVisit {
+  id               String   @id @default(cuid())
+  userId           String   @map("user_id")
+  resourceType     String   @map("resource_type")
+  resourceId       String   @map("resource_id")
+  parentResourceId String   @map("parent_resource_id")
+  lastVisitTime    DateTime @default(now()) @map("last_visit_time")
+
+  @@unique([userId, resourceType, resourceId])
+  @@index([userId, resourceType, parentResourceId])
+  @@map("user_last_visit")
+}
+
+model Template {
+  id                  String    @id @default(cuid())
+  baseId              String?   @map("base_id")
+  cover               String?
+  name                String?
+  description         String?
+  markdownDescription String?   @map("markdown_description")
+  categoryId          String[]  @map("category_id")
+  createdTime         DateTime  @default(now()) @map("created_time")
+  createdBy           String    @map("created_by")
+  lastModifiedTime    DateTime? @updatedAt @map("last_modified_time")
+  lastModifiedBy      String?   @map("last_modified_by")
+  isSystem            Boolean?  @map("is_system")
+  isPublished         Boolean?  @map("is_published")
+  featured            Boolean?  @map("featured")
+  snapshot            String?   @map("snapshot")
+  order               Float     @map("order")
+  usageCount          Int       @default(0) @map("usage_count")
+  publishInfo         Json?     @map("publish_info")
+  visitCount          Int       @default(0) @map("visit_count")
+
+  @@unique([baseId])
+  @@map("template")
+}
+
+model TemplateCategory {
+  id               String    @id @default(cuid())
+  name             String    @unique
+  createdTime      DateTime  @default(now()) @map("created_time")
+  createdBy        String    @map("created_by")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+  lastModifiedBy   String?   @map("last_modified_by")
+  order            Float     @map("order")
+
+  @@map("template_category")
+}
+
+model Task {
+  id               String    @id @default(cuid())
+  type             String    @map("type")
+  status           String    @map("status")
+  snapshot         String?   @map("snapshot")
+  createdTime      DateTime  @default(now()) @map("created_time")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+  createdBy        String    @map("created_by")
+  lastModifiedBy   String?   @map("last_modified_by")
+
+  runs TaskRun[]
+
+  @@index([type, status])
+  @@map("task")
+}
+
+model TaskRun {
+  id               String    @id @default(cuid())
+  taskId           String    @map("task_id")
+  status           String    @map("status")
+  snapshot         String    @map("snapshot")
+  spent            Int?      @map("spent")
+  log              String?   @map("log")
+  errorMsg         String?   @map("error_msg")
+  startedTime      DateTime? @map("started_time")
+  createdTime      DateTime  @default(now()) @map("created_time")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, status])
+  @@map("task_run")
+}
+
+model TaskReference {
+  id          String   @id @default(cuid())
+  fromFieldId String   @map("from_field_id")
+  toFieldId   String   @map("to_field_id")
+  createdTime DateTime @default(now()) @map("created_time")
+
+  @@unique([toFieldId, fromFieldId])
+  @@index([fromFieldId])
+  @@index([toFieldId])
+  @@map("task_reference")
+}
+
+model Waitlist {
+  email       String    @unique @map("email")
+  invite      Boolean?  @map("invite")
+  inviteTime  DateTime? @map("invite_time")
+  createdTime DateTime  @default(now()) @map("created_time")
+
+  @@map("waitlist")
+}
+
+
+model BaseNode {
+  id                String     @id @default(cuid())
+  parentId          String?    @map("parent_id")
+  baseId            String     @map("base_id")
+  resourceType      String     @map("resource_type")
+  resourceId        String     @map("resource_id")
+  order             Float      @map("order")
+
+  createdTime       DateTime   @default(now()) @map("created_time")
+  createdBy         String     @map("created_by")
+  lastModifiedTime  DateTime?  @updatedAt      @map("last_modified_time")
+  lastModifiedBy    String?    @map("last_modified_by")
+
+  parent            BaseNode?  @relation("NodeToChildren", fields: [parentId], references: [id])
+  children          BaseNode[] @relation("NodeToChildren")
+
+  @@unique([baseId, resourceType, resourceId])
+
+  @@map("base_node")
+}
+
+model BaseNodeFolder {
+  id                String     @id @default(cuid())
+  baseId            String     @map("base_id")
+  name              String     @map("name")
+
+  createdTime       DateTime   @default(now()) @map("created_time")
+  createdBy         String     @map("created_by")
+  lastModifiedTime  DateTime?  @updatedAt      @map("last_modified_time")
+  lastModifiedBy    String?    @map("last_modified_by")
+
+  @@unique([baseId, name])
+
+  @@map("base_node_folder")
+}
+
+model BaseShare {
+  id               String    @id @default(cuid())
+  baseId           String    @map("base_id")
+  shareId          String    @unique @map("share_id")
+  password         String?
+  nodeId           String?   @map("node_id")
+  allowSave        Boolean?  @map("allow_save")
+  allowCopy        Boolean?  @map("allow_copy")
+  allowEdit        Boolean?  @map("allow_edit")
+  enabled          Boolean   @default(true)
+  createdTime      DateTime  @default(now()) @map("created_time")
+  createdBy        String    @map("created_by")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+
+  @@unique([baseId, nodeId])
+  @@index([baseId])
+  @@map("base_share")
+}
+
+model AiPromptOverride {
+  id               String    @id @default(cuid())
+  promptKey        String    @map("prompt_key")
+  modelPattern     String?   @map("model_pattern")
+  content          String
+  isActive         Boolean   @default(true) @map("is_active")
+  createdTime      DateTime  @default(now()) @map("created_time")
+  createdBy        String    @map("created_by")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+  lastModifiedBy   String?   @map("last_modified_by")
+
+  @@unique([promptKey, modelPattern])
+  @@index([promptKey])
+  @@map("ai_prompt_override")
+}
+
+enum OAuthIntegrationProvider {
+  GMAIL
+  GCALENDAR
+  GDRIVE
+  GCHAT
+  GMEET
+  SLACK
+}
+
+enum OAuthSyncDirection {
+  IMPORT
+  EXPORT
+  BIDIRECTIONAL
+}
+
+model OAuthIntegration {
+  id           String                    @id @default(cuid())
+  spaceId      String
+  provider     OAuthIntegrationProvider
+  accessToken  String                    // AES-256 encrypted
+  refreshToken String?                   // AES-256 encrypted
+  tokenExpiry  DateTime?
+  scopes       String[]
+  userId       String
+  isActive     Boolean                   @default(true)
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+  space        Space                     @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  user         User                      @relation(fields: [userId], references: [id])
+  webhooks     OAuthIntegrationWebhook[]
+  fieldSyncs   OAuthIntegrationFieldSync[]
+
+  @@index([spaceId])
+  @@index([userId])
+  @@unique([spaceId, provider, userId])
+  @@map("oauth_integration")
+}
+
+model OAuthIntegrationWebhook {
+  id                String           @id @default(cuid())
+  integrationId     String
+  event             String
+  workflowTriggerId String?
+  isActive          Boolean          @default(true)
+  lastTriggeredAt   DateTime?
+  config            Json             @default("{}")  // stores channelToken for Google webhook verification
+  integration       OAuthIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@index([integrationId])
+  @@map("oauth_integration_webhook")
+}
+
+model OAuthIntegrationFieldSync {
+  id            String           @id @default(cuid())
+  integrationId String
+  tableId       String
+  fieldId       String
+  syncDirection OAuthSyncDirection
+  lastSyncedAt  DateTime?
+  config        Json
+  integration   OAuthIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@index([integrationId])
+  @@index([tableId])
+  @@map("oauth_integration_field_sync")
+}
+
+enum DocSourceType {
+  markdown
+  pdf
+  url
+  agent
+}
+
+enum DocLinkType {
+  internal
+  external
+}
+
+model ImportedDoc {
+  id         String        @id @default(cuid())
+  spaceId    String
+  space      Space         @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  title      String
+  sourceType DocSourceType
+  sourceUrl  String?
+  rawContent String        @db.Text
+  wordCount  Int
+  createdBy  String
+  creator    User          @relation("DocCreator", fields: [createdBy], references: [id])
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  isIndexed  Boolean       @default(false)
+  indexProgress Int        @default(0)
+  chunkCount Int           @default(0)
+  folderId   String?
+  order      Float         @default(0)
+  folder     DocFolder?    @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  chunks     DocChunk[]
+  linksFrom  DocLink[]     @relation("FromDoc")
+  linksTo    DocLink[]     @relation("ToDoc")
+  memoryEntities MemoryEntity[] @relation("DocMemory")
+
+  @@index([spaceId])
+  @@index([createdBy])
+  @@map("imported_doc")
+}
+
+model DocFolder {
+  id             String        @id @default(cuid())
+  spaceId        String        @map("spaceId")
+  parentFolderId String?       @map("parentId")
+  name           String
+  order          Float         @default(0)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  space          Space         @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  parent         DocFolder?    @relation("FolderChildren", fields: [parentFolderId], references: [id], onDelete: Cascade)
+  children       DocFolder[]   @relation("FolderChildren")
+  docs           ImportedDoc[]
+
+  @@map("doc_folder")
+}
+
+model DocChunk {
+  id          String      @id @default(cuid())
+  docId       String
+  doc         ImportedDoc @relation(fields: [docId], references: [id], onDelete: Cascade)
+  chunkIndex  Int
+  content     String      @db.Text
+  embedding   Unsupported("vector(1536)")?
+  tokenCount  Int
+  startOffset Int
+  endOffset   Int
+
+  @@index([docId])
+  @@map("doc_chunk")
+}
+
+model DocLink {
+  id        String      @id @default(cuid())
+  fromDocId String
+  fromDoc   ImportedDoc @relation("FromDoc", fields: [fromDocId], references: [id], onDelete: Cascade)
+  toDocId   String?
+  toDoc     ImportedDoc? @relation("ToDoc", fields: [toDocId], references: [id], onDelete: SetNull)
+  toUrl     String?
+  linkText  String
+  linkType  DocLinkType
+  label     String?
+  createdBy String?
+  createdAt DateTime    @default(now())
+
+  @@unique([fromDocId, toDocId, label], name: "doc_link_from_to_label_uq", map: "doc_link_from_to_label_uq")
+  @@index([fromDocId])
+  @@index([toDocId])
+  @@map("doc_link")
+}
+
+// Agent memory graph (Phase 1): entities + relations extracted from documents.
+// The `embedding` column is created via raw SQL migration (Unsupported by Prisma),
+// mirroring DocChunk. Reads/writes use $queryRaw/$executeRaw.
+model MemoryEntity {
+  id             String   @id @default(cuid())
+  spaceId        String
+  name           String
+  type           String
+  summary        String   @db.Text
+  embedding      Unsupported("vector(1536)")?
+  sourceDocId    String?
+  sourceDoc      ImportedDoc? @relation("DocMemory", fields: [sourceDocId], references: [id], onDelete: Cascade)
+  version        Int      @default(1)
+  supersededById String?
+  createdAt      DateTime @default(now())
+  relationsFrom  MemoryRelation[] @relation("FromEntity")
+  relationsTo    MemoryRelation[] @relation("ToEntity")
+
+  @@index([spaceId, name])
+  @@index([sourceDocId])
+  @@map("memory_entity")
+}
+
+model MemoryRelation {
+  id           String       @id @default(cuid())
+  spaceId      String
+  fromEntityId String
+  fromEntity   MemoryEntity @relation("FromEntity", fields: [fromEntityId], references: [id], onDelete: Cascade)
+  toEntityId   String
+  toEntity     MemoryEntity @relation("ToEntity", fields: [toEntityId], references: [id], onDelete: Cascade)
+  label        String
+  weight       Float        @default(1)
+  validFrom    DateTime     @default(now())
+  validTo      DateTime?
+  sourceDocId  String?
+  createdAt    DateTime     @default(now())
+
+  @@index([spaceId, fromEntityId])
+  @@index([spaceId, toEntityId])
+  @@map("memory_relation")
+}
+
+model Agent {
+  id               String    @id @default(cuid())
+  name             String
+  description      String?
+  baseId           String    @map("base_id")
+  instructions     String?   @db.Text
+  modelKey         String?   @map("model_key")
+  isPublic         Boolean   @default(false) @map("is_public")
+  isActive         Boolean   @default(true) @map("is_active")
+  maxIterations    Int       @default(10) @map("max_iterations")
+  // Plan-and-execute + reflexion (state-of-the-art agentic loop)
+  planningEnabled   Boolean  @default(true) @map("planning_enabled")
+  reflectionEnabled Boolean  @default(true) @map("reflection_enabled")
+  maxReflections    Int      @default(2) @map("max_reflections")
+  createdBy        String    @map("created_by")
+  createdTime      DateTime  @default(now()) @map("created_time")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+  lastModifiedBy   String?   @map("last_modified_by")
+
+  knowledgeSources Json?   @map("knowledge_sources")
+
+  tools         AgentTool[]
+  triggers      AgentTrigger[]
+  memories      AgentMemory[]
+  connections   AgentConnection[]
+  conversations AgentConversation[]
+  mcpServers    AgentMcpServer[]
+
+  @@index([baseId])
+  @@index([createdBy])
+  @@map("agent")
+}
+
+model AgentTool {
+  id        String  @id @default(cuid())
+  agentId   String  @map("agent_id")
+  toolName  String  @map("tool_name")
+  isEnabled Boolean @default(true) @map("is_enabled")
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, toolName])
+  @@index([agentId])
+  @@map("agent_tool")
+}
+
+model AgentTrigger {
+  id          String   @id @default(cuid())
+  agentId     String   @map("agent_id")
+  triggerType String   @map("trigger_type")
+  config      Json?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdTime DateTime @default(now()) @map("created_time")
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId])
+  @@map("agent_trigger")
+}
+
+model AgentMemory {
+  id          String    @id @default(cuid())
+  agentId     String    @map("agent_id")
+  memoryType  String    @map("memory_type")
+  content     String    @db.Text
+  metadata    Json?
+  expiresAt   DateTime? @map("expires_at")
+  createdTime DateTime  @default(now()) @map("created_time")
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId, memoryType])
+  @@index([expiresAt])
+  @@map("agent_memory")
+}
+
+model AgentConnection {
+  id             String   @id @default(cuid())
+  agentId        String   @map("agent_id")
+  userId         String?  @map("user_id")
+  provider       String
+  encryptedToken String?  @map("encrypted_token") @db.Text
+  scopes         String[]
+  isEnabled      Boolean  @default(false) @map("is_enabled")
+  createdTime    DateTime @default(now()) @map("created_time")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, provider])
+  @@index([agentId])
+  @@index([agentId, userId, provider])
+  @@map("agent_connection")
+}
+
+model AgentMcpServer {
+  id               String    @id @default(cuid())
+  agentId          String    @map("agent_id")
+  name             String
+  url              String
+  transport        String    @default("streamable-http")
+  enabled          Boolean   @default(true)
+  createdTime      DateTime  @default(now()) @map("created_time")
+  lastModifiedTime DateTime? @updatedAt @map("last_modified_time")
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, url])
+  @@index([agentId])
+  @@map("agent_mcp_server")
+}
+
+model AgentConversation {
+  id              String    @id @default(cuid())
+  agentId         String    @map("agent_id")
+  title           String?
+  trigger         String    @default("manual") // 'manual', 'cron', 'mention', 'dm'
+  status          String    @default("completed") // 'in_progress', 'completed', 'failed', 'waiting_for_approval'
+  approvalPayload Json?     @map("approval_payload")
+  createdTime     DateTime  @default(now()) @map("created_time")
+  updatedTime     DateTime  @updatedAt @map("updated_time")
+  createdBy       String    @map("created_by")
+
+  agent    Agent              @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  messages AgentConversationMessage[]
+
+  @@index([agentId])
+  @@index([createdTime])
+  @@map("agent_conversation")
+}
+
+model AgentConversationMessage {
+  id             String    @id @default(cuid())
+  conversationId String    @map("conversation_id")
+  role           String    // 'user', 'assistant', 'system'
+  type           String    // 'text', 'tool', 'think', 'progress', 'error'
+  content        String    @db.Text
+  toolName       String?   @map("tool_name")
+  toolInput      Json?     @map("tool_input")
+  toolOutput     Json?     @map("tool_output")
+  metadata       Json?
+  createdTime    DateTime  @default(now()) @map("created_time")
+
+  conversation AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([role, type])
+  @@map("agent_conversation_message")
+}
+
+model WorkspaceConversation {
+  id          String    @id @default(cuid())
+  spaceId     String    @map("space_id")
+  title       String?
+  status      String    @default("in_progress")
+  createdTime DateTime  @default(now()) @map("created_time")
+  updatedTime DateTime  @updatedAt @map("updated_time")
+  createdBy   String    @map("created_by")
+
+  space    Space                        @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  messages WorkspaceConversationMessage[]
+
+  @@index([spaceId])
+  @@index([createdTime])
+  @@map("workspace_conversation")
+}
+
+model WorkspaceConversationMessage {
+  id             String    @id @default(cuid())
+  conversationId String    @map("conversation_id")
+  role           String
+  type           String
+  content        String    @db.Text
+  proposalId     String?   @unique @map("proposal_id")
+  metadata       Json?
+  createdTime    DateTime  @default(now()) @map("created_time")
+
+  conversation WorkspaceConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("workspace_conversation_message")
+}
+
+enum ExternalConnectionType {
+  qdrant
+  postgres
+}
+
+model ExternalConnection {
+  id              String                 @id @default(cuid())
+  spaceId         String                 @map("space_id")
+  type            ExternalConnectionType
+  name            String
+  encryptedConfig String                 @map("encrypted_config") @db.Text
+  enabled         Boolean                @default(true)
+  createdBy       String                 @map("created_by")
+  createdTime     DateTime               @default(now()) @map("created_time")
+  lastModifiedTime DateTime?             @updatedAt @map("last_modified_time")
+
+  space Space @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@index([spaceId])
+  @@map("external_connection")
+}
+
+model FieldPermission {
+  id          String   @id
+  fieldId     String   @map("field_id")
+  principal   String
+  action      String
+  allowed     Boolean
+  createdTime DateTime @default(now()) @map("created_time")
+  createdBy   String   @map("created_by")
+
+  @@unique([fieldId, principal, action])
+  @@index([fieldId])
+  @@map("field_permission")
+}
+
+model AuditLog {
+  id           String   @id
+  createdTime  DateTime @default(now()) @map("created_time")
+  userId       String?  @map("user_id")
+  spaceId      String?  @map("space_id")
+  baseId       String?  @map("base_id")
+  event        String
+  resourceType String?  @map("resource_type")
+  resourceId   String?  @map("resource_id")
+  ip           String?
+  payload      Json?
+
+  @@index([baseId, createdTime])
+  @@index([spaceId, createdTime])
+  @@index([userId, createdTime])
+  @@map("audit_log")
+}
+
+model VerifiedDomain {
+  id                String    @id
+  spaceId           String    @map("space_id")
+  domain            String
+  verificationToken String    @map("verification_token")
+  dnsRecordName     String    @map("dns_record_name")
+  dnsRecordValue    String    @map("dns_record_value")
+  verifiedAt        DateTime? @map("verified_at")
+  createdBy         String    @map("created_by")
+  createdTime       DateTime  @default(now()) @map("created_time")
+
+  @@unique([spaceId, domain])
+  @@index([spaceId])
+  @@map("verified_domain")
+}

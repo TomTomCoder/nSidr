@@ -1,0 +1,29 @@
+
+services:
+  teable-gateway:
+    image: openresty/openresty:1.25.3.1-2-bookworm-fat
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          memory: 128m
+          cpus: '0.25'
+        reservations:
+          memory: 32m
+          cpus: '0.05'
+    ports:
+      - '80:80'
+      - '443:443'
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - ./gateway/conf.d:/etc/nginx/conf.d
+    networks:
+      - teable-frontend
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://127.0.0.1/healthcheck']
+      interval: 10s
+      timeout: 3s
+      retries: 3

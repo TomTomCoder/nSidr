@@ -1,0 +1,100 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.FUNCTIONS = void 0;
+const array_1 = require("./array");
+const common_1 = require("./common");
+const date_time_1 = require("./date-time");
+const logical_1 = require("./logical");
+const numeric_1 = require("./numeric");
+const system_1 = require("./system");
+const text_1 = require("./text");
+// eslint-disable-next-line @typescript-eslint/naming-convention
+exports.FUNCTIONS = {
+    // Numeric
+    [common_1.FunctionName.Sum]: new numeric_1.Sum(),
+    [common_1.FunctionName.Average]: new numeric_1.Average(),
+    [common_1.FunctionName.Max]: new numeric_1.Max(),
+    [common_1.FunctionName.Min]: new numeric_1.Min(),
+    [common_1.FunctionName.Round]: new numeric_1.Round(),
+    [common_1.FunctionName.RoundUp]: new numeric_1.RoundUp(),
+    [common_1.FunctionName.RoundDown]: new numeric_1.RoundDown(),
+    [common_1.FunctionName.Ceiling]: new numeric_1.Ceiling(),
+    [common_1.FunctionName.Floor]: new numeric_1.Floor(),
+    [common_1.FunctionName.Even]: new numeric_1.Even(),
+    [common_1.FunctionName.Odd]: new numeric_1.Odd(),
+    [common_1.FunctionName.Int]: new numeric_1.Int(),
+    [common_1.FunctionName.Abs]: new numeric_1.Abs(),
+    [common_1.FunctionName.Sqrt]: new numeric_1.Sqrt(),
+    [common_1.FunctionName.Power]: new numeric_1.Power(),
+    [common_1.FunctionName.Exp]: new numeric_1.Exp(),
+    [common_1.FunctionName.Log]: new numeric_1.Log(),
+    [common_1.FunctionName.Mod]: new numeric_1.Mod(),
+    [common_1.FunctionName.Value]: new numeric_1.Value(),
+    // Text
+    [common_1.FunctionName.Concatenate]: new text_1.Concatenate(),
+    [common_1.FunctionName.Find]: new text_1.Find(),
+    [common_1.FunctionName.Search]: new text_1.Search(),
+    [common_1.FunctionName.Mid]: new text_1.Mid(),
+    [common_1.FunctionName.Left]: new text_1.Left(),
+    [common_1.FunctionName.Right]: new text_1.Right(),
+    [common_1.FunctionName.Replace]: new text_1.Replace(),
+    [common_1.FunctionName.RegExpReplace]: new text_1.RegExpReplace(),
+    [common_1.FunctionName.Substitute]: new text_1.Substitute(),
+    [common_1.FunctionName.TextBefore]: new text_1.TextBefore(),
+    [common_1.FunctionName.TextSplit]: new text_1.TextSplit(),
+    [common_1.FunctionName.Lower]: new text_1.Lower(),
+    [common_1.FunctionName.Upper]: new text_1.Upper(),
+    [common_1.FunctionName.Rept]: new text_1.Rept(),
+    [common_1.FunctionName.Trim]: new text_1.Trim(),
+    [common_1.FunctionName.Len]: new text_1.Len(),
+    [common_1.FunctionName.T]: new text_1.T(),
+    [common_1.FunctionName.EncodeUrlComponent]: new text_1.EncodeUrlComponent(),
+    // Logical
+    [common_1.FunctionName.If]: new logical_1.If(),
+    [common_1.FunctionName.Switch]: new logical_1.Switch(),
+    [common_1.FunctionName.And]: new logical_1.And(),
+    [common_1.FunctionName.Or]: new logical_1.Or(),
+    [common_1.FunctionName.Xor]: new logical_1.Xor(),
+    [common_1.FunctionName.Not]: new logical_1.Not(),
+    [common_1.FunctionName.Blank]: new logical_1.Blank(),
+    [common_1.FunctionName.Error]: new logical_1.FormulaError(),
+    [common_1.FunctionName.IsError]: new logical_1.IsError(),
+    // DateTime
+    [common_1.FunctionName.Today]: new date_time_1.Today(),
+    [common_1.FunctionName.Now]: new date_time_1.Now(),
+    [common_1.FunctionName.Year]: new date_time_1.Year(),
+    [common_1.FunctionName.Month]: new date_time_1.Month(),
+    [common_1.FunctionName.WeekNum]: new date_time_1.WeekNum(),
+    [common_1.FunctionName.Weekday]: new date_time_1.Weekday(),
+    [common_1.FunctionName.Day]: new date_time_1.Day(),
+    [common_1.FunctionName.Hour]: new date_time_1.Hour(),
+    [common_1.FunctionName.Minute]: new date_time_1.Minute(),
+    [common_1.FunctionName.Second]: new date_time_1.Second(),
+    [common_1.FunctionName.FromNow]: new date_time_1.FromNow(),
+    [common_1.FunctionName.ToNow]: new date_time_1.ToNow(),
+    [common_1.FunctionName.DatetimeDiff]: new date_time_1.DatetimeDiff(),
+    [common_1.FunctionName.Workday]: new date_time_1.Workday(),
+    [common_1.FunctionName.WorkdayDiff]: new date_time_1.WorkdayDiff(),
+    [common_1.FunctionName.IsSame]: new date_time_1.IsSame(),
+    [common_1.FunctionName.IsAfter]: new date_time_1.IsAfter(),
+    [common_1.FunctionName.IsBefore]: new date_time_1.IsBefore(),
+    [common_1.FunctionName.DateAdd]: new date_time_1.DateAdd(),
+    [common_1.FunctionName.Datestr]: new date_time_1.Datestr(),
+    [common_1.FunctionName.Timestr]: new date_time_1.Timestr(),
+    [common_1.FunctionName.DatetimeFormat]: new date_time_1.DatetimeFormat(),
+    [common_1.FunctionName.DatetimeParse]: new date_time_1.DatetimeParse(),
+    [common_1.FunctionName.CreatedTime]: new date_time_1.CreatedTime(),
+    [common_1.FunctionName.LastModifiedTime]: new date_time_1.LastModifiedTime(),
+    // Array
+    [common_1.FunctionName.CountAll]: new array_1.CountAll(),
+    [common_1.FunctionName.CountA]: new array_1.CountA(),
+    [common_1.FunctionName.Count]: new array_1.Count(),
+    [common_1.FunctionName.ArrayJoin]: new array_1.ArrayJoin(),
+    [common_1.FunctionName.ArrayUnique]: new array_1.ArrayUnique(),
+    [common_1.FunctionName.ArrayFlatten]: new array_1.ArrayFlatten(),
+    [common_1.FunctionName.ArrayCompact]: new array_1.ArrayCompact(),
+    // System
+    [common_1.FunctionName.TextAll]: new system_1.TextAll(),
+    [common_1.FunctionName.RecordId]: new system_1.RecordId(),
+    [common_1.FunctionName.AutoNumber]: new system_1.AutoNumber(),
+};

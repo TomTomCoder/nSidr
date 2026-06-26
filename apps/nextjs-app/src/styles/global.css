@@ -1,0 +1,308 @@
+@import url('@teable/ui-lib/shadcn/global.shadcn.css');
+@import url('nprogress/nprogress.css');
+@import url('@/styles/github-markdown.css');
+@import url('@/features/app/blocks/chart/globals.css');
+@import url('@teable/sdk/components/editor/long-text/milkdown.css');
+
+:root {
+  --btn-text-case: none;
+  --focus-border: hsl(var(--primary)) !important;
+  --separator-border: hsl(var(--border)) !important;
+  --fc-border-color: hsl(var(--border));
+}
+
+svg.icon {
+  fill: currentColor;
+}
+
+[type='search']:focus {
+  box-shadow: inherit;
+}
+
+html,
+body {
+  overflow: hidden;
+}
+
+.select-field-type [cmdk-list] {
+  max-height: min(600px, calc(100vh - 450px));
+}
+
+.height-preserving-container:empty {
+  min-height: calc(var(--child-height));
+  box-sizing: border-box;
+}
+
+.react-grid-item.react-grid-placeholder {
+  z-index: 0 !important;
+  border-radius: 0.75rem;
+  border-color: hsl(var(--primary)) !important;
+  background-color: hsl(var(--muted-foreground)) !important;
+}
+
+.fc-scrollgrid-section > td {
+  border-radius: 0px 0px 8px 8px !important;
+}
+
+.fc-scrollgrid-section > th {
+  border-radius: 0px 8px 0px 0px !important;
+}
+
+.fc-scrollgrid,
+.fc-col-header {
+  border-radius: 8px !important;
+}
+
+.fc table {
+  font-size: 14px;
+}
+
+.fc th {
+  font-weight: normal;
+}
+
+.fc .fc-highlight {
+  @apply bg-purple-200/30 dark:bg-purple-800/30 !important;
+}
+
+.fc-daygrid-day-number {
+  @apply text-[13px] py-[2px] px-0 !important;
+}
+
+.fc .fc-daygrid-day.fc-day-today {
+  @apply bg-transparent !important;
+}
+
+.fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+  @apply bg-foreground text-background rounded-md px-1 !important;
+}
+
+.fc-daygrid-event-harness {
+  margin-bottom: 1px !important;
+}
+
+.fc-daygrid-more-link {
+  @apply w-full flex justify-center !important;
+}
+
+.fc-daygrid-more-link:hover {
+  @apply bg-transparent !important;
+}
+
+.fc-popover {
+  @apply border-none rounded-md z-10 invisible !important;
+}
+
+.fc-popover-header {
+  @apply text-sm !important;
+}
+
+.fc-popover-body {
+  @apply max-h-[320px] overflow-y-auto text-sm !important;
+}
+
+.fc-daygrid-day-top {
+  @apply pointer-events-none pt-[2px] px-[2px] !important;
+}
+
+.fc-col-header-cell-cushion {
+  @apply w-full !important;
+}
+
+.fc-event-resizer-start,
+.fc-event-resizer-end {
+  @apply cursor-ew-resize !important;
+}
+
+.fc-event-resizer-start {
+  @apply bg-zinc-500/30 w-2 rounded-l-sm left-0 !important;
+}
+
+.fc-event-resizer-end {
+  @apply bg-zinc-500/30 w-2 rounded-r-sm right-0 !important;
+}
+
+.fc-event-title {
+  @apply truncate !important;
+}
+
+.fc-event:focus {
+  @apply shadow-none !important;
+}
+
+.fc-event:focus:after {
+  @apply bg-transparent !important;
+}
+
+.cm-placeholder {
+  color: hsl(var(--muted));
+  display: inline-block;
+  pointer-events: none;
+  padding-left: 0.3rem;
+  font-size: small;
+}
+
+/* React Flow Controls dark mode support */
+.react-flow__controls {
+  border-radius: 0.375rem;
+  border: 1px solid hsl(var(--border));
+  overflow: hidden;
+  box-shadow: none !important;
+}
+
+.react-flow__controls-button {
+  background-color: hsl(var(--popover)) !important;
+  border-color: hsl(var(--border)) !important;
+  fill: hsl(var(--foreground)) !important;
+}
+
+.react-flow__controls-button:hover {
+  background-color: hsl(var(--accent)) !important;
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: none !important;
+}
+
+.react-flow__controls-button svg {
+  fill: currentColor !important;
+}
+
+@keyframes ui-attention-pulse {
+  0% {
+    box-shadow: inset 0 0 0 0 hsl(var(--primary) / 0);
+  }
+
+  35% {
+    box-shadow: inset 0 0 0 5px hsl(var(--primary) / 0.15);
+  }
+
+  100% {
+    box-shadow: inset 0 0 0 0 hsl(var(--primary) / 0);
+  }
+}
+
+.ui-attention-pulse {
+  animation: ui-attention-pulse 700ms ease-in-out 2;
+}
+/* ── AI Hero animations ─────────────────────────────────────────── */
+@keyframes ai-gradient-spin {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes ai-glow-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 16px rgba(124, 58, 237, 0.25),
+      0 0 32px rgba(79, 70, 229, 0.12);
+  }
+  50% {
+    box-shadow:
+      0 0 28px rgba(124, 58, 237, 0.45),
+      0 0 56px rgba(79, 70, 229, 0.22);
+  }
+}
+
+@keyframes ai-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ai-icon-float {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(3deg);
+  }
+}
+
+/* Outer ring: the gradient IS the background, 1.5px shows as border.
+   Infinite animations run only while the user is engaging with the panel
+   (hover / focus-within) — an idle table page should not keep the compositor
+   busy with decorative motion. */
+.ai-gradient-ring {
+  background: linear-gradient(270deg, #7c3aed, #4f46e5, #0ea5e9, #06b6d4, #7c3aed);
+  background-size: 300% 300%;
+  animation:
+    ai-gradient-spin 4s ease infinite,
+    ai-glow-pulse 3s ease-in-out infinite;
+  animation-play-state: paused;
+}
+.ai-gradient-ring:hover,
+.ai-gradient-ring:focus-within {
+  animation-play-state: running;
+}
+
+/* Keep old name as alias so nothing else breaks */
+.ai-gradient-border {
+  background: linear-gradient(270deg, #7c3aed, #4f46e5, #0ea5e9, #06b6d4, #7c3aed);
+  background-size: 300% 300%;
+  animation:
+    ai-gradient-spin 4s ease infinite,
+    ai-glow-pulse 3s ease-in-out infinite;
+  animation-play-state: paused;
+}
+.ai-gradient-border:hover,
+.ai-gradient-border:focus-within {
+  animation-play-state: running;
+}
+
+.ai-hero-enter {
+  animation: ai-fade-in 0.4s ease both;
+}
+
+.ai-hero-enter-delay-1 {
+  animation: ai-fade-in 0.4s ease 0.05s both;
+}
+.ai-hero-enter-delay-2 {
+  animation: ai-fade-in 0.4s ease 0.12s both;
+}
+.ai-hero-enter-delay-3 {
+  animation: ai-fade-in 0.4s ease 0.2s both;
+}
+.ai-hero-enter-delay-4 {
+  animation: ai-fade-in 0.4s ease 0.28s both;
+}
+.ai-hero-enter-delay-5 {
+  animation: ai-fade-in 0.4s ease 0.36s both;
+}
+
+.ai-icon-float {
+  animation: ai-icon-float 3s ease-in-out infinite;
+  animation-play-state: paused;
+}
+*:hover > .ai-icon-float,
+.ai-icon-float:hover {
+  animation-play-state: running;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-gradient-ring,
+  .ai-gradient-border,
+  .ai-icon-float,
+  .ai-hero-enter,
+  .ai-hero-enter-delay-1,
+  .ai-hero-enter-delay-2,
+  .ai-hero-enter-delay-3,
+  .ai-hero-enter-delay-4,
+  .ai-hero-enter-delay-5 {
+    animation: none;
+  }
+}

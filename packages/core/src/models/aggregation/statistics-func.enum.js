@@ -1,0 +1,30 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.NoneFunc = exports.StatisticsFunc = void 0;
+var StatisticsFunc;
+(function (StatisticsFunc) {
+    StatisticsFunc["Count"] = "count";
+    StatisticsFunc["Empty"] = "empty";
+    StatisticsFunc["Filled"] = "filled";
+    StatisticsFunc["Unique"] = "unique";
+    StatisticsFunc["Max"] = "max";
+    StatisticsFunc["Min"] = "min";
+    StatisticsFunc["Sum"] = "sum";
+    StatisticsFunc["Average"] = "average";
+    StatisticsFunc["Checked"] = "checked";
+    StatisticsFunc["UnChecked"] = "unChecked";
+    StatisticsFunc["PercentEmpty"] = "percentEmpty";
+    StatisticsFunc["PercentFilled"] = "percentFilled";
+    StatisticsFunc["PercentUnique"] = "percentUnique";
+    StatisticsFunc["PercentChecked"] = "percentChecked";
+    StatisticsFunc["PercentUnChecked"] = "percentUnChecked";
+    StatisticsFunc["EarliestDate"] = "earliestDate";
+    StatisticsFunc["LatestDate"] = "latestDate";
+    StatisticsFunc["DateRangeOfDays"] = "dateRangeOfDays";
+    StatisticsFunc["DateRangeOfMonths"] = "dateRangeOfMonths";
+    StatisticsFunc["TotalAttachmentSize"] = "totalAttachmentSize";
+})(StatisticsFunc || (exports.StatisticsFunc = StatisticsFunc = {}));
+var NoneFunc;
+(function (NoneFunc) {
+    NoneFunc["None"] = "none";
+})(NoneFunc || (exports.NoneFunc = NoneFunc = {}));

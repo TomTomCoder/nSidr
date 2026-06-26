@@ -1,0 +1,17 @@
+
+# Network segmentation:
+#   teable-frontend: gateway → app (public-facing traffic only)
+#   teable-backend:  app → db, cache, storage (private services never exposed to gateway)
+# Both networks must be created before deploying:
+#   docker network create --driver overlay --attachable teable-frontend
+#   docker network create --driver overlay --attachable teable-backend
+networks:
+  teable-frontend:
+    external: true
+  teable-backend:
+    external: true
+
+volumes:
+  teable-db:
+  teable-cache:
+  teable-storage:

@@ -1,0 +1,292 @@
+#!/usr/bin/env bash
+# Teable universal launcher — auto-detects OS, tools, and picks the best launch option
+# Usage: ./launch [--force-docker] [--force-native] [--help]
+
+set -euo pipefail
+
+RED='\033[31m'
+GREEN='\033[32m'
+YELLOW='\033[33m'
+BLUE='\033[36m'
+NC='\033[0m' # No Color
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FORCE_DOCKER=false
+FORCE_NATIVE=false
+
+for arg in "$@"; do
+  case "$arg" in
+    --force-docker) FORCE_DOCKER=true ;;
+    --force-native) FORCE_NATIVE=true ;;
+    --help|-h)
+      echo "Teable Universal Launcher"
+      echo ""
+      echo "Usage: ./launch [OPTIONS]"
+      echo ""
+      echo "Options:"
+      echo "  --force-docker    Force full Docker stack (overrides auto-detection)"
+      echo "  --force-native    Force native app launch (requires PostgreSQL + Redis)"
+      echo "  --help            Show this help message"
+      echo ""
+      echo "Auto-detection strategy:"
+      echo "  1. Check for pnpm + native services (Homebrew on macOS, manual on Linux)"
+      echo "  2. Check for Docker Desktop / Docker Compose"
+      echo "  3. Fall back to full Docker stack"
+      echo ""
+      echo "Examples:"
+      echo "  ./launch                 # Auto-detect and launch"
+      echo "  ./launch --force-docker  # Always use Docker"
+      echo "  ./launch --force-native  # Always use native (must have PG + Redis running)"
+      exit 0
+      ;;
+  esac
+done
+
+# ============================================================================
+# DETECTION PHASE
+# ============================================================================
+
+detect_os() {
+  case "$(uname -s)" in
+    Darwin*)  echo "macos" ;;
+    Linux*)   echo "linux" ;;
+    MINGW*)   echo "windows" ;;
+    *)        echo "unknown" ;;
+  esac
+}
+
+check_command() {
+  command -v "$1" > /dev/null 2>&1 && echo "yes" || echo "no"
+}
+
+check_postgres() {
+  pg_isready -h localhost -p 5432 -q 2>/dev/null && echo "yes" || echo "no"
+}
+
+check_redis() {
+  redis-cli ping > /dev/null 2>&1 && echo "yes" || echo "no"
+}
+
+print_status() {
+  local label="$1"
+  local status="$2"
+  if [[ "$status" == "yes" ]] || [[ "$status" == "✓" ]]; then
+    printf "${GREEN}✓${NC} %-40s\n" "$label"
+  else
+    printf "${YELLOW}✗${NC} %-40s\n" "$label"
+  fi
+}
+
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BLUE}Teable Universal Launcher${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+
+OS=$(detect_os)
+HAS_PNPM=$(check_command pnpm)
+HAS_DOCKER=$(check_command docker)
+HAS_DOCKER_COMPOSE=$(check_command docker-compose)
+HAS_PG=$(check_postgres)
+HAS_REDIS=$(check_redis)
+
+echo "System Detection:"
+print_status "OS" "$OS"
+print_status "pnpm" "$HAS_PNPM"
+print_status "Docker" "$HAS_DOCKER"
+print_status "Docker Compose" "$HAS_DOCKER_COMPOSE"
+print_status "PostgreSQL (localhost:5432)" "$HAS_PG"
+print_status "Redis (localhost:6379)" "$HAS_REDIS"
+echo ""
+
+# ============================================================================
+# OPTION SELECTION
+# ============================================================================
+
+select_option() {
+  local has_native=false
+  local has_services=false
+  local has_docker=false
+
+  # Native option: needs pnpm + (PG+Redis running OR --force-native)
+  if [[ "$HAS_PNPM" == "yes" ]] && [[ "$FORCE_NATIVE" == "true" || ($HAS_PG == "yes" && $HAS_REDIS == "yes") ]]; then
+    has_native=true
+  fi
+
+  # Services option: needs pnpm + docker + docker-compose
+  if [[ "$HAS_PNPM" == "yes" ]] && [[ "$HAS_DOCKER" == "yes" ]] && [[ "$HAS_DOCKER_COMPOSE" == "yes" ]]; then
+    has_services=true
+  fi
+
+  # Docker option: needs docker + docker-compose (or --force-docker)
+  if [[ "$HAS_DOCKER" == "yes" ]] && [[ "$HAS_DOCKER_COMPOSE" == "yes" ]]; then
+    has_docker=true
+  fi
+
+  # Priority: native > services > docker
+  if [[ "$FORCE_DOCKER" == "true" ]] && [[ "$has_docker" == "true" ]]; then
+    echo "docker"
+  elif [[ "$has_native" == "true" ]] && [[ "$FORCE_NATIVE" != "true" ]]; then
+    echo "native"
+  elif [[ "$has_services" == "true" ]]; then
+    echo "services"
+  elif [[ "$has_docker" == "true" ]]; then
+    echo "docker"
+  else
+    echo "none"
+  fi
+}
+
+SELECTED=$(select_option)
+
+# ============================================================================
+# OPTION DETAILS & CHOICE
+# ============================================================================
+
+case "$SELECTED" in
+  native)
+    echo -e "${GREEN}✓ Native Launch Available${NC} (pnpm + local PostgreSQL + Redis)"
+    echo ""
+    echo "This option:"
+    echo "  • Runs Node.js backend + frontend natively (fastest)"
+    echo "  • Requires PostgreSQL + Redis running locally"
+    echo "  • Best for active development (hot-reload)"
+    echo ""
+    CHOICE="native"
+    ;;
+
+  services)
+    echo -e "${GREEN}✓ Services + Native Launch Available${NC} (pnpm + Docker services)"
+    echo ""
+    echo "Available options:"
+    echo "  1. Native (recommended) — fastest, needs PG+Redis"
+    if [[ "$HAS_PG" == "yes" ]] && [[ "$HAS_REDIS" == "yes" ]]; then
+      CHOICE="native"
+      echo "     → Using this (PG+Redis detected)"
+    else
+      echo "  2. Services — Docker handles PG+Redis, app runs native"
+      CHOICE="services"
+      echo "     → Using this (PG or Redis not running)"
+    fi
+    echo ""
+    ;;
+
+  docker)
+    echo -e "${GREEN}✓ Full Docker Stack Available${NC}"
+    echo ""
+    echo "This option:"
+    echo "  • Runs everything in Docker containers"
+    echo "  • Zero local setup required"
+    echo "  • Suitable for CI/CD and full isolation"
+    echo ""
+    CHOICE="docker"
+    ;;
+
+  none)
+    echo -e "${RED}✗ No launch option available${NC}"
+    echo ""
+    echo "You need one of:"
+    echo "  1. pnpm + PostgreSQL + Redis running locally"
+    echo "  2. pnpm + Docker (for services option)"
+    echo "  3. Docker (for full stack)"
+    echo ""
+    echo "Install with:"
+    echo "  • macOS: brew install node@20 pnpm postgresql redis"
+    echo "  • Linux:  apt-get install nodejs npm postgresql redis-server"
+    echo "  • Docker: Install Docker Desktop from https://docker.com"
+    echo ""
+    exit 1
+    ;;
+esac
+
+# ============================================================================
+# LAUNCH PHASE
+# ============================================================================
+
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo ""
+
+case "$CHOICE" in
+  native)
+    echo -e "${BLUE}Launching: Native (pnpm + local services)${NC}"
+    echo ""
+    echo "Web UI:  http://localhost:3000"
+    echo "API:     http://localhost:3002"
+    echo "Logs:    /tmp/teable-{backend,frontend}.log"
+    echo ""
+    echo "To stop: Ctrl+C or pkill -f 'nestjs-backend|next dev'"
+    echo ""
+    cd "$REPO_ROOT"
+    exec bash scripts/launch-local.sh "$@"
+    ;;
+
+  services)
+    echo -e "${BLUE}Launching: Services + Native${NC} (Docker PG+Redis, native app)"
+    echo ""
+    echo "Step 1: Starting Docker services (PostgreSQL + Redis)..."
+    echo ""
+    cd "$REPO_ROOT"
+    if ! pnpm start:services; then
+      echo -e "${RED}✗ Failed to start Docker services${NC}"
+      exit 1
+    fi
+    echo ""
+    echo -e "${GREEN}✓ Services started${NC}"
+    echo ""
+    sleep 2
+    echo "Step 2: Starting application..."
+    echo ""
+    echo "Web UI:  http://localhost:3000"
+    echo "API:     http://localhost:3002"
+    echo "Logs:    /tmp/teable-{backend,frontend}.log"
+    echo ""
+    echo "To stop services:  pnpm stop:services"
+    echo "To stop app:       Ctrl+C or pkill -f 'nestjs-backend|next dev'"
+    echo ""
+    exec bash scripts/launch-local.sh "$@"
+    ;;
+
+  docker)
+    echo -e "${BLUE}Launching: Full Docker Stack${NC}"
+    echo ""
+    echo "This will build the image and start all containers..."
+    echo ""
+    cd "$REPO_ROOT"
+
+    # Check if image exists; build only if needed
+    if ! docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "teable-local:latest"; then
+      echo "Building Docker image (this may take 5-10 minutes on first run)..."
+      if ! pnpm start:docker:build; then
+        echo -e "${RED}✗ Docker build failed${NC}"
+        exit 1
+      fi
+      echo -e "${GREEN}✓ Image built${NC}"
+    fi
+
+    echo ""
+    echo "Starting containers..."
+    if ! pnpm start:docker; then
+      echo -e "${RED}✗ Failed to start Docker stack${NC}"
+      exit 1
+    fi
+
+    echo ""
+    echo -e "${GREEN}✓ Containers started${NC}"
+    echo ""
+    echo "Waiting for services to be ready..."
+    for i in {1..30}; do
+      if curl -s http://localhost:3000/health > /dev/null 2>&1; then
+        break
+      fi
+      sleep 1
+    done
+
+    echo ""
+    echo "Web UI:  http://localhost:3000"
+    echo "API:     http://localhost:3002"
+    echo ""
+    echo "To stop:  pnpm stop:docker"
+    echo "To reset: pnpm stop:docker:clean"
+    echo ""
+    echo "✓ Teable is running!"
+    ;;
+esac
