@@ -2,10 +2,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getAppContent, updateAppContent } from '@teable/openapi';
 import { ReactQueryKeys } from '@teable/sdk/config';
 import { useBaseId } from '@teable/sdk/hooks';
-import { Button, useToast } from '@teable/ui-lib/shadcn';
+import { Button } from '@teable/ui-lib/shadcn';
 import { AlertCircle, Code2, Eye, Loader2, MessageSquare, RefreshCw, Square } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 const ChatPanel = dynamic(
   () => import('../components/chat-panel/ChatPanel').then((m) => m.ChatPanel),
@@ -170,7 +170,6 @@ export function AppBuilderPage() {
   const baseId = useBaseId()!;
   const { appId } = useBaseResource() as IBaseResourceApp;
   const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   const {
     open: openChat,
@@ -189,8 +188,6 @@ export function AppBuilderPage() {
     statusMessage,
     stop,
     autoFix,
-    generate,
-    dequeuePendingGeneration,
   } = useAppBuilderStore();
 
   const [mainTab, setMainTab] = useState<'preview' | 'code'>('preview');
@@ -204,23 +201,6 @@ export function AppBuilderPage() {
 
   useEffect(() => () => stop(), []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
-    if (!appId) return;
-    const queued = dequeuePendingGeneration(appId);
-    if (queued) {
-      void generate({
-        prompt: queued.prompt,
-        baseId: queued.baseId,
-        appId,
-        onSave: (files) =>
-          void updateAppContent(queued.baseId, appId, { files }).then(() =>
-            queryClient.invalidateQueries({ queryKey: ReactQueryKeys.appContent(queued.baseId, appId) })
-          ),
-        onInvalidate: () => {},
-      });
-    }
-  }, [appId]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const { data: remoteContent, isLoading } = useQuery({
     queryKey: ReactQueryKeys.appContent(baseId, appId ?? ''),
     queryFn: () => getAppContent(baseId, appId!).then((r) => r.data as IAppContent),
@@ -228,25 +208,17 @@ export function AppBuilderPage() {
   });
 
   useEffect(() => {
-    setFiles(remoteContent?.files ?? {});
-  }, [remoteContent]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (generating) return;
+    if (remoteContent?.files) setFiles(remoteContent.files);
+  }, [remoteContent, generating]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Rebuild preview only when not actively generating (avoids constant iframe reloads)
   const mainFileContent = files['app/page.tsx'] ?? '';
   useEffect(() => {
-    if (!generating) {
-      setPreviewSrc(mainFileContent ? buildSrcDoc(mainFileContent, baseId) : '');
+    if (!generating && mainFileContent) {
+      setPreviewSrc(buildSrcDoc(mainFileContent, baseId));
     }
   }, [generating, mainFileContent, baseId]);
-
-  // Toast on generation completion
-  const wasGenerating = useRef(false);
-  useEffect(() => {
-    if (wasGenerating.current && !generating && !generateError) {
-      toast({ title: 'Application générée ✓', description: "Votre app est prête dans l'aperçu." });
-    }
-    wasGenerating.current = generating;
-  }, [generating, generateError, toast]);
 
   const { mutate: saveContent } = useMutation({
     mutationFn: (content: IAppContent) => updateAppContent(baseId, appId!, content),
@@ -283,7 +255,7 @@ export function AppBuilderPage() {
 
   return (
     <div className="flex h-full overflow-hidden">
-      <div className="relative flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden">
         {/* Tab bar */}
         <div className="flex items-center gap-1 border-b px-3 py-2">
           {(['preview', 'code'] as const).map((tab) => (
@@ -316,7 +288,7 @@ export function AppBuilderPage() {
         </div>
 
         {mainTab === 'preview' ? (
-          <div className="flex-1 overflow-hidden">
+          <div className="relative flex-1 overflow-hidden">
             {previewSrc ? (
               <iframe
                 className="size-full border-0"
@@ -332,6 +304,83 @@ export function AppBuilderPage() {
               </div>
             )}
 
+            {generating && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background">
+                {/* Cuppy mascot */}
+                <svg
+                  width="56"
+                  height="56"
+                  viewBox="0 0 40 40"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M12 24c0 0 2 6 8 6s8-6 8-6V14H12v10z"
+                    fill="hsl(var(--primary))"
+                    opacity="0.15"
+                  />
+                  <path d="M12 14h16v2H12z" fill="hsl(var(--primary))" opacity="0.3" />
+                  <path
+                    d="M28 16c0 0 4 0 4 4s-4 4-4 4"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    opacity="0.5"
+                  />
+                  <circle cx="17" cy="20" r="1.5" fill="hsl(var(--foreground))" />
+                  <circle cx="23" cy="20" r="1.5" fill="hsl(var(--foreground))" />
+                  <path
+                    d="M17 23.5c0 0 1 1.5 3 1.5s3-1.5 3-1.5"
+                    stroke="hsl(var(--foreground))"
+                    strokeWidth="1.2"
+                    strokeLinecap="round"
+                  />
+                  <rect
+                    x="14"
+                    y="9"
+                    width="12"
+                    height="5"
+                    rx="2.5"
+                    fill="hsl(var(--primary))"
+                    opacity="0.2"
+                  />
+                  <circle cx="17" cy="9" r="1" fill="hsl(var(--primary))" opacity="0.4" />
+                  <circle cx="20" cy="8" r="1.2" fill="hsl(var(--primary))" opacity="0.4" />
+                  <circle cx="23" cy="9" r="1" fill="hsl(var(--primary))" opacity="0.4" />
+                </svg>
+                <p className="text-sm font-semibold">Génération de l&apos;application…</p>
+                <p className="text-xs text-muted-foreground">
+                  L&apos;IA écrit le code, cela ne prendra pas longtemps.
+                </p>
+                {statusMessage && (
+                  <p className="max-w-xs text-center text-xs text-muted-foreground/60">
+                    {statusMessage}
+                  </p>
+                )}
+                <Button variant="outline" size="sm" onClick={stop} className="mt-2 gap-1.5">
+                  <Square className="size-3 fill-current" />
+                  Arrêter
+                </Button>
+              </div>
+            )}
+
+            {generateError && !generating && (
+              <div className="absolute inset-x-0 bottom-0 border-t bg-destructive/10 p-3">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
+                  <p className="flex-1 text-xs text-muted-foreground">{generateError}</p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0 gap-1 text-xs"
+                    onClick={handleAutoFix}
+                  >
+                    <RefreshCw className="size-3" />
+                    Auto-fix
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex flex-1 overflow-hidden">
@@ -369,86 +418,6 @@ export function AppBuilderPage() {
                   Aucun fichier sélectionné
                 </div>
               )}
-            </div>
-          </div>
-        )}
-
-        {/* Generating overlay — covers full content area on both Preview and Code tabs */}
-        {generating && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background">
-            {/* Cuppy mascot */}
-            <svg
-              width="56"
-              height="56"
-              viewBox="0 0 40 40"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M12 24c0 0 2 6 8 6s8-6 8-6V14H12v10z"
-                fill="hsl(var(--primary))"
-                opacity="0.15"
-              />
-              <path d="M12 14h16v2H12z" fill="hsl(var(--primary))" opacity="0.3" />
-              <path
-                d="M28 16c0 0 4 0 4 4s-4 4-4 4"
-                stroke="hsl(var(--primary))"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                opacity="0.5"
-              />
-              <circle cx="17" cy="20" r="1.5" fill="hsl(var(--foreground))" />
-              <circle cx="23" cy="20" r="1.5" fill="hsl(var(--foreground))" />
-              <path
-                d="M17 23.5c0 0 1 1.5 3 1.5s3-1.5 3-1.5"
-                stroke="hsl(var(--foreground))"
-                strokeWidth="1.2"
-                strokeLinecap="round"
-              />
-              <rect
-                x="14"
-                y="9"
-                width="12"
-                height="5"
-                rx="2.5"
-                fill="hsl(var(--primary))"
-                opacity="0.2"
-              />
-              <circle cx="17" cy="9" r="1" fill="hsl(var(--primary))" opacity="0.4" />
-              <circle cx="20" cy="8" r="1.2" fill="hsl(var(--primary))" opacity="0.4" />
-              <circle cx="23" cy="9" r="1" fill="hsl(var(--primary))" opacity="0.4" />
-            </svg>
-            <p className="text-sm font-semibold">Génération de l&apos;application…</p>
-            <p className="text-xs text-muted-foreground">
-              L&apos;IA écrit le code, cela ne prendra pas longtemps.
-            </p>
-            {statusMessage && (
-              <p className="max-w-xs text-center text-xs text-muted-foreground/60">
-                {statusMessage}
-              </p>
-            )}
-            <Button variant="outline" size="sm" onClick={stop} className="mt-2 gap-1.5">
-              <Square className="size-3 fill-current" />
-              Arrêter
-            </Button>
-          </div>
-        )}
-
-        {/* Error panel */}
-        {generateError && !generating && (
-          <div className="absolute inset-x-0 bottom-0 border-t bg-destructive/10 p-3">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
-              <p className="flex-1 text-xs text-muted-foreground">{generateError}</p>
-              <Button
-                size="sm"
-                variant="outline"
-                className="shrink-0 gap-1 text-xs"
-                onClick={handleAutoFix}
-              >
-                <RefreshCw className="size-3" />
-                Auto-fix
-              </Button>
             </div>
           </div>
         )}
