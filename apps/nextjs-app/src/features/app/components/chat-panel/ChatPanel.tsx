@@ -205,12 +205,6 @@ const baseResource = useBaseResource();
         </div>
       </div>
 
-
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Unified chat container */}
       <UnifiedChatContainer
         spaceId={spaceId}
