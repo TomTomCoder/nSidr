@@ -72,6 +72,7 @@ const WRITE_TOOLS = new Set([
   'create_app_interface',
   'create_automation',
   'create_agent',
+  'generate_app_code',
 ]);
 
 @Injectable()
@@ -146,7 +147,8 @@ export class UnifiedAiService {
       '   Short text/title → singleLineText | Long notes → longText | Number → number\n' +
       '   Fixed choices → singleSelect | Multiple tags → multipleSelect | Date → date\n' +
       '   True/False → checkbox | File → attachment | Email → email | URL → url\n' +
-      '   Money → currency | Stars → rating | Link to table → linkRecord\n\n' +
+      '   Money → currency | Stars → rating | Link to table → linkRecord\n' +
+      '8. generate_app_code: call AFTER create_app_interface when user wants working app code. Pass the appId from create_app_interface and a clear prompt. Do NOT call if user only asked to create the app interface without code.\n\n' +
       '## After completing a task\n' +
       'Give a brief confirmation (1-2 sentences) summarizing what was created/changed.\n' +
       'Suggest a logical next step if relevant (e.g. "You may want to link this to your Contacts table.").\n\n' +
@@ -397,6 +399,15 @@ export class UnifiedAiService {
             .string()
             .optional()
             .describe('The base name — used to resolve baseId if ID is not known'),
+        })
+      ),
+      generate_app_code: buildWriteTool(
+        'generate_app_code',
+        'Generate React application code for an app interface. Call this AFTER create_app_interface when the user wants a working app with full UI code. Pass the appId from the create_app_interface result and a clear prompt describing what the app should do.',
+        z.object({
+          appId: z.string().describe('The app node ID returned by create_app_interface'),
+          prompt: z.string().describe('Clear description of what the app should display and do'),
+          baseId: z.string().optional().describe('The base ID — filled automatically'),
         })
       ),
       link_tables: buildWriteTool(

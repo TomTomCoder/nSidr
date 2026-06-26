@@ -497,6 +497,16 @@ export class ActionProposalService {
         return { updated: true, recordId, tableId };
       }
 
+      case 'generate_app_code': {
+        const appId = args.appId as string | undefined;
+        const prompt = args.prompt as string | undefined;
+        const baseId = args.baseId as string | undefined;
+        if (!appId || !baseId) {
+          return { status: 'skipped', reason: 'appId and baseId are required for generate_app_code' };
+        }
+        return { shouldStream: true, appId, prompt: prompt ?? '', baseId };
+      }
+
       default:
         throw new Error(`Action ${action} is not implemented`);
     }

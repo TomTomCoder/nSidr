@@ -3,6 +3,8 @@
 import { Badge } from '@teable/ui-lib/shadcn/ui/badge';
 import { Button } from '@teable/ui-lib/shadcn/ui/button';
 import { CheckCircle2, Loader2, XCircle } from 'lucide-react';
+import { useRouter } from 'next/router';
+import { useAppBuilderStore } from '@/features/app/stores/useAppBuilderStore';
 import { useUnifiedChatStore } from '@/features/app/stores/useUnifiedChatStore';
 import type { UnifiedChatEvent } from '@/types/agent';
 
@@ -97,6 +99,7 @@ function PreviewBody({ preview }: { preview: unknown }) {
 export function ProposalCard({ proposal, spaceId, conversationId }: ProposalCardProps) {
   const { activeProposals, setProposalStatus, appendMessage } = useUnifiedChatStore(spaceId);
   const status = activeProposals[proposal.proposalId] ?? 'pending';
+  const router = useRouter();
 
   const handleAccept = async () => {
     setProposalStatus(proposal.proposalId, 'accepting');
@@ -109,10 +112,21 @@ export function ProposalCard({ proposal, spaceId, conversationId }: ProposalCard
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const result = (await res.json()) as Record<string, unknown>;
       setProposalStatus(proposal.proposalId, 'accepted');
+      // Handle shouldStream: queue generation and navigate to app page
+      if (result?.shouldStream && result?.appId && result?.baseId) {
+        useAppBuilderStore.getState().queueGeneration({
+          appId: result.appId as string,
+          prompt: (result.prompt as string) ?? '',
+          baseId: result.baseId as string,
+        });
+        void router.push(`/base/${result.baseId as string}/app/${result.appId as string}`);
+      }
       // Surface result as a chat message so the user knows what happened
       let content: string;
       if (result.status === 'skipped') {
         content = `⚠️ Action ignorée : ${result.reason as string}`;
+      } else if (result.shouldStream) {
+        content = `✓ Génération du code de l'application en cours…`;
       } else if (result.agentId) {
         content = `✓ Agent "${result.name as string}" créé avec succès.`;
         window.dispatchEvent(

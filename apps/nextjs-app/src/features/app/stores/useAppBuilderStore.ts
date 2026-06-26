@@ -41,6 +41,7 @@ interface IAppBuilderState {
   lastPrompt: string;
   selectedModel: string | undefined;
   history: IHistoryEntry[];
+  pendingGeneration: { appId: string; prompt: string; baseId: string } | null;
 
   setFiles: (files: Record<string, string>) => void;
   updateFile: (path: string, content: string) => void;
@@ -48,6 +49,8 @@ interface IAppBuilderState {
   setSelectedModel: (model: string | undefined) => void;
   clearError: () => void;
   restoreHistory: (entry: IHistoryEntry, params: Omit<IGenerateParams, 'prompt'>) => void;
+  queueGeneration: (gen: { appId: string; prompt: string; baseId: string }) => void;
+  dequeuePendingGeneration: (appId: string) => { appId: string; prompt: string; baseId: string } | null;
 
   generate: (params: IGenerateParams) => Promise<void>;
   stop: () => void;
@@ -164,6 +167,7 @@ export const useAppBuilderStore = create<IAppBuilderState>((set, get) => ({
   lastPrompt: '',
   selectedModel: undefined,
   history: [],
+  pendingGeneration: null,
 
   setFiles: (files) => {
     const { selectedFile } = get();
@@ -182,6 +186,16 @@ export const useAppBuilderStore = create<IAppBuilderState>((set, get) => ({
     set({ files: entry.files, selectedFile: Object.keys(entry.files)[0] ?? 'app/page.tsx' });
     params.onSave(entry.files);
     params.onInvalidate();
+  },
+
+  queueGeneration: (gen) => set({ pendingGeneration: gen }),
+  dequeuePendingGeneration: (appId) => {
+    const state = get();
+    if (state.pendingGeneration?.appId === appId) {
+      set({ pendingGeneration: null });
+      return state.pendingGeneration;
+    }
+    return null;
   },
 
   generate: async ({ prompt, baseId, appId, onSave, onInvalidate }) => {

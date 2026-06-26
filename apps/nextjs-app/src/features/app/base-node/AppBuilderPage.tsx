@@ -189,6 +189,8 @@ export function AppBuilderPage() {
     statusMessage,
     stop,
     autoFix,
+    generate,
+    dequeuePendingGeneration,
   } = useAppBuilderStore();
 
   const [mainTab, setMainTab] = useState<'preview' | 'code'>('preview');
@@ -201,6 +203,23 @@ export function AppBuilderPage() {
   }, [openChat, setPanelType]);
 
   useEffect(() => () => stop(), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!appId) return;
+    const queued = dequeuePendingGeneration(appId);
+    if (queued) {
+      void generate({
+        prompt: queued.prompt,
+        baseId: queued.baseId,
+        appId,
+        onSave: (files) =>
+          void updateAppContent(queued.baseId, appId, { files }).then(() =>
+            queryClient.invalidateQueries({ queryKey: ReactQueryKeys.appContent(queued.baseId, appId) })
+          ),
+        onInvalidate: () => {},
+      });
+    }
+  }, [appId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: remoteContent, isLoading } = useQuery({
     queryKey: ReactQueryKeys.appContent(baseId, appId ?? ''),
