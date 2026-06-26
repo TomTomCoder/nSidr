@@ -23,6 +23,7 @@ import { ModelSelector } from '@/features/app/components/ModelSelector';
 import { useAvailableModels } from '@/features/app/hooks/useAvailableModels';
 import { useUnifiedChatStore } from '@/features/app/stores/useUnifiedChatStore';
 import type { UnifiedChatEvent } from '@/types/agent';
+import { useAppBuilderStore } from '@/features/app/stores/useAppBuilderStore';
 import { MessageItem } from './MessageItem';
 import { TaskProgressPanel } from './TaskProgressPanel';
 
@@ -293,6 +294,7 @@ export function UnifiedChatContainer({
   const handleAcceptAll = useCallback(async () => {
     if (isAcceptingAll || pendingProposals.length === 0) return;
     setIsAcceptingAll(true);
+    let pendingNavigation: { baseId: string; appId: string } | null = null;
     for (const proposal of pendingProposals) {
       setProposalStatus(proposal.proposalId, 'accepting');
       try {
@@ -301,12 +303,24 @@ export function UnifiedChatContainer({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ proposalId: proposal.proposalId, conversationId }),
         });
-        const result = (await res.json()) as { status?: string; agentId?: string };
+        const result = (await res.json()) as { status?: string; agentId?: string; shouldStream?: boolean; appId?: string; baseId?: string; prompt?: string };
         setProposalStatus(proposal.proposalId, result?.status === 'skipped' ? 'error' : 'accepted');
+        if (result?.shouldStream && result?.appId && result?.baseId) {
+          useAppBuilderStore.getState().queueGeneration({
+            appId: result.appId as string,
+            prompt: (result.prompt as string) ?? '',
+            baseId: result.baseId as string,
+          });
+          // Navigate after the loop finishes
+          pendingNavigation = { baseId: result.baseId as string, appId: result.appId as string };
+        }
         if (result?.agentId) window.dispatchEvent(new Event('agent-created'));
       } catch {
         setProposalStatus(proposal.proposalId, 'error');
       }
+    }
+    if (pendingNavigation) {
+      window.location.href = `/base/${pendingNavigation.baseId}/app/${pendingNavigation.appId}`;
     }
     setIsAcceptingAll(false);
   }, [isAcceptingAll, pendingProposals, spaceId, conversationId, setProposalStatus]);
@@ -649,7 +663,6 @@ export function UnifiedChatContainer({
                       message={group.msg}
                       spaceId={spaceId}
                       conversationId={conversationId ?? ''}
-                      activeBaseId={activeBaseId}
                     />
                   );
                 const expanded = expandedGroups.has(group.groupIndex);
@@ -665,7 +678,6 @@ export function UnifiedChatContainer({
                         message={m}
                         spaceId={spaceId}
                         conversationId={conversationId ?? ''}
-                        activeBaseId={activeBaseId}
                       />
                     ))}
                     <button

@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { BaseNodeResourceType, updateAppContent } from '@teable/openapi';
+import { BaseNodeResourceType, createApp, updateAppContent } from '@teable/openapi';
 import { ReactQueryKeys } from '@teable/sdk/config';
 import { useBase } from '@teable/sdk/hooks/use-base';
 import { useTable } from '@teable/sdk/hooks/use-table';
@@ -83,7 +83,7 @@ function ChatPanelInner({ spaceId }: { spaceId: string }) {
   const [configAgent, setConfigAgent] = useState<Record<string, unknown> | null>(null);
   const [agents, setAgents] = useState<Record<string, unknown>[]>([]);
   const [activeTab, setActiveTab] = useState<'general' | 'app-builder'>('general');
-  const { generating, statusMessage, tasks } = useAppBuilderStore();
+  const { generating, statusMessage, tasks, generate } = useAppBuilderStore();
   const chatStore = useUnifiedChatStore(spaceId);
   const suggestionGroups = buildSuggestionGroups(table?.name);
   const isAppBuilderMode = panelType === 'app-builder';
@@ -98,22 +98,36 @@ function ChatPanelInner({ spaceId }: { spaceId: string }) {
 
   const handleGeneratorSubmit = useCallback(
     (text: string): boolean => {
-      if (!isAppBuilderMode || !base?.id || !appId) return false;
-      const { generate } = useAppBuilderStore.getState();
-      void generate({
-        prompt: text,
-        baseId: base.id,
-        appId,
-        onSave: (files) =>
-          void updateAppContent(base.id, appId, { files }).then(() =>
-            queryClient.invalidateQueries({ queryKey: ReactQueryKeys.appContent(base.id, appId) })
-          ),
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onInvalidate: () => {},
+      if (!isAppBuilderMode && !base?.id) return false;
+      if (!base?.id) return false;
+
+      if (appId) {
+        // Already on an app page — generate directly
+        const { generate } = useAppBuilderStore.getState();
+        void generate({
+          prompt: text,
+          baseId: base.id,
+          appId,
+          onSave: (files) =>
+            void updateAppContent(base.id, appId, { files }).then(() =>
+              queryClient.invalidateQueries({ queryKey: ReactQueryKeys.appContent(base.id, appId) })
+            ),
+          // eslint-disable-next-line @typescript-eslint/no-empty-function
+          onInvalidate: () => {},
+        });
+        return true;
+      }
+
+      // On base page — create a new app then navigate + generate
+      void createApp(base.id, text.slice(0, 60)).then((res) => {
+        const newAppId = res.data?.id;
+        if (!newAppId) return;
+        useAppBuilderStore.getState().queueGeneration({ appId: newAppId, prompt: text, baseId: base.id });
+        void router.push(`/base/${base.id}/app/${newAppId}`);
       });
       return true;
     },
-    [isAppBuilderMode, base?.id, appId, queryClient]
+    [isAppBuilderMode, base?.id, appId, queryClient, router]
   );
 
   // Fetch agents for the current base so we can show the config button
@@ -264,11 +278,10 @@ function ChatPanelInner({ spaceId }: { spaceId: string }) {
       {/* Unified chat container */}
       <UnifiedChatContainer
         spaceId={spaceId}
-        activeBaseId={base?.id}
         className="min-h-0 flex-1"
         suggestionGroups={suggestionGroups}
         pageContext={table ? { tableId: table.id, tableName: table.name } : undefined}
-        onSubmit={isAppBuilderMode ? handleGeneratorSubmit : undefined}
+        onSubmit={base?.id ? handleGeneratorSubmit : undefined}
       />
 
       {/* Conversation history drawer */}
