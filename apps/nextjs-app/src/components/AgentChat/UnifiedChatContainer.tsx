@@ -18,7 +18,7 @@ import {
   Square,
   Workflow,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ModelSelector } from '@/features/app/components/ModelSelector';
 import { useAvailableModels } from '@/features/app/hooks/useAvailableModels';
 import { useUnifiedChatStore } from '@/features/app/stores/useUnifiedChatStore';
@@ -167,6 +167,8 @@ export function UnifiedChatContainer({
     setIsStreaming,
     appendMessage,
     setConversationId,
+    activeProposals,
+    setProposalStatus,
   } = useUnifiedChatStore(spaceId, activeBaseId);
 
   const [input, setInput] = useState('');
@@ -277,6 +279,38 @@ export function UnifiedChatContainer({
   };
 
   const hasMessages = messages.length > 0;
+  const pendingProposals = useMemo(
+    () =>
+      messages
+        .filter((m) => m.type === 'proposal' && m.proposal)
+        .map((m) => (m as { proposal: { proposalId: string; action: string; preview: unknown } }).proposal)
+        .filter((p) => (activeProposals[p.proposalId] ?? 'pending') === 'pending'),
+    [messages, activeProposals]
+  );
+
+  const [isAcceptingAll, setIsAcceptingAll] = useState(false);
+
+  const handleAcceptAll = useCallback(async () => {
+    if (isAcceptingAll || pendingProposals.length === 0) return;
+    setIsAcceptingAll(true);
+    for (const proposal of pendingProposals) {
+      setProposalStatus(proposal.proposalId, 'accepting');
+      try {
+        const res = await fetch(`/api/spaces/${spaceId}/ai/accept-proposal`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ proposalId: proposal.proposalId, conversationId }),
+        });
+        const result = (await res.json()) as { status?: string; agentId?: string };
+        setProposalStatus(proposal.proposalId, result?.status === 'skipped' ? 'error' : 'accepted');
+        if (result?.agentId) window.dispatchEvent(new Event('agent-created'));
+      } catch {
+        setProposalStatus(proposal.proposalId, 'error');
+      }
+    }
+    setIsAcceptingAll(false);
+  }, [isAcceptingAll, pendingProposals, spaceId, conversationId, setProposalStatus]);
+
 
   const isGeneratingApp = useMemo(() => {
     if (!isStreaming) return false;
@@ -658,6 +692,21 @@ export function UnifiedChatContainer({
           </ScrollArea>
           <div className="shrink-0 border-t px-3 pb-3 pt-2">
             <TaskProgressPanel messages={messages} isStreaming={isStreaming} className="mb-2" />
+            {pendingProposals.length > 0 && (
+              <div className="mb-2">
+                <button
+                  type="button"
+                  onClick={() => void handleAcceptAll()}
+                  disabled={isAcceptingAll}
+                  className="w-full rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm transition-opacity hover:opacity-90 disabled:opacity-60"
+                  style={{ background: 'linear-gradient(135deg, #7c3aed, #6366f1, #4f46e5)' }}
+                >
+                  {isAcceptingAll
+                    ? 'Acceptation en cours…'
+                    : `Accepter tout (${pendingProposals.length})`}
+                </button>
+              </div>
+            )}
             {renderInput(false)}
           </div>
         </>
