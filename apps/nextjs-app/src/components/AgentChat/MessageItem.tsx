@@ -12,6 +12,7 @@ interface MessageItemProps {
   message: AnyMessage;
   spaceId?: string;
   conversationId?: string;
+  activeBaseId?: string;
 }
 
 /**
@@ -23,6 +24,7 @@ export const MessageItem = memo(function MessageItem({
   message,
   spaceId,
   conversationId,
+  activeBaseId,
 }: MessageItemProps) {
   const { type, content } = message;
 
@@ -102,7 +104,7 @@ export const MessageItem = memo(function MessageItem({
   if (type === 'proposal') {
     const proposal = 'proposal' in message ? message.proposal : undefined;
     if (proposal && spaceId && conversationId) {
-      return <ProposalCard proposal={proposal} spaceId={spaceId} conversationId={conversationId} />;
+      return <ProposalCard proposal={proposal} spaceId={spaceId} conversationId={conversationId} activeBaseId={activeBaseId} />;
     }
   }
 

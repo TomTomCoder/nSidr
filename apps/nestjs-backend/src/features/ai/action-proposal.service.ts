@@ -257,7 +257,13 @@ export class ActionProposalService {
             .move(args.baseId as string, dashboardNodeVo.id, { parentId: appsFolderId })
             .catch(() => {});
         }
-        return dashboardNodeVo;
+        return {
+          ...dashboardNodeVo,
+          shouldStream: true,
+          appId: dashboardNodeVo.id,
+          prompt: (args.description as string) || (args.name as string) || 'Generate a complete React app for this interface',
+          baseId: args.baseId as string,
+        };
       }
 
       case 'create_automation': {

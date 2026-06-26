@@ -148,7 +148,7 @@ export class UnifiedAiService {
       '   Fixed choices → singleSelect | Multiple tags → multipleSelect | Date → date\n' +
       '   True/False → checkbox | File → attachment | Email → email | URL → url\n' +
       '   Money → currency | Stars → rating | Link to table → linkRecord\n' +
-      '8. generate_app_code: call AFTER create_app_interface when user wants working app code. Pass the appId from create_app_interface and a clear prompt. Do NOT call if user only asked to create the app interface without code.\n\n' +
+      '8. When create_app_interface is accepted, code generation triggers automatically — do NOT call any separate tool for it.\n\n' +
       '## After completing a task\n' +
       'Give a brief confirmation (1-2 sentences) summarizing what was created/changed.\n' +
       'Suggest a logical next step if relevant (e.g. "You may want to link this to your Contacts table.").\n\n' +

@@ -23,6 +23,7 @@ interface ProposalCardProps {
   proposal: { proposalId: string; action: string; preview: unknown };
   spaceId: string;
   conversationId: string;
+  activeBaseId?: string;
 }
 
 const ACTION_LABELS: Record<string, string> = {
@@ -96,8 +97,8 @@ function PreviewBody({ preview }: { preview: unknown }) {
   );
 }
 
-export function ProposalCard({ proposal, spaceId, conversationId }: ProposalCardProps) {
-  const { activeProposals, setProposalStatus, appendMessage } = useUnifiedChatStore(spaceId);
+export function ProposalCard({ proposal, spaceId, conversationId, activeBaseId }: ProposalCardProps) {
+  const { activeProposals, setProposalStatus, appendMessage } = useUnifiedChatStore(spaceId, activeBaseId);
   const status = activeProposals[proposal.proposalId] ?? 'pending';
   const router = useRouter();
 
