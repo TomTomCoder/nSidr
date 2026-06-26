@@ -215,8 +215,8 @@ export function AppBuilderPage() {
   // Rebuild preview only when not actively generating (avoids constant iframe reloads)
   const mainFileContent = files['app/page.tsx'] ?? '';
   useEffect(() => {
-    if (!generating && mainFileContent) {
-      setPreviewSrc(buildSrcDoc(mainFileContent, baseId));
+    if (!generating) {
+      setPreviewSrc(mainFileContent ? buildSrcDoc(mainFileContent, baseId) : '');
     }
   }, [generating, mainFileContent, baseId]);
 
