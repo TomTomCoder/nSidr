@@ -9,7 +9,7 @@ export const CommunityPage = () => {
 
   return (
     <div className="flex h-full w-full flex-col">
-      <UnifiedChatContainer spaceId={spaceId} className="h-full" />
+      <UnifiedChatContainer spaceId={spaceId} activeBaseId={base?.id} className="h-full" />
     </div>
   );
 };
