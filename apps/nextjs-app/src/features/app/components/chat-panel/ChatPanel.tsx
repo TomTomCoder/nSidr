@@ -81,7 +81,7 @@ function ChatPanelInner({ spaceId }: { spaceId: string }) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [configAgent, setConfigAgent] = useState<Record<string, unknown> | null>(null);
   const [agents, setAgents] = useState<Record<string, unknown>[]>([]);
-const { generating, statusMessage, tasks, generate } = useAppBuilderStore();
+const { generate } = useAppBuilderStore();
   const chatStore = useUnifiedChatStore(spaceId);
   const suggestionGroups = buildSuggestionGroups(table?.name);
   const isAppBuilderMode = panelType === 'app-builder';
@@ -206,40 +206,6 @@ const baseResource = useBaseResource();
       </div>
 
 
-{/* App builder status panel — shown under the Générateur tab */}
-      {isAppBuilderMode && (
-        <div className="overflow-y-auto border-b border-border bg-muted/20 px-4 py-3 text-xs dark:border-slate-800/70 dark:bg-slate-900/50">
-          {generating ? (
-            <div className="flex items-center gap-2 text-muted-foreground dark:text-slate-400">
-              <span className="flex gap-1">
-                <span className="size-1.5 animate-bounce rounded-full bg-primary/60 [animation-delay:-0.3s]" />
-                <span className="size-1.5 animate-bounce rounded-full bg-primary/60 [animation-delay:-0.15s]" />
-                <span className="size-1.5 animate-bounce rounded-full bg-primary/60" />
-              </span>
-              <span className="truncate">{statusMessage || 'Génération en cours…'}</span>
-            </div>
-          ) : (
-            <div className="text-muted-foreground dark:text-slate-400">
-              {tasks.length > 0 ? (
-                <ul className="space-y-1">
-                  {tasks.map((t, i) => (
-                    <li key={i} className="flex items-center gap-1.5">
-                      <span
-                        className={
-                          t.done ? 'text-green-500' : 'text-muted-foreground dark:text-slate-500'
-                        }
-                      >
-                        {t.done ? '✓' : '○'}
-                      </span>
-                      <span className={t.done ? 'text-foreground dark:text-slate-200' : ''}>
-                        {t.label}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p>Le générateur créera votre app depuis le chat.</p>
-              )}
             </div>
           )}
         </div>
