@@ -84,7 +84,7 @@ function ChatPanelInner({ spaceId }: { spaceId: string }) {
   const [agents, setAgents] = useState<Record<string, unknown>[]>([]);
   const [activeTab, setActiveTab] = useState<'general' | 'app-builder'>('general');
   const { generating, statusMessage, tasks, generate } = useAppBuilderStore();
-  const chatStore = useUnifiedChatStore(spaceId);
+  const chatStore = useUnifiedChatStore(spaceId, base?.id);
   const suggestionGroups = buildSuggestionGroups(table?.name);
   const isAppBuilderMode = panelType === 'app-builder';
 

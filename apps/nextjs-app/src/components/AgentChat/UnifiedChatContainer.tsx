@@ -167,7 +167,7 @@ export function UnifiedChatContainer({
     setIsStreaming,
     appendMessage,
     setConversationId,
-  } = useUnifiedChatStore(spaceId);
+  } = useUnifiedChatStore(spaceId, activeBaseId);
 
   const [input, setInput] = useState('');
   const [selectedModel, setSelectedModel] = useState<string | undefined>(undefined);

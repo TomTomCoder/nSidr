@@ -24,16 +24,17 @@ interface IUnifiedChatState {
     status: 'pending' | 'accepting' | 'accepted' | 'error'
   ) => void;
   setIsStreaming: (v: boolean) => void;
-  // Clears messages and conversationId for workspace switch
+  // Clears messages and conversationId for workspace/base switch
   reset: () => void;
 }
 
 /**
- * Factory to create a Zustand store scoped to a spaceId.
- * The store key uses the spaceId so each workspace gets its own persisted conversationId.
+ * Factory to create a Zustand store scoped to a spaceId + optional baseId.
+ * Each base gets its own persisted conversationId and message history.
  */
-const createUnifiedChatStore = (spaceId: string) =>
-  create<IUnifiedChatState>()(
+const createUnifiedChatStore = (spaceId: string, baseId?: string) => {
+  const storeKey = baseId ? `${spaceId}-${baseId}` : spaceId;
+  return create<IUnifiedChatState>()(
     persist(
       (set) => ({
         conversationId: null,
@@ -54,7 +55,7 @@ const createUnifiedChatStore = (spaceId: string) =>
         reset: () => set({ messages: [], conversationId: null, activeProposals: {} }),
       }),
       {
-        name: `unified-chat-${spaceId}`,
+        name: `unified-chat-${storeKey}`,
         // Only persist conversationId — messages and proposals are session-only
         partialize: (state) => ({
           conversationId: state.conversationId,
@@ -62,18 +63,20 @@ const createUnifiedChatStore = (spaceId: string) =>
       }
     )
   );
+};
 
-// Cache stores by spaceId so the same store instance is reused
+// Cache stores by composite key so the same store instance is reused
 const storeCache = new Map<string, ReturnType<typeof createUnifiedChatStore>>();
 
 /**
- * Hook to access the unified chat store for a given spaceId.
- * Call this with a spaceId to get a scoped store instance.
+ * Hook to access the unified chat store for a given spaceId + baseId.
+ * Each base gets its own isolated conversation session.
  */
-export const useUnifiedChatStore = (spaceId: string): IUnifiedChatState => {
-  if (!storeCache.has(spaceId)) {
-    storeCache.set(spaceId, createUnifiedChatStore(spaceId));
+export const useUnifiedChatStore = (spaceId: string, baseId?: string): IUnifiedChatState => {
+  const key = baseId ? `${spaceId}-${baseId}` : spaceId;
+  if (!storeCache.has(key)) {
+    storeCache.set(key, createUnifiedChatStore(spaceId, baseId));
   }
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  return storeCache.get(spaceId)!();
+  return storeCache.get(key)!();
 };
