@@ -208,7 +208,7 @@ export function AppBuilderPage() {
   });
 
   useEffect(() => {
-    if (remoteContent?.files) setFiles(remoteContent.files);
+    setFiles(remoteContent?.files ?? {});
   }, [remoteContent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Rebuild preview only when not actively generating (avoids constant iframe reloads)
