@@ -139,6 +139,7 @@ interface ISuggestionGroup {
 interface UnifiedChatContainerProps {
   spaceId: string;
   agentId?: string;
+  activeBaseId?: string;
   className?: string;
   suggestionGroups?: ISuggestionGroup[];
   pageContext?: { tableId?: string; tableName?: string; viewId?: string; viewName?: string };
@@ -153,6 +154,7 @@ function isToolMsg(msg: UnifiedChatEvent) {
 export function UnifiedChatContainer({
   spaceId,
   agentId,
+  activeBaseId,
   className,
   suggestionGroups,
   pageContext,
@@ -228,7 +230,7 @@ export function UnifiedChatContainer({
       const endpoint = agentId ? `/api/agent/${agentId}/run` : `/api/spaces/${spaceId}/ai/chat`;
       const requestBody = agentId
         ? { trigger: 'manual', triggerPayload: { message: text }, conversationId, pageContext }
-        : { message: text, conversationId, modelKey: selectedModel };
+        : { message: text, conversationId, modelKey: selectedModel, activeBaseId };
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

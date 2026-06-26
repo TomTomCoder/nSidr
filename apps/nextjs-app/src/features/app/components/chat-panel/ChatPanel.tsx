@@ -264,6 +264,7 @@ function ChatPanelInner({ spaceId }: { spaceId: string }) {
       {/* Unified chat container */}
       <UnifiedChatContainer
         spaceId={spaceId}
+        activeBaseId={base?.id}
         className="min-h-0 flex-1"
         suggestionGroups={suggestionGroups}
         pageContext={table ? { tableId: table.id, tableName: table.name } : undefined}
