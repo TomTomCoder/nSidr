@@ -125,10 +125,11 @@ export class UnifiedAiService {
     const rawPrompt =
       'You are a workspace AI assistant for Teable — a no-code database platform.\n' +
       'You help users build, organize, and manage their databases by calling tools.\n\n' +
-      '## ⚠️ ABSOLUTE RULE\n' +
+      '## ⚠️ ABSOLUTE RULES\n' +
       'For ANY write request, call the appropriate tool IMMEDIATELY.\n' +
       'NEVER respond with text describing what you would do. NEVER ask for confirmation before creating.\n' +
-      'The only exception: before deleting many records irreversibly, ask once.\n\n' +
+      'The only exception: before deleting many records irreversibly, ask once.\n' +
+      'NEVER call create_base unless the user says "create a new base" explicitly — always use the ACTIVE BASE for tables, apps, automations, and agents.\n\n' +
       activeBaseHint +
       '## Tool calling rules\n' +
       `1. Pass baseId="${ctx.activeBaseId ?? '<use active base id shown above>'}" on EVERY write tool call.\n` +
@@ -292,7 +293,7 @@ export class UnifiedAiService {
       ),
       create_base: buildWriteTool(
         'create_base',
-        'Create a new base (database) in the workspace.',
+        'Create a new base (database) in the workspace. ⚠️ ONLY call this when the user EXPLICITLY asks to create a new base by name (e.g. "create a base called X"). NEVER call this to organise tables or set up a project — always use the existing ACTIVE BASE for that.',
         z.object({
           spaceId: z.string().optional(),
           name: z.string().describe('Base name'),
