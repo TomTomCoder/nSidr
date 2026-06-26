@@ -7,6 +7,7 @@ import type { WorkspaceConversation } from '@/types/agent';
 
 interface ConversationHistoryProps {
   spaceId: string;
+  baseId?: string;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -24,9 +25,9 @@ function formatDate(dateStr: string): string {
  * Fetches from the real GET /api/spaces/:spaceId/ai/conversations endpoint.
  * Per D-07: real data from real endpoint — no fallback empty list stub.
  */
-export function ConversationHistory({ spaceId, isOpen, onClose }: ConversationHistoryProps) {
+export function ConversationHistory({ spaceId, baseId, isOpen, onClose }: ConversationHistoryProps) {
   const { conversationList, setConversationList, setConversationId, setMessages, reset } =
-    useUnifiedChatStore(spaceId);
+    useUnifiedChatStore(spaceId, baseId);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 

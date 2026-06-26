@@ -663,6 +663,7 @@ export function UnifiedChatContainer({
                       message={group.msg}
                       spaceId={spaceId}
                       conversationId={conversationId ?? ''}
+                      activeBaseId={activeBaseId}
                     />
                   );
                 const expanded = expandedGroups.has(group.groupIndex);
@@ -678,6 +679,7 @@ export function UnifiedChatContainer({
                         message={m}
                         spaceId={spaceId}
                         conversationId={conversationId ?? ''}
+                        activeBaseId={activeBaseId}
                       />
                     ))}
                     <button
