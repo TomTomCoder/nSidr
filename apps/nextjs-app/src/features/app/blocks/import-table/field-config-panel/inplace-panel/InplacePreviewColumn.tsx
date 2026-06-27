@@ -55,15 +55,22 @@ export const InplacePreviewColumn = (props: IPreviewColumnProps) => {
     const isEmptySourceColumnMap = !Object.keys(insertConfig.sourceColumnMap).length;
     const initSourceColumnMap: Record<string, number | null> = {};
     const analyzeColumns = sourceColumnMap?.columns;
-    // init sourceColumnMap automatically
-    // TODO add more match logic
+    // normalize so "First Name", "first_name" and "first-name" are treated as equal
+    const normalize = (name: string) =>
+      name
+        .toLowerCase()
+        .trim()
+        .replace(/[\s_-]+/g, '');
     if (isEmptySourceColumnMap && analyzeColumns?.length) {
       columns.forEach((col) => {
         if (!col.isComputed) {
-          const matchIndex = analyzeColumns.findIndex(
+          const exactIndex = analyzeColumns.findIndex(
             (c) => c.name.toLowerCase().trim() === col.name.toLowerCase().trim()
           );
-          // only match the same name, others need to be set manually
+          const matchIndex =
+            exactIndex > -1
+              ? exactIndex
+              : analyzeColumns.findIndex((c) => normalize(c.name) === normalize(col.name));
           initSourceColumnMap[col.id] = matchIndex > -1 ? matchIndex : null;
         }
       });
