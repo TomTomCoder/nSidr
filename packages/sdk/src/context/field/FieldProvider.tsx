@@ -23,6 +23,9 @@ export const FieldProvider: FC<IFieldProviderProps> = ({ children, fallback, ser
   // useInstances can seed immediately instead of waiting for the ShareDB round-trip.
   const { data: cachedFields } = useQuery<IFieldVo[]>({
     queryKey: ReactQueryKeys.fieldList(tableId!),
+    // ponytail: enabled:false means this never runs — queryFn only exists to satisfy
+    // react-query's validation (it warns without one, even when disabled).
+    queryFn: () => [],
     enabled: false,
   });
 

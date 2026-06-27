@@ -8,6 +8,9 @@ const mockPrismaService = {
     findUnique: vi.fn(),
     update: vi.fn(),
   },
+  workspaceConversation: {
+    findUnique: vi.fn().mockResolvedValue(null),
+  },
 };
 
 describe('ActionProposalService', () => {
@@ -154,7 +157,7 @@ describe('ActionProposalService', () => {
       metadata: {
         proposalId: 'prop-uuid',
         action: 'create_table',
-        args: { name: 'Projects' },
+        args: { name: 'Projects', baseId: 'base-1' },
         accepted: false,
         acceptedAt: null,
       },
@@ -164,8 +167,27 @@ describe('ActionProposalService', () => {
       ...message,
       metadata: { ...message.metadata, accepted: true, acceptedAt: expect.any(String) },
     });
+    const mockBaseNode = {
+      create: vi.fn().mockResolvedValue({ id: 'tbl1' }),
+      move: vi.fn().mockResolvedValue(undefined),
+    };
+    const prisma = {
+      ...mockPrismaService,
+      baseNodeFolder: { findFirst: vi.fn().mockResolvedValue(null) },
+    };
+    const svc = new ActionProposalService(
+      prisma as any,
+      mockBaseNode as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any
+    );
 
-    const result = await service.acceptProposal('prop-uuid', 'user-1');
+    const result = await svc.acceptProposal('prop-uuid', 'user-1');
 
     expect(mockPrismaService.workspaceConversationMessage.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -223,5 +245,131 @@ describe('ActionProposalService', () => {
     });
 
     expect(result.preview).toEqual(preview);
+  });
+
+  // Regression: replays the exact actions the system prompt advertises (create_table,
+  // link_tables, create_agent) so a future prompt/code drift (like the email/url/phoneNumber
+  // field types that aren't real FieldType values) fails a test instead of crashing at accept time.
+  describe('regression: prompt-advertised actions never throw at accept', () => {
+    it('create_table accepts every field type the system prompt advertises', async () => {
+      const mockBaseNode = {
+        create: vi.fn().mockResolvedValue({ id: 'tbl1' }),
+        move: vi.fn().mockResolvedValue(undefined),
+      };
+      const prisma = {
+        ...mockPrismaService,
+        baseNodeFolder: { findFirst: vi.fn().mockResolvedValue(null) },
+      };
+      const svc = new ActionProposalService(
+        prisma as any,
+        mockBaseNode as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any
+      );
+      const promptAdvertisedTypes = [
+        'singleLineText',
+        'longText',
+        'number',
+        'date',
+        'checkbox',
+        'singleSelect',
+        'multipleSelect',
+        'attachment',
+        'rating',
+      ];
+
+      const result = await (svc as any).executeAction(
+        'create_table',
+        {
+          baseId: 'base-1',
+          name: 'Employés',
+          fields: promptAdvertisedTypes.map((type, i) => ({ name: `Field${i}`, type })),
+        },
+        'user-1'
+      );
+
+      expect(result).toMatchObject({ id: 'tbl1' });
+      expect(mockBaseNode.create).toHaveBeenCalled();
+    });
+
+    it('link_tables resolves sourceTableName/targetTableName and creates the link field', async () => {
+      const mockField = { createField: vi.fn().mockResolvedValue({ id: 'fld1' }) };
+      const prisma = {
+        ...mockPrismaService,
+        tableMeta: {
+          findFirst: vi
+            .fn()
+            .mockResolvedValueOnce({ id: 'tblContact' })
+            .mockResolvedValueOnce({ id: 'tblCompany' }),
+        },
+      };
+      const svc = new ActionProposalService(
+        prisma as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        mockField as any,
+        {} as any,
+        {} as any,
+        {} as any
+      );
+
+      const result = await (svc as any).executeAction(
+        'link_tables',
+        {
+          baseId: 'base-1',
+          sourceTableName: 'Contact',
+          targetTableName: 'Company',
+          relationship: 'manyOne',
+        },
+        'user-1'
+      );
+
+      expect(result).toMatchObject({
+        linked: true,
+        sourceTableId: 'tblContact',
+        targetTableId: 'tblCompany',
+      });
+      expect(mockField.createField).toHaveBeenCalled();
+    });
+
+    it('create_agent registers the agent and a sidebar node', async () => {
+      const mockAgent = {
+        create: vi.fn().mockResolvedValue({ id: 'agent1', name: 'Support Bot' }),
+      };
+      const mockBaseNode = {
+        create: vi.fn().mockResolvedValue({ id: 'node1' }),
+        move: vi.fn().mockResolvedValue(undefined),
+      };
+      const prisma = {
+        ...mockPrismaService,
+        baseNodeFolder: { findFirst: vi.fn().mockResolvedValue(null) },
+      };
+      const svc = new ActionProposalService(
+        prisma as any,
+        mockBaseNode as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        mockAgent as any
+      );
+
+      const result = await (svc as any).executeAction(
+        'create_agent',
+        { baseId: 'base-1', name: 'Support Bot', instructions: 'Help users.' },
+        'user-1'
+      );
+
+      expect(result).toMatchObject({ agentId: 'agent1', name: 'Support Bot' });
+    });
   });
 });

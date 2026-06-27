@@ -25,6 +25,9 @@ export const useRecords = (query?: IGetRecordsRo, initData?: IRecord[]) => {
   // for the ShareDB round-trip. Never fetches here — enabled: false.
   const { data: seedRecords } = useQuery<IRecord[]>({
     queryKey: ['record-seed', tableId, viewId],
+    // ponytail: enabled:false means this never runs — queryFn only exists to satisfy
+    // react-query's validation (it warns without one, even when disabled).
+    queryFn: () => [],
     enabled: false,
   });
 

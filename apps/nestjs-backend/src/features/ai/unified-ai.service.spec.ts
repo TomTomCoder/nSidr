@@ -33,9 +33,11 @@ const mockPrismaService = {
 // Mock generateText from ai
 vi.mock('ai', () => ({
   generateText: vi.fn(),
+  generateObject: vi.fn(),
   tool: vi.fn((def) => def),
   jsonSchema: vi.fn((schema) => schema),
   zodSchema: vi.fn((schema) => schema),
+  stepCountIs: vi.fn((n) => n),
 }));
 
 import { generateText } from 'ai';
@@ -261,6 +263,79 @@ describe('UnifiedAiService', () => {
     expect(mockPrismaService.workspaceConversation.create).not.toHaveBeenCalled();
     expect(mockPrismaService.workspaceConversation.findUnique).toHaveBeenCalledWith({
       where: { id: 'existing-conv' },
+    });
+  });
+
+  describe('disambiguation — ask instead of guessing on genuine ambiguity', () => {
+    it('Test 10: asks which base when several bases exist, none active, and no baseName hint matches', async () => {
+      mockWorkspaceStateService.getSnapshot.mockResolvedValue({
+        bases: [
+          { id: 'base-1', name: 'Marketing', tables: [] },
+          { id: 'base-2', name: 'Sales', tables: [] },
+        ],
+        integrations: [],
+        agentTriggers: [],
+        plugins: [],
+      });
+
+      vi.mocked(generateText).mockImplementation(async (opts: any) => {
+        const createTableTool = opts.tools.create_table;
+        const output = await createTableTool.execute({ name: 'Projects' });
+        return {
+          text: '',
+          steps: [{ text: '', toolCalls: [], toolResults: [{ toolName: 'create_table', output }] }],
+        } as any;
+      });
+
+      const ctx = {
+        spaceId: 'space-1',
+        userId: 'user-1',
+        message: 'Crée une table Projects',
+        modelKey: 'test-model',
+      };
+      const events = [];
+      for await (const event of service.chat(ctx)) {
+        events.push(event);
+      }
+
+      expect(events.some((e) => e.type === 'proposal')).toBe(false);
+      const textChunk = events.find((e) => e.type === 'text_chunk');
+      expect(textChunk?.content).toMatch(/Marketing/);
+      expect(textChunk?.content).toMatch(/Sales/);
+    });
+
+    it('Test 11: asks for clarification when tableName has no match in the workspace', async () => {
+      vi.mocked(generateText).mockImplementation(async (opts: any) => {
+        const createRecordTool = opts.tools.create_record;
+        const output = await createRecordTool.execute({
+          tableName: 'Inexistante',
+          baseId: 'base-1',
+          fields: { Name: 'foo' },
+        });
+        return {
+          text: '',
+          steps: [
+            { text: '', toolCalls: [], toolResults: [{ toolName: 'create_record', output }] },
+          ],
+        } as any;
+      });
+
+      const ctx = {
+        spaceId: 'space-1',
+        userId: 'user-1',
+        message: 'Ajoute un enregistrement dans Inexistante',
+        modelKey: 'test-model',
+        activeBaseId: 'base-1',
+      };
+      const events = [];
+      for await (const event of service.chat(ctx)) {
+        events.push(event);
+      }
+
+      expect(events.some((e) => e.type === 'proposal')).toBe(false);
+      const textChunk = events.find((e) => e.type === 'text_chunk');
+      expect(textChunk?.content).toMatch(/Inexistante/);
+      expect(mockActionProposalService.createProposal).not.toHaveBeenCalled();
     });
   });
 

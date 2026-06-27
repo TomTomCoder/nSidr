@@ -22,6 +22,9 @@ export const ViewProvider: FC<IViewProviderProps> = ({ children, fallback, serve
   // Picks up view data prefetched on hover so useInstances seeds immediately on table switch.
   const { data: cachedViews } = useQuery<IViewVo[]>({
     queryKey: ReactQueryKeys.viewList(tableId!),
+    // ponytail: enabled:false means this never runs — queryFn only exists to satisfy
+    // react-query's validation (it warns without one, even when disabled).
+    queryFn: () => [],
     enabled: false,
   });
 

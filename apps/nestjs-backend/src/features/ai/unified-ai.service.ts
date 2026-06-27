@@ -134,6 +134,12 @@ export class UnifiedAiService {
       'NEVER respond with text describing what you would do. NEVER ask for confirmation before creating.\n' +
       'The only exception: before deleting many records irreversibly, ask once.\n' +
       'NEVER call create_base unless the user says "create a new base" explicitly — always use the ACTIVE BASE for tables, apps, automations, and agents.\n\n' +
+      '## Genuine ambiguity (different from confirmation)\n' +
+      'Confirmation = "should I do this?" — never ask that.\n' +
+      'Disambiguation = "which one do you mean?" — ask that ONCE when you genuinely cannot resolve it ' +
+      '(e.g. several bases exist and none is active, or a tableName you were given matches zero or ' +
+      'several tables). A tool call will come back as a clarification message in that case — relay it ' +
+      'to the user verbatim as your reply instead of guessing an ID or calling another tool.\n\n' +
       activeBaseHint +
       '## Tool calling rules\n' +
       `1. Pass baseId="${ctx.activeBaseId ?? '<use active base id shown above>'}" on EVERY write tool call.\n` +
@@ -150,8 +156,8 @@ export class UnifiedAiService {
       '7. When designing schemas, follow these field types:\n' +
       '   Short text/title → singleLineText | Long notes → longText | Number → number\n' +
       '   Fixed choices → singleSelect | Multiple tags → multipleSelect | Date → date\n' +
-      '   True/False → checkbox | File → attachment | Email → email | URL → url\n' +
-      '   Money → currency | Stars → rating | Link to table → linkRecord\n' +
+      '   True/False → checkbox | File → attachment\n' +
+      '   Email/URL/Phone → singleLineText (no dedicated type — use longText for free text) | Stars → rating\n' +
       '8. When create_app_interface is accepted, code generation triggers automatically — do NOT call any separate tool for it.\n\n' +
       '## After completing a task\n' +
       'Give a brief confirmation (1-2 sentences) summarizing what was created/changed.\n' +
@@ -212,6 +218,29 @@ export class UnifiedAiService {
       }),
     } as Record<string, object>;
 
+    // Names proposed earlier in THIS turn (e.g. create_table("Contact") then
+    // link_tables(source:"Contact", ...)) — not in the DB yet, but not ambiguous either.
+    const proposedTableNames = new Set<string>();
+
+    // Which tableName-ish args each write tool takes, so we can validate them against
+    // the real snapshot before proposing instead of letting accept-proposal discover
+    // a typo/hallucinated name later (T-disambiguation).
+    const TABLE_NAME_ARGS: Record<string, string[]> = {
+      create_view: ['tableName'],
+      create_record: ['tableName'],
+      update_record: ['tableName'],
+      link_tables: ['sourceTableName', 'targetTableName'],
+    };
+
+    const findTableMatches = (baseId: string | undefined, tableName: string) => {
+      const candidateBases = baseId
+        ? snapshot.bases.filter((b) => b.id === baseId)
+        : snapshot.bases;
+      return candidateBases.flatMap((b) =>
+        b.tables.filter((t) => t.name.toLowerCase() === tableName.toLowerCase()).map((t) => t.id)
+      );
+    };
+
     // WRITE tools — return proposal objects, do NOT mutate DB (D-02, D-03)
     const buildWriteTool = (
       toolName: string,
@@ -240,6 +269,17 @@ export class UnifiedAiService {
             if (resolved) resolvedArgs.baseId = resolved.id;
           }
 
+          // Disambiguation: several bases exist, none active, name hint didn't match any —
+          // asking which base beats silently writing to the wrong one or crashing downstream.
+          if (toolName !== 'create_base' && !resolvedArgs.baseId && snapshot.bases.length > 1) {
+            return {
+              __type: 'clarification',
+              message:
+                `Plusieurs bases existent dans cet espace (${snapshot.bases.map((b) => `"${b.name}"`).join(', ')}). ` +
+                `Dans laquelle veux-tu effectuer cette action ?`,
+            };
+          }
+
           // Table name fallback: if AI omits 'name', extract it from the user's message.
           // Handles "Crée une table Produits" → name="Produits", "table Équipe" → name="Équipe".
           if (toolName === 'create_table') {
@@ -250,6 +290,27 @@ export class UnifiedAiService {
             }
           }
 
+          // Disambiguation: validate any tableName arg against the real snapshot (plus
+          // tables proposed earlier this turn) before proposing — catches typos/hallucinated
+          // names here instead of failing at accept-proposal time.
+          for (const argName of TABLE_NAME_ARGS[toolName] ?? []) {
+            const tableName = (resolvedArgs[argName] as string | undefined)?.trim();
+            if (!tableName || proposedTableNames.has(tableName.toLowerCase())) continue;
+            const matches = findTableMatches(resolvedArgs.baseId as string | undefined, tableName);
+            if (matches.length === 0) {
+              return {
+                __type: 'clarification',
+                message: `Je ne trouve pas de table nommée "${tableName}". Peux-tu confirmer le nom exact ?`,
+              };
+            }
+            if (matches.length > 1) {
+              return {
+                __type: 'clarification',
+                message: `Plusieurs tables s'appellent "${tableName}" dans cet espace. Dans quelle base se trouve celle que tu veux dire ?`,
+              };
+            }
+          }
+
           const preview = this.buildPreview(toolName, resolvedArgs);
           const proposal = await this.actionProposalService.createProposal({
             action: toolName,
@@ -257,6 +318,10 @@ export class UnifiedAiService {
             conversationId: conversation.id,
             preview,
           });
+
+          if (toolName === 'create_table' && resolvedArgs.name) {
+            proposedTableNames.add((resolvedArgs.name as string).toLowerCase());
+          }
 
           // Include a hint so the model knows to keep calling tools (e.g. link_tables).
           const hint =
@@ -328,7 +393,9 @@ export class UnifiedAiService {
           tableName: z
             .string()
             .optional()
-            .describe('Target table name — preferred when tableId is unknown; resolved automatically'),
+            .describe(
+              'Target table name — preferred when tableId is unknown; resolved automatically'
+            ),
           baseId: z.string().optional().describe('Base ID — used to resolve tableName to tableId'),
           type: z
             .string()
@@ -526,8 +593,13 @@ export class UnifiedAiService {
           proposalId?: string;
           action?: string;
           preview?: unknown;
+          message?: string;
         };
-        if (res && res.__type === 'proposal') {
+        if (res && res.__type === 'clarification') {
+          // Disambiguation, not a proposal: surface the question as the assistant's reply.
+          fullText += res.message ?? '';
+          yield { type: 'text_chunk', content: res.message ?? '' };
+        } else if (res && res.__type === 'proposal') {
           yield {
             type: 'proposal',
             proposal: {

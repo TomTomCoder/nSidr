@@ -51,6 +51,9 @@ export const PersonalViewProxy = (props: IPersonalViewProxyProps) => {
   // getViewData can reconstruct proxy views before ShareDB docs attach.
   const { data: cachedViews } = useQuery<IViewVo[]>({
     queryKey: ReactQueryKeys.viewList(tableId!),
+    // ponytail: enabled:false means this never runs — queryFn only exists to satisfy
+    // react-query's validation (it warns without one, even when disabled).
+    queryFn: () => [],
     enabled: false,
   });
   const { setCollapsedGroupMap } = useGridCollapsedGroupStore();

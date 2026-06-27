@@ -194,6 +194,9 @@ export class ActionProposalService {
         // Simple field types that can be created without extra options.
         // Complex types (link, formula, rollup, lookup) are downgraded to singleLineText
         // because they require additional configuration we don't have at proposal time.
+        // ponytail: url/email/phoneNumber aren't real FieldType values (core's
+        // FieldType enum has no entry for them) — keep only types FieldSupplementService
+        // actually accepts, everything else downgrades to singleLineText.
         const SAFE_FIELD_TYPES = new Set([
           'singleLineText',
           'longText',
@@ -204,9 +207,6 @@ export class ActionProposalService {
           'multipleSelect',
           'attachment',
           'rating',
-          'url',
-          'email',
-          'phoneNumber',
         ]);
         const rawFields = args.fields as
           | Array<{ name: string; type?: string } | string>
@@ -282,7 +282,10 @@ export class ActionProposalService {
           ...dashboardNodeVo,
           shouldStream: true,
           appId: dashboardNodeVo.id,
-          prompt: (args.description as string) || (args.name as string) || 'Generate a complete React app for this interface',
+          prompt:
+            (args.description as string) ||
+            (args.name as string) ||
+            'Generate a complete React app for this interface',
           baseId: args.baseId as string,
         };
       }
@@ -594,7 +597,10 @@ export class ActionProposalService {
         const prompt = args.prompt as string | undefined;
         const baseId = args.baseId as string | undefined;
         if (!appId || !baseId) {
-          return { status: 'skipped', reason: 'appId and baseId are required for generate_app_code' };
+          return {
+            status: 'skipped',
+            reason: 'appId and baseId are required for generate_app_code',
+          };
         }
         return { shouldStream: true, appId, prompt: prompt ?? '', baseId };
       }
