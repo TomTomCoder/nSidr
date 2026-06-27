@@ -23,12 +23,16 @@ interface IAppContent {
 
 /* eslint-disable regexp/no-obscure-range, regexp/no-dupe-characters-character-class */
 function sanitizeCode(code: string): string {
-  return code
-    .replace(/^import\s[^\n]+\n?/gm, '')
-    .replace(/^export\s+default\s+/gm, '')
-    .replace(/^export\s+(function|const|class|let|var)\s/gm, '$1 ')
-    .replace(/^(\s*)([\wÀ-ɏ]+(?:\s+[\wÀ-ɏ]+)+)\s*:/gm, "$1'$2':")
-    .replace(/([{,]\s*)([\wÀ-ɏ]+(?:\s+[\wÀ-ɏ]+)+)\s*:/g, "$1'$2':");
+  return (
+    code
+      .replace(/^import\s[^\n]+\n?/gm, '')
+      // the wrapper script already destructures these hooks from React; a redeclaration is a SyntaxError
+      .replace(/^const\s*\{[^}]*\}\s*=\s*React;\n?/gm, '')
+      .replace(/^export\s+default\s+/gm, '')
+      .replace(/^export\s+(function|const|class|let|var)\s/gm, '$1 ')
+      .replace(/^(\s*)([\wÀ-ɏ]+(?:\s+[\wÀ-ɏ]+)+)\s*:/gm, "$1'$2':")
+      .replace(/([{,]\s*)([\wÀ-ɏ]+(?:\s+[\wÀ-ɏ]+)+)\s*:/g, "$1'$2':")
+  );
 }
 /* eslint-enable regexp/no-obscure-range, regexp/no-dupe-characters-character-class */
 
