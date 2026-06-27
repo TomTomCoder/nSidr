@@ -175,4 +175,16 @@ describe('sdk Record cell value normalization', () => {
     expect(record.getCellValueAsString(field.id)).toBe('');
     expect(record.title).toBe('');
   });
+
+  it('exposes updateComputedField on prototype-stamped instances (regression for "this.updateComputedField is not a function")', () => {
+    const field = createFieldInstance(createTextField());
+    const record = recordInstanceFieldMap(createRecordInstance(createRecord('hello')), {
+      [field.id]: field,
+    });
+
+    // updateComputedField is private; cast to access it like updateCell does internally.
+    expect(typeof (record as unknown as { updateComputedField: unknown }).updateComputedField).toBe(
+      'function'
+    );
+  });
 });

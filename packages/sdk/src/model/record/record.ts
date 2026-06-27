@@ -115,7 +115,7 @@ export class Record extends RecordCore {
     this.fields[fieldId] = cellValue;
   }
 
-  private updateComputedField = async (fieldIds: string[], record: IRecord) => {
+  private async updateComputedField(fieldIds: string[], record: IRecord) {
     const changeCellFieldIds = fieldIds.filter((fieldId) => {
       // Skip if the new value is undefined - computed field hasn't been updated yet (V2 async)
       // This prevents clearing computed fields that will be updated via ShareDB op
@@ -131,7 +131,7 @@ export class Record extends RecordCore {
       this.doc.data.fields[fieldId] = record.fields[fieldId];
     });
     this.doc.emit('op batch', [], false);
-  };
+  }
 
   async updateCell(
     fieldId: string,
