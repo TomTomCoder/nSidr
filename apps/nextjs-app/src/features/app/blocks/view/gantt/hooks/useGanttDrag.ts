@@ -216,19 +216,17 @@ export function useGanttDrag({
         const validatedIds = validateDependencyIds(allIds, validRecordIds);
         const newValue = validatedIds.join(', ');
 
-        try {
-          await updateRecord({
-            tableId,
-            recordId: drag.bar.recordId,
-            recordRo: {
-              fieldKeyType: FieldKeyType.Id,
-              record: { fields: { [dependencyField]: newValue } },
-            },
-          });
-        } catch (error) {
+        updateRecord({
+          tableId,
+          recordId: drag.bar.recordId,
+          recordRo: {
+            fieldKeyType: FieldKeyType.Id,
+            record: { fields: { [dependencyField]: newValue } },
+          },
+        }).catch((error) => {
           console.warn('Failed to update dependencies:', error);
           toast.error('Failed to update dependency');
-        }
+        });
         return;
       }
 
@@ -272,16 +270,14 @@ export function useGanttDrag({
 
       // Only update if we have valid fields to update
       if (Object.keys(fieldsToUpdate).length > 0) {
-        try {
-          await updateRecord({
-            tableId,
-            recordId: drag.bar.recordId,
-            recordRo: { fieldKeyType: FieldKeyType.Id, record: { fields: fieldsToUpdate } },
-          });
-        } catch (error) {
+        updateRecord({
+          tableId,
+          recordId: drag.bar.recordId,
+          recordRo: { fieldKeyType: FieldKeyType.Id, record: { fields: fieldsToUpdate } },
+        }).catch((error) => {
           console.warn('Failed to update record dates:', error);
           toast.error('Failed to update task dates');
-        }
+        });
       }
     },
     [ganttOptions, tableId, timelineStart, timeScale, bars, validRecordIds, updateRecord]
