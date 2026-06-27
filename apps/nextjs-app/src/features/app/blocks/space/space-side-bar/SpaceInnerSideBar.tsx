@@ -150,7 +150,7 @@ export const SpaceInnerSideBar = (props: {
         </ul>
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <PinList />
+        <PinList bases={bases} />
       </div>
       {renderWinFreeCredit && renderWinFreeCredit(spaceId)}
       <ChangelogNotification />

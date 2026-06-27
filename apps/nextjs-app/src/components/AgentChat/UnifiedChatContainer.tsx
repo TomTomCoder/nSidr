@@ -1,8 +1,15 @@
 'use client';
 
+import { UploadType } from '@teable/openapi';
 import { Button } from '@teable/ui-lib/shadcn/ui/button';
 import { ScrollArea } from '@teable/ui-lib/shadcn/ui/scroll-area';
 import { Textarea } from '@teable/ui-lib/shadcn/ui/textarea';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@teable/ui-lib/shadcn/ui/tooltip';
 import {
   BarChart2,
   BookOpen,
@@ -11,16 +18,19 @@ import {
   ClipboardList,
   Cpu,
   Database,
+  File as FileIcon,
   Loader2,
   Plus,
   Search,
   Sparkles,
   Square,
   Workflow,
+  X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ModelSelector } from '@/features/app/components/ModelSelector';
 import { useAvailableModels } from '@/features/app/hooks/useAvailableModels';
+import { uploadFiles } from '@/features/app/utils/uploadFile';
 import { useUnifiedChatStore } from '@/features/app/stores/useUnifiedChatStore';
 import type { UnifiedChatEvent } from '@/types/agent';
 import { useAppBuilderStore } from '@/features/app/stores/useAppBuilderStore';
@@ -178,9 +188,32 @@ export function UnifiedChatContainer({
   const [mode, setMode] = useState<'ask' | 'agent'>('ask');
   const [activeCat, setActiveCat] = useState('Applications');
   const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const availableModels = useAvailableModels();
   const bottomRef = useRef<HTMLDivElement>(null);
   const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
+
+  const currentModel = useMemo(
+    () => availableModels.find((m) => m.value === (selectedModel ?? availableModels[0]?.value)),
+    [availableModels, selectedModel]
+  );
+  const supportsFiles = currentModel?.supportsFiles ?? false;
+
+  // Drop attachments picked for a model that no longer supports them (model switched mid-pick)
+  useEffect(() => {
+    if (!supportsFiles && attachedFiles.length > 0) setAttachedFiles([]);
+  }, [supportsFiles, attachedFiles.length]);
+
+  const handleFilesPicked = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setAttachedFiles((prev) => [...prev, ...Array.from(files)]);
+  };
+
+  const removeAttachedFile = (index: number) => {
+    setAttachedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -223,17 +256,33 @@ export function UnifiedChatContainer({
   // eslint-disable-next-line sonarjs/cognitive-complexity
   const sendMessage = async (userText: string) => {
     const text = userText.trim();
-    if (!text || isStreaming) return;
+    if (!text || isStreaming || isUploadingFiles) return;
+    const filesToSend = !agentId && supportsFiles ? attachedFiles : [];
     setInput('');
+    setAttachedFiles([]);
     setExpandedGroups(new Set());
     if (onSubmit && (await onSubmit(text))) return;
     appendMessage({ type: 'text_chunk', content: text, role: 'user' } as UnifiedChatEvent);
     setIsStreaming(true);
     try {
+      let attachments: { url: string; name: string; mimetype: string }[] | undefined;
+      if (filesToSend.length > 0) {
+        setIsUploadingFiles(true);
+        try {
+          const uploaded = await uploadFiles(filesToSend, UploadType.ChatFile, activeBaseId);
+          attachments = uploaded.map((a) => ({
+            url: a.presignedUrl,
+            name: a.name,
+            mimetype: a.mimetype,
+          }));
+        } finally {
+          setIsUploadingFiles(false);
+        }
+      }
       const endpoint = agentId ? `/api/agent/${agentId}/run` : `/api/spaces/${spaceId}/ai/chat`;
       const requestBody = agentId
         ? { trigger: 'manual', triggerPayload: { message: text }, conversationId, pageContext }
-        : { message: text, conversationId, modelKey: selectedModel, activeBaseId };
+        : { message: text, conversationId, modelKey: selectedModel, activeBaseId, attachments };
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -360,7 +409,7 @@ export function UnifiedChatContainer({
   // ── Shared: input box (tabs inside, gradient border) ─────────────────────
   const renderInput = (large: boolean) => (
     <div className="ai-gradient-ring overflow-hidden rounded-xl p-[1.5px]">
-      <div className="rounded-[10px] bg-background dark:bg-slate-900">
+      <div className="rounded-[10px] bg-background">
         {/* Mode tabs */}
         <div className="flex items-center gap-0.5 px-3 pt-2.5">
           {(['ask', 'agent'] as const).map((m) => (
@@ -390,25 +439,72 @@ export function UnifiedChatContainer({
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={mode === 'agent' ? AGENT_PLACEHOLDER : ASK_PLACEHOLDERS[phIdx]}
-          className={`resize-none border-0 bg-transparent px-4 pb-1 pt-2 text-sm shadow-none focus-visible:ring-0 ${large ? 'max-h-[200px] min-h-[72px]' : 'max-h-[120px] min-h-[40px]'}`}
+          className={`resize-none border-0 bg-transparent px-4 pb-1 pt-2 text-sm shadow-none focus-visible:ring-0 dark:bg-transparent ${large ? 'max-h-[200px] min-h-[72px]' : 'max-h-[120px] min-h-[40px]'}`}
           disabled={isStreaming}
           rows={large ? 3 : 1}
         />
 
+        {/* Attached file chips */}
+        {attachedFiles.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 px-4 pb-2">
+            {attachedFiles.map((file, i) => (
+              <span
+                key={`${file.name}-${i}`}
+                className="flex items-center gap-1 rounded-full border border-border/50 bg-muted/50 px-2 py-0.5 text-[11px] text-muted-foreground"
+              >
+                <FileIcon className="size-3 shrink-0" />
+                <span className="max-w-[120px] truncate">{file.name}</span>
+                <button
+                  type="button"
+                  onClick={() => removeAttachedFile(i)}
+                  className="ml-0.5 rounded-full transition-colors duration-200 hover:text-foreground"
+                  aria-label={`Retirer ${file.name}`}
+                >
+                  <X className="size-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
         {/* Bottom bar */}
         <div className="flex items-center justify-between px-3 pb-2.5">
           <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              className="flex size-6 items-center justify-center rounded-full border border-border/50 text-muted-foreground/70 transition-colors hover:border-border hover:bg-muted hover:text-foreground"
-            >
-              <Plus className="size-3" />
-            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*,application/pdf"
+              className="hidden"
+              onChange={(e) => {
+                handleFilesPicked(e.target.files);
+                e.target.value = '';
+              }}
+            />
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    disabled={!supportsFiles}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex size-6 items-center justify-center rounded-full border border-border/50 text-muted-foreground/70 transition-colors duration-200 hover:border-border hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border/50 disabled:hover:bg-transparent"
+                  >
+                    <Plus className="size-3" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {supportsFiles
+                    ? 'Joindre des fichiers (image, PDF)'
+                    : 'Ce modèle ne prend pas en charge les fichiers'}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
             <ModelSelector
               models={availableModels}
               value={selectedModel}
               onChange={setSelectedModel}
-              className="h-6 rounded-full border border-border/50 bg-transparent px-2 text-xs text-muted-foreground/70 shadow-none hover:border-border hover:bg-muted hover:text-foreground"
+              className="h-6 rounded-full border border-border/50 bg-transparent px-2 text-xs text-muted-foreground/70 shadow-none transition-colors duration-200 hover:border-border hover:bg-muted hover:text-foreground"
             />
           </div>
           <div className="flex items-center gap-1.5">
@@ -426,7 +522,7 @@ export function UnifiedChatContainer({
               <button
                 type="button"
                 onClick={() => void sendMessage(input)}
-                disabled={!input.trim()}
+                disabled={!input.trim() || isUploadingFiles}
                 className="flex size-7 items-center justify-center rounded-full transition-all duration-200 hover:scale-105 hover:brightness-110 disabled:opacity-25"
                 style={{ background: 'linear-gradient(135deg,#7c3aed,#4f46e5,#0ea5e9)' }}
               >
@@ -613,7 +709,7 @@ export function UnifiedChatContainer({
                           <button
                             key={item.label}
                             type="button"
-                            className="flex items-center gap-2 rounded-md border bg-card/60 px-2.5 py-1.5 text-left text-xs backdrop-blur-sm transition-colors hover:bg-accent/60 dark:border-slate-800/50 dark:bg-slate-900/60 dark:hover:bg-slate-800/60"
+                            className="flex items-center gap-2 rounded-md border bg-card/60 px-2.5 py-1.5 text-left text-xs backdrop-blur-sm transition-colors duration-200 hover:bg-accent/60 dark:border-slate-800/50 dark:bg-slate-900/60 dark:hover:bg-slate-800/60"
                             onClick={() => void sendMessage(item.label)}
                           >
                             <Icon className="size-3 shrink-0 text-muted-foreground" />
@@ -684,7 +780,7 @@ export function UnifiedChatContainer({
                     ))}
                     <button
                       type="button"
-                      className="mb-1 flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+                      className="mb-1 flex items-center gap-1.5 text-[11px] text-muted-foreground transition-colors duration-200 hover:text-foreground"
                       onClick={() =>
                         setExpandedGroups((prev) => {
                           const n = new Set(prev);
@@ -714,7 +810,7 @@ export function UnifiedChatContainer({
                   type="button"
                   onClick={() => void handleAcceptAll()}
                   disabled={isAcceptingAll}
-                  className="w-full rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm transition-opacity hover:opacity-90 disabled:opacity-60"
+                  className="w-full rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm transition-opacity duration-200 hover:opacity-90 disabled:opacity-60"
                   style={{ background: 'linear-gradient(135deg, #7c3aed, #6366f1, #4f46e5)' }}
                 >
                   {isAcceptingAll

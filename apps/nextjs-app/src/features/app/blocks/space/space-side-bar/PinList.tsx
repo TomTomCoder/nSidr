@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { DraggableHandle, Star } from '@teable/icons';
+import { DraggableHandle, Database, Star } from '@teable/icons';
 import type { IGetPinListVo } from '@teable/openapi';
 import { getPinList, updatePinOrder } from '@teable/openapi';
 import { ReactQueryKeys } from '@teable/sdk/config';
@@ -7,13 +7,24 @@ import { useIsHydrated } from '@teable/sdk/hooks';
 import type { DragEndEvent } from '@teable/ui-lib/base';
 import { DndKitContext, Draggable, Droppable } from '@teable/ui-lib/base';
 import { cn, ScrollArea } from '@teable/ui-lib/shadcn';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { useTranslation } from 'next-i18next';
+import { Emoji } from '@/features/app/components/emoji/Emoji';
 import { spaceConfig } from '@/features/i18n/space.config';
+import { ItemButton } from './ItemButton';
 import { PinItem } from './PinItem';
 import { StarButton } from './StarButton';
 
-export const PinList = (props: { className?: string }) => {
-  const { className } = props;
+interface IBase {
+  id: string;
+  name: string;
+  icon?: string | null;
+}
+
+export const PinList = (props: { className?: string; bases?: IBase[] }) => {
+  const { className, bases } = props;
+  const router = useRouter();
   const { t } = useTranslation(spaceConfig.i18nNamespaces);
   const queryClient = useQueryClient();
   const isHydrated = useIsHydrated();
@@ -78,6 +89,28 @@ export const PinList = (props: { className?: string }) => {
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           {pinListData?.length === 0 && (
             <div className="text-center text-xs text-muted-foreground">{t('space:pin.empty')}</div>
+          )}
+          {Boolean(bases?.length) && (
+            <ul>
+              {bases?.map((base) => (
+                <li key={base.id}>
+                  <ItemButton isActive={router.query.baseId === base.id}>
+                    <Link
+                      className="gap-2"
+                      href={{ pathname: '/base/[baseId]', query: { baseId: base.id } }}
+                      title={base.name}
+                    >
+                      {base.icon ? (
+                        <Emoji emoji={base.icon} size={16} />
+                      ) : (
+                        <Database className="size-4 shrink-0" />
+                      )}
+                      <p className="grow truncate">{base.name}</p>
+                    </Link>
+                  </ItemButton>
+                </li>
+              ))}
+            </ul>
           )}
           <DndKitContext onDragEnd={onDragEndHandler}>
             <Droppable

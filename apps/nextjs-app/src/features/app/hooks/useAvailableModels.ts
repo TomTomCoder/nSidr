@@ -7,6 +7,8 @@ export interface IModelOption {
   label: string;
   value: string; // format: type@model@name
   providerLabel: string;
+  /** Whether this model accepts file attachments (image and/or PDF input) */
+  supportsFiles: boolean;
 }
 
 /** 5 minutes — AI config rarely changes during a session */
@@ -31,11 +33,13 @@ export function useAvailableModels(): IModelOption[] {
         .map((m) => m.trim())
         .filter(Boolean);
       for (const model of modelList) {
-        const label = provider.modelConfigs?.[model]?.label ?? model;
+        const config = provider.modelConfigs?.[model];
+        const ability = config?.ability;
         models.push({
-          label,
+          label: config?.label ?? model,
           value: `${provider.type}@${model}@${provider.name}`,
           providerLabel: provider.name,
+          supportsFiles: Boolean(ability?.image || ability?.pdf),
         });
       }
     }

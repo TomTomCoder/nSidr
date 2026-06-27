@@ -144,7 +144,7 @@ function ChatPanelInner({ spaceId }: { spaceId: string }) {
   if (status === 'close') return null;
 
   return (
-    <div className="flex h-full w-[380px] shrink-0 flex-col border-l border-border bg-background dark:border-slate-800/70 dark:bg-slate-950">
+    <div className="flex h-full w-[380px] shrink-0 flex-col border-l border-border bg-background dark:border-slate-800/70">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-3 py-2.5 dark:border-slate-800/70">
         <span className="text-sm font-semibold text-foreground dark:text-slate-200">

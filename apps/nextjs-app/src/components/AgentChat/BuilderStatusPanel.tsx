@@ -62,7 +62,7 @@ export function BuilderStatusPanel({ step, agentName }: { step: BuilderStep; age
           {step === 1 && (
             <svg
               viewBox="0 0 200 140"
-              className="size-full text-border [animation:fadein_0.6s_ease]"
+              className="size-full text-border [animation:fadein_0.4s_ease]"
             >
               <g fill="none" stroke="currentColor" strokeWidth="0.5">
                 {Array.from({ length: 14 }).map((_, r) => (
@@ -76,7 +76,7 @@ export function BuilderStatusPanel({ step, agentName }: { step: BuilderStep; age
 
           {/* Step 2: wireframe bust forming, pink scanline */}
           {step === 2 && (
-            <div className="relative size-full [animation:fadein_0.6s_ease]">
+            <div className="relative size-full [animation:fadein_0.4s_ease]">
               <svg viewBox="0 0 200 200" className="size-full text-muted-foreground/40">
                 <g fill="none" stroke="currentColor" strokeWidth="0.5">
                   <ellipse cx="100" cy="70" rx="42" ry="50" />

@@ -55,6 +55,8 @@ export interface UnifiedChatContext {
   modelKey: string;
   /** The base the user currently has open in the UI — prefer this for write operations */
   activeBaseId?: string;
+  /** Files attached via the chat "+" button — only sent when the selected model supports them */
+  attachments?: { url: string; name: string; mimetype: string }[];
 }
 
 // Write tool names — these go through proposal gating
@@ -486,13 +488,26 @@ export class UnifiedAiService {
     );
 
     // Step 7: Call generateText (tool calling requires full response)
+    // Attachments turn the user message into a multimodal content array (text + image/file
+    // parts) — the AI SDK accepts this shape for any provider that declares vision/pdf ability.
+    const userContent = ctx.attachments?.length
+      ? [
+          { type: 'text' as const, text: ctx.message },
+          ...ctx.attachments.map((a) =>
+            a.mimetype.startsWith('image/')
+              ? { type: 'image' as const, image: a.url }
+              : { type: 'file' as const, data: a.url, mediaType: a.mimetype }
+          ),
+        ]
+      : ctx.message;
+
     const result = await generateText({
       model: modelInstance as Parameters<typeof generateText>[0]['model'],
       tools: tools as Parameters<typeof generateText>[0]['tools'],
       stopWhen: (stepCountIs as (n: number) => unknown)(30) as never,
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: ctx.message },
+        { role: 'user', content: userContent },
       ],
     } as never);
 

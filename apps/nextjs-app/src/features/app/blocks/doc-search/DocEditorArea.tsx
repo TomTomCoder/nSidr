@@ -121,32 +121,52 @@ export function DocEditorArea({ spaceId }: IDocEditorAreaProps) {
   const onChangeRef = useRef(handleChange);
   onChangeRef.current = handleChange;
 
+  // ponytail: the markdown() syntax-highlighting extension can throw synchronously
+  // ("tags is not iterable", a @lezer/highlight bug on certain content) from both
+  // EditorView construction and dispatch() — not just from async plugin updates, so
+  // EditorView.exceptionSink alone doesn't cover it. This fallback extension set drops
+  // markdown()/oneDark (the highlighting layer) so editing still works without crashing.
+  const baseExtensions = [
+    history(),
+    EditorView.lineWrapping,
+    keymap.of([...defaultKeymap, ...historyKeymap]),
+    EditorView.updateListener.of((update) => {
+      if (update.docChanged && !isProgrammaticChange.current) {
+        onChangeRef.current(update.state.doc.toString());
+      }
+    }),
+    EditorView.theme({
+      '&': { height: '100%', fontSize: '14px' },
+      '.cm-scroller': { overflow: 'auto', lineHeight: '1.7', fontFamily: 'inherit' },
+      '.cm-content': { padding: '16px' },
+    }),
+  ];
+
   // Init effect — deps [theme] only (Pitfall 2 compliance)
   useEffect(() => {
     if (!containerRef.current) return;
 
     const extensions = [
-      history(),
+      ...baseExtensions,
       drawSelection(),
       dropCursor(),
-      EditorView.lineWrapping,
       markdown(),
       ...(theme === 'dark' ? [oneDark] : []),
-      keymap.of([...defaultKeymap, ...historyKeymap]),
-      EditorView.updateListener.of((update) => {
-        if (update.docChanged && !isProgrammaticChange.current) {
-          onChangeRef.current(update.state.doc.toString());
-        }
-      }),
-      EditorView.theme({
-        '&': { height: '100%', fontSize: '14px' },
-        '.cm-scroller': { overflow: 'auto', lineHeight: '1.7', fontFamily: 'inherit' },
-        '.cm-content': { padding: '16px' },
-      }),
     ];
 
-    const state = EditorState.create({ doc: localContent, extensions });
-    const view = new EditorView({ state, parent: containerRef.current });
+    let view: EditorView;
+    try {
+      view = new EditorView({
+        state: EditorState.create({ doc: localContent, extensions }),
+        parent: containerRef.current,
+      });
+    } catch (err) {
+      console.error('[DocEditorArea] Highlighting crashed on mount, falling back to plain text', err);
+      view = new EditorView({
+        state: EditorState.create({ doc: localContent, extensions: baseExtensions }),
+        parent: containerRef.current,
+      });
+    }
     viewRef.current = view;
 
     return () => {
@@ -165,10 +185,23 @@ export function DocEditorArea({ spaceId }: IDocEditorAreaProps) {
     const current = view.state.doc.toString();
     if (current !== localContent) {
       isProgrammaticChange.current = true;
-      view.dispatch({ changes: { from: 0, to: current.length, insert: localContent } });
-      isProgrammaticChange.current = false;
+      try {
+        view.dispatch({ changes: { from: 0, to: current.length, insert: localContent } });
+      } catch (err) {
+        console.error(
+          '[DocEditorArea] Highlighting crashed on update, falling back to plain text',
+          err
+        );
+        view.destroy();
+        viewRef.current = new EditorView({
+          state: EditorState.create({ doc: localContent, extensions: baseExtensions }),
+          parent: containerRef.current ?? undefined,
+        });
+      } finally {
+        isProgrammaticChange.current = false;
+      }
     }
-  }, [localContent]);
+  }, [localContent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // -----------------------------------------------------------------------
   // Breadcrumb: folder name > doc title

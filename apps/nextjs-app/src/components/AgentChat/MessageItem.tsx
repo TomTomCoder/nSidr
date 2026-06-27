@@ -36,9 +36,11 @@ export const MessageItem = memo(function MessageItem({
   // Progress/thinking messages
   if (type === 'think' || type === 'progress') {
     return (
-      <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-        <div className="animate-spin">⚙️</div>
-        <span>{content}</span>
+      <div className="flex w-full flex-col gap-1.5 py-1.5">
+        <span className="text-sm text-muted-foreground">{content}</span>
+        <div className="h-1 w-full overflow-hidden rounded-full bg-muted/40">
+          <div className="ai-thinking-bar h-full w-1/3 rounded-full" />
+        </div>
       </div>
     );
   }

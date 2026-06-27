@@ -293,6 +293,21 @@ body {
   animation-play-state: running;
 }
 
+/* "Thinking" fill bar — same violet→indigo→sky gradient as .ai-gradient-ring /
+   the send button, used for the progress/think indicator under a user message. */
+@keyframes ai-thinking-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
+.ai-thinking-bar {
+  background: linear-gradient(90deg, #7c3aed, #4f46e5, #0ea5e9);
+  animation: ai-thinking-sweep 1.3s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ai-gradient-ring,
   .ai-gradient-border,
@@ -302,7 +317,9 @@ body {
   .ai-hero-enter-delay-2,
   .ai-hero-enter-delay-3,
   .ai-hero-enter-delay-4,
-  .ai-hero-enter-delay-5 {
+  .ai-hero-enter-delay-5,
+  .ai-thinking-bar {
     animation: none;
+    transform: none;
   }
 }

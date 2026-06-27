@@ -46,6 +46,7 @@ export class UnifiedAiController {
       modelKey: string;
       baseId?: string;
       activeBaseId?: string;
+      attachments?: { url: string; name: string; mimetype: string }[];
     },
     @Res() res: Response,
     @Req() req: Request
@@ -69,6 +70,7 @@ export class UnifiedAiController {
       conversationId: body.conversationId,
       modelKey: body.modelKey,
       activeBaseId: body.activeBaseId ?? body.baseId,
+      attachments: body.attachments,
     };
 
     try {
