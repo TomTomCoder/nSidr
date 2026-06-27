@@ -1,4 +1,4 @@
-import type { IColumnMeta } from '../column-meta.schema';
+import type { IGanttColumnMeta } from '../column-meta.schema';
 import type { ViewType } from '../constant';
 import { ViewCore } from '../view';
 import type { IViewVo } from '../view.schema';
@@ -6,7 +6,7 @@ import type { IGanttViewOptions } from './gantt-view-option.schema';
 
 export interface IGanttView extends IViewVo {
   type: ViewType.Gantt;
-  options?: IGanttViewOptions;
+  options: IGanttViewOptions;
 }
 
 export class GanttViewCore extends ViewCore {
@@ -14,5 +14,5 @@ export class GanttViewCore extends ViewCore {
 
   options!: IGanttViewOptions;
 
-  columnMeta!: IColumnMeta;
+  columnMeta!: IGanttColumnMeta;
 }

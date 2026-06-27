@@ -213,11 +213,16 @@ export function useGanttDrag({
         const validatedIds = validateDependencyIds(allIds, validRecordIds);
         const newValue = validatedIds.join(', ');
 
-        await updateRecord({
-          tableId,
-          recordId: drag.bar.recordId,
-          recordRo: { record: { fields: { [dependencyField]: newValue } } },
-        });
+        try {
+          await updateRecord({
+            tableId,
+            recordId: drag.bar.recordId,
+            recordRo: { record: { fields: { [dependencyField]: newValue } } },
+          });
+        } catch (error) {
+          // Silently fail if field doesn't exist
+          console.warn('Failed to update dependencies:', error);
+        }
         return;
       }
 
@@ -252,18 +257,26 @@ export function useGanttDrag({
       if (!startField || !endField) return;
 
       const fieldsToUpdate: Record<string, string> = {};
-      if (drag.mode === 'move' || drag.mode === 'resize-left') {
+      if ((drag.mode === 'move' || drag.mode === 'resize-left') && startField) {
         fieldsToUpdate[startField] = newStart.toISOString();
       }
-      if (drag.mode === 'move' || drag.mode === 'resize-right') {
+      if ((drag.mode === 'move' || drag.mode === 'resize-right') && endField) {
         fieldsToUpdate[endField] = newEnd.toISOString();
       }
 
-      await updateRecord({
-        tableId,
-        recordId: drag.bar.recordId,
-        recordRo: { record: { fields: fieldsToUpdate } },
-      });
+      // Only update if we have valid fields to update
+      if (Object.keys(fieldsToUpdate).length > 0) {
+        try {
+          await updateRecord({
+            tableId,
+            recordId: drag.bar.recordId,
+            recordRo: { record: { fields: fieldsToUpdate } },
+          });
+        } catch (error) {
+          // Silently fail if field doesn't exist (user might have deleted the field)
+          console.warn('Failed to update record dates:', error);
+        }
+      }
     },
     [ganttOptions, tableId, timelineStart, timeScale, bars, validRecordIds, updateRecord]
   );

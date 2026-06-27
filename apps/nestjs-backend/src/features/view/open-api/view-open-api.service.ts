@@ -63,6 +63,7 @@ import type { IFieldInstance } from '../../field/model/factory';
 import { createFieldInstanceByRaw, createFieldInstanceByVo } from '../../field/model/factory';
 import { RecordService } from '../../record/record.service';
 import { createViewInstanceByRaw } from '../model/factory';
+import { validateGanttViewOptionsPartial } from '../model/view-option-validate';
 import { ViewService } from '../view.service';
 
 @Injectable()
@@ -490,12 +491,30 @@ export class ViewOpenApiService {
       );
     }
 
+    // validate and clean gantt view field references
+    let cleanedOptions = viewOptions;
+    if (viewType === ViewType.Gantt) {
+      try {
+        cleanedOptions = await validateGanttViewOptionsPartial(tableId, viewOptions, this.prismaService);
+      } catch (err) {
+        throw new CustomHttpException(
+          `View option validation error: ${err instanceof Error ? err.message : 'Unknown error'}`,
+          HttpErrorCode.VALIDATION_ERROR,
+          {
+            localization: {
+              i18nKey: 'httpErrors.view.propertyParseError',
+            },
+          }
+        );
+      }
+    }
+
     const oldOptions = options ? JSON.parse(options) : options;
     const op = ViewOpBuilder.editor.setViewProperty.build({
       key: 'options',
       newValue: {
         ...oldOptions,
-        ...viewOptions,
+        ...cleanedOptions,
       },
       oldValue: oldOptions,
     });

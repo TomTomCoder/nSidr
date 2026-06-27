@@ -1,5 +1,6 @@
 import { useRecords, useFields } from '@teable/sdk/hooks';
 import { useMemo } from 'react';
+import { CellValueType } from '@teable/core';
 import type { IGanttViewOptions } from '@teable/core';
 import type { GanttBarItem } from '../type';
 
@@ -23,13 +24,21 @@ export function useGanttRecords(options: IGanttViewOptions): IUseGanttRecordsRes
   const fields = useFields({ withHidden: true });
 
   const bars = useMemo<GanttBarItem[]>(() => {
-    if (!options?.startField || !options?.endField) return [];
+    // Find date fields for fallback if not provided
+    const dateFields = fields.filter(
+      (f) => f.cellValueType === CellValueType.DateTime && !f.isMultipleCellValue
+    );
+
+    const startField = options?.startField || dateFields[0]?.id;
+    const endField = options?.endField || dateFields[1]?.id || dateFields[0]?.id;
+
+    if (!startField || !endField) return [];
 
     const items: GanttBarItem[] = [];
 
     for (const record of records) {
-      const rawStart = record.fields[options.startField];
-      const rawEnd = record.fields[options.endField];
+      const rawStart = record.fields[startField];
+      const rawEnd = record.fields[endField];
 
       const startDate = parseDateValue(rawStart);
       const endDate = parseDateValue(rawEnd);

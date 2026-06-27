@@ -1,6 +1,6 @@
 import type { IGanttViewOptions } from '@teable/core';
 import { RecordProvider } from '@teable/sdk/context';
-import { useIsHydrated, useView } from '@teable/sdk/hooks';
+import { useIsHydrated, useView, useFields } from '@teable/sdk/hooks';
 import type { GanttView as GanttViewModel } from '@teable/sdk/model';
 import { useCallback, useMemo } from 'react';
 import { GanttToolbar } from './components/GanttToolbar';
@@ -22,11 +22,32 @@ const DEFAULT_OPTIONS: IGanttViewOptions = {
 const GanttViewInner = () => {
   const view = useView() as GanttViewModel | undefined;
   const isHydrated = useIsHydrated();
+  const allFields = useFields({ withHidden: true });
 
-  const ganttOptions: IGanttViewOptions = useMemo(
-    () => (view?.options ? { ...DEFAULT_OPTIONS, ...view.options } : DEFAULT_OPTIONS),
-    [view]
-  );
+  // Sanitize options: remove field references that don't exist
+  const ganttOptions: IGanttViewOptions = useMemo(() => {
+    const opts = view?.options ? { ...DEFAULT_OPTIONS, ...view.options } : DEFAULT_OPTIONS;
+    const fieldIds = new Set(allFields.map((f) => f.id));
+
+    // Clear fields that don't exist in the table
+    if (opts.startField && !fieldIds.has(opts.startField)) {
+      opts.startField = '';
+    }
+    if (opts.endField && !fieldIds.has(opts.endField)) {
+      opts.endField = '';
+    }
+    if (opts.titleField && !fieldIds.has(opts.titleField)) {
+      opts.titleField = undefined;
+    }
+    if (opts.dependencyField && !fieldIds.has(opts.dependencyField)) {
+      opts.dependencyField = undefined;
+    }
+    if (opts.colorField && !fieldIds.has(opts.colorField)) {
+      opts.colorField = undefined;
+    }
+
+    return opts;
+  }, [view, allFields]);
 
   const { bars } = useGanttRecords(ganttOptions);
 

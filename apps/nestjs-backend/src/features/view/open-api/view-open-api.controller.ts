@@ -35,7 +35,8 @@ import {
   IViewShareMetaRo,
   viewSortRoSchema,
   IViewSortRo,
-  viewOptionsRoSchema,
+  partialViewOptionsSchema,
+  IPartialViewOptionsRo,
   IViewOptionsRo,
   updateOrderRoSchema,
   IUpdateOrderRo,
@@ -258,7 +259,7 @@ export class ViewOpenApiController {
   async updateViewOptions(
     @Param('tableId') tableId: string,
     @Param('viewId') viewId: string,
-    @Body(new ZodValidationPipe(viewOptionsRoSchema)) updateViewOptionRo: IViewOptionsRo,
+    @Body(new ZodValidationPipe(partialViewOptionsSchema)) updateViewOptionRo: IPartialViewOptionsRo,
     @Headers('x-window-id') windowId?: string
   ): Promise<void> {
     return await this.viewOpenApiService.patchViewOptions(

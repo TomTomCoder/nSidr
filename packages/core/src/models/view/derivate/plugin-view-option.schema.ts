@@ -6,6 +6,6 @@ export const pluginViewOptionSchema = z
     pluginInstallId: z.string().meta({ description: 'The plugin install id' }),
     pluginLogo: z.string().meta({ description: 'The plugin logo' }),
   })
-  .strict();
+  .strip();
 
 export type IPluginViewOptions = z.infer<typeof pluginViewOptionSchema>;

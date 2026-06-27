@@ -22,6 +22,8 @@ export type IGalleryColumnMeta = z.infer<typeof galleryColumnMetaSchema>;
 
 export type ICalendarColumnMeta = z.infer<typeof calendarColumnMetaSchema>;
 
+export type IGanttColumnMeta = z.infer<typeof ganttColumnMetaSchema>;
+
 export type IFormColumnMeta = z.infer<typeof formColumnMetaSchema>;
 
 export type IPluginColumnMeta = z.infer<typeof pluginColumnMetaSchema>;
@@ -76,6 +78,12 @@ export const calendarColumnSchema = columnSchemaBase.extend({
   }),
 });
 
+export const ganttColumnSchema = columnSchemaBase.extend({
+  visible: z.boolean().optional().meta({
+    description: 'If column visible in the gantt view.',
+  }),
+});
+
 export const formColumnSchema = columnSchemaBase.extend({
   visible: z.boolean().optional().meta({
     description: 'If column visible in the view.',
@@ -95,6 +103,8 @@ export const columnSchema = z.union([
   gridColumnSchema.strict(),
   kanbanColumnSchema.strict(),
   galleryColumnSchema.strict(),
+  calendarColumnSchema.strict(),
+  ganttColumnSchema.strict(),
   formColumnSchema.strict(),
   pluginColumnSchema.strict(),
 ]);
@@ -121,6 +131,11 @@ export const calendarColumnMetaSchema = z.record(
   calendarColumnSchema
 );
 
+export const ganttColumnMetaSchema = z.record(
+  z.string().startsWith(IdPrefix.Field),
+  ganttColumnSchema
+);
+
 export const formColumnMetaSchema = z.record(
   z.string().startsWith(IdPrefix.Field),
   formColumnSchema
@@ -141,6 +156,9 @@ export const columnMetaRoSchema = z
     columnMeta: z.union([
       gridColumnSchema.partial().strict(),
       kanbanColumnSchema.partial().strict(),
+      galleryColumnSchema.partial().strict(),
+      calendarColumnSchema.partial().strict(),
+      ganttColumnSchema.partial().strict(),
       formColumnSchema.partial().strict(),
       pluginColumnSchema.partial().strict(),
     ]),

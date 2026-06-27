@@ -79,6 +79,27 @@ export const GanttViewBase = () => {
     [setSelectedRecordId]
   );
 
+  // Show message if fields not configured
+  const hasRequiredFields = !!(ganttOptions.startField && ganttOptions.endField);
+
+  if (!hasRequiredFields) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-background">
+        <div className="flex max-w-md flex-col items-center gap-4 rounded-lg border border-border bg-card p-8 text-center">
+          <div className="text-sm text-muted-foreground">
+            <p className="mb-2 font-medium">Configure Gantt View</p>
+            <p className="mb-4 text-xs">
+              Click the Settings button in the toolbar to select start date and end date fields.
+            </p>
+            <p className="text-xs">
+              Your table must have at least one date/datetime field to use Gantt view.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full w-full overflow-hidden">
       {/* Sidebar */}

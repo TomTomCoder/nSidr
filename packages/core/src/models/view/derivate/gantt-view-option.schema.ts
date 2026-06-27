@@ -4,8 +4,8 @@ export const ganttTimeScaleSchema = z.enum(['day', 'week', 'month', 'quarter']);
 export type IGanttTimeScale = z.infer<typeof ganttTimeScaleSchema>;
 
 export const ganttViewOptionSchema = z.object({
-  startField: z.string().min(1),
-  endField: z.string().min(1),
+  startField: z.string().optional(),
+  endField: z.string().optional(),
   titleField: z.string().optional(),
   dependencyField: z.string().optional(),
   colorField: z.string().optional(),
