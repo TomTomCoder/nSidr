@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { BaseNodeResourceType, updateAppContent } from '@teable/openapi';
+import { BaseNodeResourceType, createApp, updateAppContent } from '@teable/openapi';
 import { ReactQueryKeys } from '@teable/sdk/config';
 import { useBase } from '@teable/sdk/hooks/use-base';
 import { useTable } from '@teable/sdk/hooks/use-table';
@@ -16,7 +16,6 @@ import {
   Plus,
   Settings,
   Sparkles,
-  Wand2,
   Zap,
 } from 'lucide-react';
 import { useParams } from 'next/navigation';
@@ -82,15 +81,11 @@ function ChatPanelInner({ spaceId }: { spaceId: string }) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [configAgent, setConfigAgent] = useState<Record<string, unknown> | null>(null);
   const [agents, setAgents] = useState<Record<string, unknown>[]>([]);
-  const [activeTab, setActiveTab] = useState<'general' | 'app-builder'>('general');
-  const { generating, statusMessage, tasks } = useAppBuilderStore();
-  const chatStore = useUnifiedChatStore(spaceId, base?.id);
+  useAppBuilderStore(); // only used via getState()
+  const chatStore = useUnifiedChatStore(spaceId);
   const suggestionGroups = buildSuggestionGroups(table?.name);
   const isAppBuilderMode = panelType === 'app-builder';
 
-  useEffect(() => {
-    if (isAppBuilderMode) setActiveTab('app-builder');
-  }, [isAppBuilderMode]);
   const baseResource = useBaseResource();
   const appId =
     baseResource.resourceType === BaseNodeResourceType.App ? baseResource.appId : undefined;
@@ -98,22 +93,33 @@ function ChatPanelInner({ spaceId }: { spaceId: string }) {
 
   const handleGeneratorSubmit = useCallback(
     (text: string): boolean => {
-      if (!isAppBuilderMode || activeTab !== 'app-builder' || !base?.id || !appId) return false;
-      void generate({
-        prompt: text,
-        baseId: base.id,
-        appId,
-        // ponytail: await save before invalidating — prevents stale refetch wiping Zustand store
-        onSave: (files) =>
-          void updateAppContent(base.id, appId, { files }).then(() =>
-            queryClient.invalidateQueries({ queryKey: ReactQueryKeys.appContent(base.id, appId) })
-          ),
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onInvalidate: () => {},
+      if (!base?.id) return false;
+      if (appId) {
+        // On app page — regenerate existing app
+        const { generate } = useAppBuilderStore.getState();
+        void generate({
+          prompt: text,
+          baseId: base.id,
+          appId,
+          onSave: (files) =>
+            void updateAppContent(base.id, appId, { files }).then(() =>
+              queryClient.invalidateQueries({ queryKey: ReactQueryKeys.appContent(base.id, appId) })
+            ),
+          // eslint-disable-next-line @typescript-eslint/no-empty-function
+          onInvalidate: () => {},
+        });
+        return true;
+      }
+      // On base page — create new app then navigate + generate
+      void createApp(base.id, text.slice(0, 60)).then((res) => {
+        const newAppId = (res.data as { id?: string })?.id;
+        if (!newAppId) return;
+        useAppBuilderStore.getState().queueGeneration({ appId: newAppId, prompt: text, baseId: base.id });
+        void router.push(`/base/${base.id}/app/${newAppId}`);
       });
       return true;
     },
-    [isAppBuilderMode, activeTab, base?.id, appId, generate, queryClient]
+    [base?.id, appId, queryClient, router]
   );
 
   // Fetch agents for the current base so we can show the config button
@@ -196,75 +202,9 @@ function ChatPanelInner({ spaceId }: { spaceId: string }) {
         </div>
       </div>
 
-      {/* Tabs — only visible in app-builder mode */}
-      {isAppBuilderMode && (
-        <div className="flex border-b border-border dark:border-slate-800/70">
-          {(
-            [
-              { id: 'general', label: 'Général' },
-              { id: 'app-builder', label: "Générateur d'applications" },
-            ] as const
-          ).map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex flex-1 items-center justify-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors ${
-                activeTab === tab.id
-                  ? 'border-primary text-foreground dark:border-violet-500 dark:text-violet-300'
-                  : 'border-transparent text-muted-foreground hover:text-foreground dark:text-slate-500 dark:hover:text-slate-300'
-              }`}
-            >
-              {tab.id === 'app-builder' && <Wand2 className="size-3" />}
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* App builder status panel — shown under the Générateur tab */}
-      {isAppBuilderMode && activeTab === 'app-builder' && (
-        <div className="overflow-y-auto border-b border-border bg-muted/20 px-4 py-3 text-xs dark:border-slate-800/70 dark:bg-slate-900/50">
-          {generating ? (
-            <div className="flex items-center gap-2 text-muted-foreground dark:text-slate-400">
-              <span className="flex gap-1">
-                <span className="size-1.5 animate-bounce rounded-full bg-primary/60 [animation-delay:-0.3s]" />
-                <span className="size-1.5 animate-bounce rounded-full bg-primary/60 [animation-delay:-0.15s]" />
-                <span className="size-1.5 animate-bounce rounded-full bg-primary/60" />
-              </span>
-              <span className="truncate">{statusMessage || 'Génération en cours…'}</span>
-            </div>
-          ) : (
-            <div className="text-muted-foreground dark:text-slate-400">
-              {tasks.length > 0 ? (
-                <ul className="space-y-1">
-                  {tasks.map((t, i) => (
-                    <li key={i} className="flex items-center gap-1.5">
-                      <span
-                        className={
-                          t.done ? 'text-green-500' : 'text-muted-foreground dark:text-slate-500'
-                        }
-                      >
-                        {t.done ? '✓' : '○'}
-                      </span>
-                      <span className={t.done ? 'text-foreground dark:text-slate-200' : ''}>
-                        {t.label}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p>Le générateur créera votre app depuis le chat.</p>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Unified chat container */}
       <UnifiedChatContainer
         spaceId={spaceId}
-        activeBaseId={base?.id}
         className="min-h-0 flex-1"
         suggestionGroups={suggestionGroups}
         pageContext={table ? { tableId: table.id, tableName: table.name } : undefined}
@@ -274,7 +214,6 @@ function ChatPanelInner({ spaceId }: { spaceId: string }) {
       {/* Conversation history drawer */}
       <ConversationHistory
         spaceId={spaceId}
-        baseId={base?.id}
         isOpen={historyOpen}
         onClose={() => setHistoryOpen(false)}
       />
