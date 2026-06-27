@@ -1,7 +1,7 @@
-import { useRecords, useFields } from '@teable/sdk/hooks';
 import { FieldType } from '@teable/core';
+import { useRecords } from '@teable/sdk/hooks';
+import type { IFieldInstance } from '@teable/sdk/model';
 import { useMemo } from 'react';
-import type { IGanttViewOptions } from '@teable/core';
 import type { GanttDependency } from '../type';
 
 interface IUseGanttDependenciesResult {
@@ -9,27 +9,23 @@ interface IUseGanttDependenciesResult {
 }
 
 export function useGanttDependencies(
-  options: IGanttViewOptions,
+  dependencyField: IFieldInstance | undefined,
   validRecordIds: Set<string>
 ): IUseGanttDependenciesResult {
   const { records } = useRecords();
-  const fields = useFields({ withHidden: true });
 
   const dependencies = useMemo<GanttDependency[]>(() => {
-    if (!options?.dependencyField) return [];
-
-    const depField = fields.find((f) => f.id === options.dependencyField);
-    if (!depField) return [];
+    if (!dependencyField) return [];
 
     const result: GanttDependency[] = [];
 
     for (const record of records) {
-      const cellValue = record.fields[depField.id];
+      const cellValue = record.fields[dependencyField.id];
       if (!cellValue) continue;
 
       let toIds: string[] = [];
 
-      if (depField.type === FieldType.Link) {
+      if (dependencyField.type === FieldType.Link) {
         // Linked-record field: value is an array of { id: string } objects
         const linked = cellValue as { id: string }[] | { id: string } | null;
         if (Array.isArray(linked)) {
@@ -54,7 +50,7 @@ export function useGanttDependencies(
     }
 
     return result;
-  }, [records, fields, options, validRecordIds]);
+  }, [records, dependencyField, validRecordIds]);
 
   return { dependencies };
 }

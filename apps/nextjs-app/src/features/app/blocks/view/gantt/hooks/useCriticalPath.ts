@@ -1,9 +1,53 @@
-import { useMemo } from 'react';
 import type { IGanttViewOptions } from '@teable/core';
+import { useMemo } from 'react';
 import type { GanttBarItem, GanttDependency } from '../type';
 
 interface IUseCriticalPathResult {
   criticalPathIds: Set<string>;
+  hasCycle: boolean;
+}
+
+function buildAdjacency(allIds: Set<string>, dependencies: GanttDependency[]) {
+  const successors = new Map<string, string[]>();
+  const inDegree = new Map<string, number>();
+  for (const id of allIds) {
+    successors.set(id, []);
+    inDegree.set(id, 0);
+  }
+  for (const dep of dependencies) {
+    successors.get(dep.fromRecordId)?.push(dep.toRecordId);
+    inDegree.set(dep.toRecordId, (inDegree.get(dep.toRecordId) ?? 0) + 1);
+  }
+  return { successors, inDegree };
+}
+
+/**
+ * Detects whether the dependency graph contains a cycle, reusing Kahn's
+ * topological sort: a node left out of topoOrder is part of (or downstream of) a cycle.
+ */
+export function detectCycle(bars: GanttBarItem[], dependencies: GanttDependency[]): boolean {
+  if (bars.length === 0 || dependencies.length === 0) return false;
+
+  const allIds = new Set(bars.map((b) => b.recordId));
+  const { successors, inDegree } = buildAdjacency(allIds, dependencies);
+
+  const queue: string[] = [];
+  for (const [id, deg] of inDegree) {
+    if (deg === 0) queue.push(id);
+  }
+
+  let visited = 0;
+  while (queue.length > 0) {
+    const node = queue.shift()!;
+    visited++;
+    for (const succ of successors.get(node) ?? []) {
+      const newDeg = (inDegree.get(succ) ?? 1) - 1;
+      inDegree.set(succ, newDeg);
+      if (newDeg === 0) queue.push(succ);
+    }
+  }
+
+  return visited < allIds.size;
 }
 
 /**
@@ -119,5 +163,7 @@ export function useCriticalPath(
     return computeCriticalPath(bars, dependencies);
   }, [bars, dependencies, options]);
 
-  return { criticalPathIds };
+  const hasCycle = useMemo(() => detectCycle(bars, dependencies), [bars, dependencies]);
+
+  return { criticalPathIds, hasCycle };
 }

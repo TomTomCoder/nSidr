@@ -25,7 +25,7 @@ export const GanttOptionsPanel = ({ children }: IGanttOptionsPanelProps) => {
 
   const ganttOptions = (view?.options ?? {}) as Partial<IGanttViewOptions>;
 
-  const { dateFields, allFields, linkOrTextField } = useMemo(
+  const { dateFields, allFields, linkOrTextField, singleSelectFields } = useMemo(
     () => ({
       dateFields: fields.filter(
         (field) => field.cellValueType === CellValueType.DateTime && !field.isMultipleCellValue
@@ -37,6 +37,7 @@ export const GanttOptionsPanel = ({ children }: IGanttOptionsPanelProps) => {
           field.type === FieldType.SingleLineText ||
           field.type === FieldType.LongText
       ),
+      singleSelectFields: fields.filter((field) => field.type === FieldType.SingleSelect),
     }),
     [fields]
   );
@@ -89,7 +90,8 @@ export const GanttOptionsPanel = ({ children }: IGanttOptionsPanelProps) => {
       label: 'Champ couleur',
       key: 'colorField',
       value: ganttOptions.colorField,
-      options: allFields,
+      options: singleSelectFields,
+      hint: 'Les barres reprennent la couleur du choix sélectionné (ex: statut).',
     },
   ];
 

@@ -10,9 +10,21 @@ interface IGanttBarProps {
   timeScale: string;
   onClick: (recordId: string) => void;
   drag?: IUseGanttDragResult;
+  /** Show move/resize handles. Defaults to true when `drag` is provided. */
+  allowResize?: boolean;
+  /** Show the dependency connector dot. Defaults to true when `drag` is provided. */
+  allowDependency?: boolean;
 }
 
-export const GanttBar = ({ bar, timelineStart, timeScale, onClick, drag }: IGanttBarProps) => {
+export const GanttBar = ({
+  bar,
+  timelineStart,
+  timeScale,
+  onClick,
+  drag,
+  allowResize = true,
+  allowDependency = true,
+}: IGanttBarProps) => {
   const left = useMemo(
     () => dateToPixel(bar.startDate, timelineStart, timeScale),
     [bar.startDate, timelineStart, timeScale]
@@ -50,7 +62,7 @@ export const GanttBar = ({ bar, timelineStart, timeScale, onClick, drag }: IGant
       }}
     >
       {/* Left resize handle */}
-      {drag && (
+      {drag && allowResize && (
         <div
           className="absolute left-0 top-0 z-10 h-full w-2 cursor-ew-resize"
           onMouseDown={(e) => {
@@ -63,14 +75,14 @@ export const GanttBar = ({ bar, timelineStart, timeScale, onClick, drag }: IGant
       {/* Bar body — triggers move drag */}
       <div
         className="flex h-full flex-1 items-center overflow-hidden px-1"
-        onMouseDown={drag ? (e) => drag.startMove(bar, e) : undefined}
+        onMouseDown={drag && allowResize ? (e) => drag.startMove(bar, e) : undefined}
         onClick={() => onClick(bar.recordId)}
       >
         <span className="truncate">{bar.title}</span>
       </div>
 
       {/* Right resize handle */}
-      {drag && (
+      {drag && allowResize && (
         <div
           className="absolute right-0 top-0 z-10 h-full w-2 cursor-ew-resize"
           onMouseDown={(e) => {
@@ -81,7 +93,7 @@ export const GanttBar = ({ bar, timelineStart, timeScale, onClick, drag }: IGant
       )}
 
       {/* Right connector dot for dependency creation */}
-      {drag && (
+      {drag && allowDependency && (
         <div
           className="absolute -right-2 top-1/2 z-20 size-2 -translate-y-1/2 cursor-crosshair rounded-full border border-blue-500 bg-white opacity-0 transition-opacity group-hover:opacity-100 hover:opacity-100"
           style={{ marginRight: -4 }}

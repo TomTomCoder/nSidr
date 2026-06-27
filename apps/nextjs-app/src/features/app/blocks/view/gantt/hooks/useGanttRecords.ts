@@ -1,7 +1,7 @@
-import { useRecords, useFields } from '@teable/sdk/hooks';
-import { useMemo } from 'react';
-import { CellValueType } from '@teable/core';
 import type { IGanttViewOptions } from '@teable/core';
+import { useRecords } from '@teable/sdk/hooks';
+import type { IFieldInstance, SingleSelectField } from '@teable/sdk/model';
+import { useMemo } from 'react';
 import type { GanttBarItem } from '../type';
 
 interface IUseGanttRecordsResult {
@@ -19,53 +19,48 @@ function parseDateValue(value: unknown): Date | null {
   return null;
 }
 
-export function useGanttRecords(options: IGanttViewOptions): IUseGanttRecordsResult {
+export function useGanttRecords(
+  options: IGanttViewOptions,
+  startField: IFieldInstance | undefined,
+  endField: IFieldInstance | undefined,
+  titleField: IFieldInstance | undefined,
+  colorField: SingleSelectField | undefined
+): IUseGanttRecordsResult {
   const { records } = useRecords();
-  const fields = useFields({ withHidden: true });
 
   const bars = useMemo<GanttBarItem[]>(() => {
-    // Find date fields for fallback if not provided
-    const dateFields = fields.filter(
-      (f) => f.cellValueType === CellValueType.DateTime && !f.isMultipleCellValue
-    );
-
-    const startField = options?.startField || dateFields[0]?.id;
-    const endField = options?.endField || dateFields[1]?.id || dateFields[0]?.id;
-
     if (!startField || !endField) return [];
 
     const items: GanttBarItem[] = [];
 
     for (const record of records) {
-      const rawStart = record.fields[startField];
-      const rawEnd = record.fields[endField];
-
-      const startDate = parseDateValue(rawStart);
-      const endDate = parseDateValue(rawEnd);
+      const startDate = parseDateValue(record.fields[startField.id]);
+      const endDate = parseDateValue(record.fields[endField.id]);
 
       // Skip records without valid dates
       if (!startDate || !endDate) continue;
 
-      const titleField = options.titleField
-        ? fields.find((f) => f.id === options.titleField)
-        : undefined;
-      const title = titleField
-        ? String(record.fields[titleField.id] ?? record.id)
-        : record.id;
+      const title = titleField ? String(record.fields[titleField.id] ?? record.id) : record.id;
 
-      const color = options.colorField
-        ? (record.fields[options.colorField] as string | undefined)
+      // Bar takes on the color of the record's selected choice (e.g. status), not a literal cell value.
+      const colorValue = colorField
+        ? (record.fields[colorField.id] as string | undefined)
+        : undefined;
+      const color = colorValue
+        ? colorField?.displayChoiceMap[colorValue]?.backgroundColor
         : undefined;
 
       const durationDays = (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
-      const isMilestone = durationDays <= (options.milestoneThreshold ?? 0);
+      // Round to whole days: the threshold is expressed in days, sub-day noise (same-day
+      // timestamps a few seconds apart) shouldn't prevent a record from being a milestone.
+      const isMilestone = Math.round(durationDays) <= (options.milestoneThreshold ?? 0);
 
       items.push({
         recordId: record.id,
         title,
         startDate,
         endDate,
-        color: typeof color === 'string' ? color : undefined,
+        color,
         isMilestone,
         isCriticalPath: false, // will be updated by useCriticalPath
         rowIndex: 0, // assigned after sort
@@ -81,7 +76,7 @@ export function useGanttRecords(options: IGanttViewOptions): IUseGanttRecordsRes
     });
 
     return items;
-  }, [records, fields, options]);
+  }, [records, startField, endField, titleField, colorField, options.milestoneThreshold]);
 
   return { bars, isLoading: false };
 }

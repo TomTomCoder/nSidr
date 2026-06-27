@@ -1,6 +1,9 @@
+import { FieldKeyType } from '@teable/core';
 import type { IGanttViewOptions, IGanttTimeScale } from '@teable/core';
-import { Settings } from '@teable/icons';
+import { Plus, Settings } from '@teable/icons';
+import { useRecordOperations, useTableId } from '@teable/sdk/hooks';
 import { Button, cn } from '@teable/ui-lib/shadcn';
+import { useGanttContext } from '../context/GanttContext';
 import { GanttOptionsPanel } from './GanttOptionsPanel';
 
 const TIME_SCALES: { value: IGanttTimeScale; label: string }[] = [
@@ -21,8 +24,52 @@ export const GanttToolbar = ({
   onOptionsChange,
   onScrollToToday,
 }: IGanttToolbarProps) => {
+  const tableId = useTableId();
+  const { startField, endField, setExpandRecordId } = useGanttContext();
+  const { createRecords } = useRecordOperations();
+
+  const canAddRecord = Boolean(tableId && startField && endField);
+
+  const handleAddRecord = async () => {
+    if (!tableId || !startField || !endField) return;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const { data } = await createRecords({
+      tableId,
+      recordsRo: {
+        fieldKeyType: FieldKeyType.Id,
+        records: [
+          {
+            fields: {
+              [startField.id]: today.toISOString(),
+              [endField.id]: tomorrow.toISOString(),
+            },
+          },
+        ],
+      },
+    });
+
+    setExpandRecordId(data.records[0].id);
+  };
+
   return (
     <div className="flex items-center gap-2 border-b border-border bg-background px-3 py-1.5">
+      {/* Add record */}
+      <Button
+        size="xs"
+        variant="outline"
+        className="gap-1"
+        disabled={!canAddRecord}
+        title={canAddRecord ? undefined : 'Configurez les champs de début/fin pour ajouter un enregistrement'}
+        onClick={handleAddRecord}
+      >
+        <Plus className="size-3.5" />
+        Ajouter
+      </Button>
+
       {/* Settings / Options panel trigger */}
       <GanttOptionsPanel>
         <Button size="xs" variant="outline" className="gap-1">

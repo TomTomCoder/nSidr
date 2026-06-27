@@ -27,6 +27,7 @@ export const GanttMilestone = ({
 
   return (
     <div
+      data-record-id={bar.recordId}
       className={cn(
         'absolute cursor-pointer transition-opacity hover:opacity-90',
         bar.isCriticalPath ? 'bg-red-500' : bar.color ? '' : 'bg-yellow-400'

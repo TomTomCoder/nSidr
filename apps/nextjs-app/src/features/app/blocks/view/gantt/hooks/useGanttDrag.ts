@@ -1,5 +1,7 @@
+import { FieldKeyType } from '@teable/core';
 import type { IGanttViewOptions } from '@teable/core';
 import { useRecordOperations } from '@teable/sdk/hooks';
+import { toast } from '@teable/ui-lib/shadcn/ui/sonner';
 import { useCallback, useRef, useState } from 'react';
 import type { GanttBarItem } from '../type';
 import { dateToPixel, pixelToDate } from '../util';
@@ -73,9 +75,7 @@ export function useGanttDrag({
   const { updateRecord } = useRecordOperations();
   const dragStateRef = useRef<DragState | null>(null);
   const [pendingGhostBars, setPendingGhostBars] = useState<PendingGhostBar[]>([]);
-  const [dependencyLineEnd, setDependencyLineEnd] = useState<{ x: number; y: number } | null>(
-    null
-  );
+  const [dependencyLineEnd, setDependencyLineEnd] = useState<{ x: number; y: number } | null>(null);
 
   const validRecordIds = new Set(bars.map((b) => b.recordId));
 
@@ -169,7 +169,7 @@ export function useGanttDrag({
   );
 
   const onMouseUp = useCallback(
-    async (e: MouseEvent) => {
+    (e: MouseEvent) => {
       const drag = dragStateRef.current;
       dragStateRef.current = null;
       setPendingGhostBars([]);
@@ -206,7 +206,10 @@ export function useGanttDrag({
         const currentDepsRaw = (drag.bar as GanttBarItem & { dependencyValue?: string })
           .dependencyValue;
         const existingIds = currentDepsRaw
-          ? currentDepsRaw.split(',').map((s) => s.trim()).filter(Boolean)
+          ? currentDepsRaw
+              .split(',')
+              .map((s) => s.trim())
+              .filter(Boolean)
           : [];
         const allIds = [...existingIds, targetRecordId];
         // Validate all IDs before writing (T-05-13)
@@ -217,11 +220,14 @@ export function useGanttDrag({
           await updateRecord({
             tableId,
             recordId: drag.bar.recordId,
-            recordRo: { record: { fields: { [dependencyField]: newValue } } },
+            recordRo: {
+              fieldKeyType: FieldKeyType.Id,
+              record: { fields: { [dependencyField]: newValue } },
+            },
           });
         } catch (error) {
-          // Silently fail if field doesn't exist
           console.warn('Failed to update dependencies:', error);
+          toast.error('Failed to update dependency');
         }
         return;
       }
@@ -270,11 +276,11 @@ export function useGanttDrag({
           await updateRecord({
             tableId,
             recordId: drag.bar.recordId,
-            recordRo: { record: { fields: fieldsToUpdate } },
+            recordRo: { fieldKeyType: FieldKeyType.Id, record: { fields: fieldsToUpdate } },
           });
         } catch (error) {
-          // Silently fail if field doesn't exist (user might have deleted the field)
           console.warn('Failed to update record dates:', error);
+          toast.error('Failed to update task dates');
         }
       }
     },

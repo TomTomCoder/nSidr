@@ -102,10 +102,15 @@ export class Record extends RecordCore {
       newCellValue: cellValue,
       oldCellValue,
     });
-    this.doc.data.fields[fieldId] = cellValue;
-    this.doc.emit('op batch', [operation], false);
-    if (this.doc.version) {
-      undo ? this.doc.version-- : this.doc.version++;
+    // doc.data can be undefined if the ShareDB doc was destroyed/not yet subscribed
+    // (e.g. editing a just-created record before its doc subscription resolves).
+    // Skip the live-doc op emission in that case but still keep local state in sync.
+    if (this.doc.data) {
+      this.doc.data.fields[fieldId] = cellValue;
+      this.doc.emit('op batch', [operation], false);
+      if (this.doc.version) {
+        undo ? this.doc.version-- : this.doc.version++;
+      }
     }
     this.fields[fieldId] = cellValue;
   }
