@@ -62,6 +62,7 @@ const WRITE_TOOLS = new Set([
   'create_table',
   'create_base',
   'create_field',
+  'create_view',
   'link_tables',
   'delete_field',
   'rename_table',
@@ -136,6 +137,7 @@ export class UnifiedAiService {
       `1. Pass baseId="${ctx.activeBaseId ?? '<use active base id shown above>'}" on EVERY write tool call.\n` +
       '2. create_table: fields = array of objects [{name:"...",type:"singleLineText"}]. Include ALL fields in one call.\n' +
       '3. create_record: fields = FLAT object {"Field Name": value}. Use tableName (not tableId).\n' +
+      '3b. create_view: add a view to an EXISTING table. type = grid|gallery|kanban|calendar|gantt|form|ai. Use tableName + the requested type. For "ai", also pass prompt describing what to show (filters/sort/hidden columns).\n' +
       '4. After create_table: sample records + app interface are auto-proposed — do NOT call create_record or create_app_interface yourself.\n' +
       '5. LINKING IS NEVER AUTOMATIC: If the user asks to link/relate tables, you MUST call link_tables explicitly — always after all create_table calls.\n' +
       '   - Use sourceTableName + targetTableName (not IDs)\n' +
@@ -315,6 +317,26 @@ export class UnifiedAiService {
         'rename_field',
         'Rename a field.',
         z.object({ tableId: z.string(), fieldId: z.string(), name: z.string() })
+      ),
+      create_view: buildWriteTool(
+        'create_view',
+        'Create a new view on an existing table. Use tableName (or tableId if known) to target the table. "type" is one of: grid, gallery, kanban, calendar, gantt, form, ai. For type="ai", also pass "prompt" describing what the view should show — the AI designs a native view with the right filter/sort/hidden columns.',
+        z.object({
+          tableId: z.string().optional().describe('Target table ID — use if already known'),
+          tableName: z
+            .string()
+            .optional()
+            .describe('Target table name — preferred when tableId is unknown; resolved automatically'),
+          baseId: z.string().optional().describe('Base ID — used to resolve tableName to tableId'),
+          type: z
+            .string()
+            .describe('View type: grid | gallery | kanban | calendar | gantt | form | ai'),
+          name: z.string().optional().describe('Optional view name'),
+          prompt: z
+            .string()
+            .optional()
+            .describe('Required when type="ai": natural-language description of what to show'),
+        })
       ),
       create_record: buildWriteTool(
         'create_record',
@@ -768,6 +790,14 @@ export class UnifiedAiService {
         return { name: args.name };
       case 'create_field':
         return { tableId: args.tableId, name: args.name, type: args.type };
+      case 'create_view':
+        return {
+          tableId: args.tableId,
+          tableName: args.tableName,
+          type: args.type,
+          name: args.name,
+          ...(args.prompt ? { prompt: args.prompt } : {}),
+        };
       case 'delete_field':
         return { fieldId: args.fieldId, tableId: args.tableId };
       case 'rename_table':

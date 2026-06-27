@@ -41,6 +41,8 @@ Teable est une base de données sans code (no-code) construite sur PostgreSQL. C
 
 ## 2. AI Chat & Build
 
+> 📖 **Architecture détaillée** : voir [AI-SYSTEM.md](./AI-SYSTEM.md) — flux SSE, outils read/write, cycle proposer→accepter, `UnifiedAiService` vs `AiService`, et guide d'extension.
+
 ### Description
 
 Le panneau AI est accessible depuis la barre latérale de chaque base. Il propose deux modes :

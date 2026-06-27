@@ -12,9 +12,28 @@ import { randomUUID } from 'crypto';
 import { FieldOpenApiService } from '../field/open-api/field-open-api.service';
 import { BaseNodeService } from '../base-node/base-node.service';
 import { RecordOpenApiService } from '../record/open-api/record-open-api.service';
+import { ViewOpenApiService } from '../view/open-api/view-open-api.service';
 import { WorkflowAiService } from '../workflow/workflow-ai.service';
 import { WorkflowService } from '../workflow/workflow.service';
 import { AgentService } from '../agent/agent.service';
+import { AI_SERVICE } from '../../shared/tokens/ai.token';
+
+/** AI-generated view config — mirrors AiService.generateViewConfig / IGeneratedViewConfig. */
+interface IGeneratedViewConfig {
+  type: string;
+  name: string;
+  sort?: unknown;
+  filter?: unknown;
+  columnMeta?: unknown;
+}
+interface IAiViewGenService {
+  generateViewConfig(
+    baseId: string,
+    tableId: string,
+    prompt: string,
+    modelKey?: string
+  ): Promise<IGeneratedViewConfig>;
+}
 
 export interface ProposalInput {
   action: string;
@@ -45,6 +64,8 @@ export class ActionProposalService {
     private readonly prismaService: PrismaService,
     private readonly baseNodeService: BaseNodeService,
     private readonly recordOpenApiService: RecordOpenApiService,
+    private readonly viewOpenApiService: ViewOpenApiService,
+    @Inject(AI_SERVICE) private readonly aiService: IAiViewGenService,
     private readonly fieldOpenApiService: FieldOpenApiService,
     private readonly workflowAiService: WorkflowAiService,
     private readonly workflowService: WorkflowService,
@@ -388,6 +409,71 @@ export class ActionProposalService {
           ...(args.options ? { options: args.options as Record<string, unknown> } : {}),
         } as Parameters<typeof this.fieldOpenApiService.createField>[1]);
         return fieldVo;
+      }
+
+      case 'create_view': {
+        // Resolve tableId from tableName + baseId if tableId not provided (mirrors create_record)
+        let tableId = (args.tableId as string | undefined)?.trim();
+        if (!tableId && args.tableName) {
+          const found = await this.prismaService.tableMeta.findFirst({
+            where: {
+              name: args.tableName as string,
+              ...(args.baseId ? { baseId: args.baseId as string } : {}),
+              deletedTime: null,
+            },
+            select: { id: true },
+          });
+          if (found) tableId = found.id;
+        }
+        if (!tableId) throw new Error('tableId is required for create_view (or provide tableName)');
+        // Maps an AI-supplied view-type string → the 6 native ViewTypes the
+        // frontend "+" menu offers (see AddView.tsx). "ai" is NOT a ViewType —
+        // it mirrors the menu's "Générer avec l'IA": ask AiService to design a
+        // native view (type + filter/sort/columnMeta) from a natural-language prompt.
+        const VIEW_TYPE_MAP: Record<string, ViewType> = {
+          grid: ViewType.Grid,
+          gallery: ViewType.Gallery,
+          kanban: ViewType.Kanban,
+          calendar: ViewType.Calendar,
+          gantt: ViewType.Gantt,
+          form: ViewType.Form,
+        };
+        const rawType = (args.type as string | undefined)?.toLowerCase().trim() ?? 'grid';
+        const userName = (args.name as string | undefined)?.trim();
+
+        if (rawType === 'ai') {
+          const prompt = (args.prompt as string | undefined)?.trim();
+          if (!prompt) {
+            return {
+              status: 'skipped',
+              reason:
+                'An AI view needs a "prompt" describing what to show (e.g. "tâches urgentes triées par échéance"). Ask the user and retry.',
+            };
+          }
+          const baseId = args.baseId as string | undefined;
+          if (!baseId) throw new Error('baseId is required to generate an AI view');
+          const config = await this.aiService.generateViewConfig(baseId, tableId, prompt);
+          const aiType = VIEW_TYPE_MAP[config.type?.toLowerCase()] ?? ViewType.Grid;
+          return await this.viewOpenApiService.createView(tableId, {
+            type: aiType,
+            name: userName || config.name || 'Vue IA',
+            ...(config.sort ? { sort: config.sort } : {}),
+            ...(config.filter ? { filter: config.filter } : {}),
+            ...(config.columnMeta ? { columnMeta: config.columnMeta } : {}),
+          } as Parameters<typeof this.viewOpenApiService.createView>[1]);
+        }
+
+        const type = VIEW_TYPE_MAP[rawType];
+        if (!type) {
+          return {
+            status: 'skipped',
+            reason: `Unknown view type "${rawType}". Use one of: grid, gallery, kanban, calendar, gantt, form, ai.`,
+          };
+        }
+        return await this.viewOpenApiService.createView(tableId, {
+          type,
+          ...(userName ? { name: userName } : {}),
+        } as Parameters<typeof this.viewOpenApiService.createView>[1]);
       }
 
       case 'link_tables': {

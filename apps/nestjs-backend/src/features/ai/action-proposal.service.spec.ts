@@ -22,6 +22,8 @@ describe('ActionProposalService', () => {
       {} as any,
       {} as any,
       {} as any,
+      {} as any,
+      {} as any,
       {} as any
     );
   });
@@ -47,6 +49,74 @@ describe('ActionProposalService', () => {
     expect(result).toHaveProperty('preview');
     expect(result).toHaveProperty('conversationMessageId');
     expect(result.conversationMessageId).toBe('msg-123');
+  });
+
+  it('create_view: native type resolves tableName, "ai" type uses generateViewConfig', async () => {
+    const mockView = { createView: vi.fn().mockResolvedValue({ id: 'viw1' }) };
+    const mockAi = {
+      generateViewConfig: vi.fn().mockResolvedValue({
+        type: 'kanban',
+        name: 'Urgent board',
+        filter: { conjunction: 'and', filterSet: [] },
+      }),
+    };
+    const prisma = {
+      ...mockPrismaService,
+      tableMeta: { findFirst: vi.fn().mockResolvedValue({ id: 'tblResolved' }) },
+    };
+    // ctor order: prisma, baseNode, record, view, ai, field, workflowAi, workflow, agent
+    const svc = new ActionProposalService(
+      prisma as any,
+      {} as any,
+      {} as any,
+      mockView as any,
+      mockAi as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any
+    );
+
+    // native: tableName → tableId, created directly
+    await (svc as any).executeAction(
+      'create_view',
+      { tableName: 'Projects', baseId: 'base-1', type: 'KANBAN', name: 'Board' },
+      'user-1'
+    );
+    expect(prisma.tableMeta.findFirst).toHaveBeenCalled();
+    expect(mockView.createView).toHaveBeenCalledWith('tblResolved', {
+      type: 'kanban',
+      name: 'Board',
+    });
+
+    // ai: calls generateViewConfig, then creates a NATIVE view from the config
+    await (svc as any).executeAction(
+      'create_view',
+      { tableId: 'tblX', baseId: 'base-1', type: 'ai', prompt: 'tâches urgentes' },
+      'user-1'
+    );
+    expect(mockAi.generateViewConfig).toHaveBeenCalledWith('base-1', 'tblX', 'tâches urgentes');
+    expect(mockView.createView).toHaveBeenLastCalledWith('tblX', {
+      type: 'kanban',
+      name: 'Urgent board',
+      filter: { conjunction: 'and', filterSet: [] },
+    });
+
+    // ai without prompt → skipped, not thrown
+    const noPrompt = await (svc as any).executeAction(
+      'create_view',
+      { tableId: 'tblX', baseId: 'base-1', type: 'ai' },
+      'user-1'
+    );
+    expect(noPrompt).toMatchObject({ status: 'skipped' });
+
+    // unknown type → skipped
+    const skipped = await (svc as any).executeAction(
+      'create_view',
+      { tableId: 'tblX', type: 'bogus' },
+      'user-1'
+    );
+    expect(skipped).toMatchObject({ status: 'skipped' });
   });
 
   it('Test 2: createProposal saves WorkspaceConversationMessage with type="proposal" and proposalId column set', async () => {

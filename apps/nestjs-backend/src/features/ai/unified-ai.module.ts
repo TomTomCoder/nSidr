@@ -3,6 +3,7 @@ import { PrismaModule } from '@teable/db-main-prisma';
 import { FieldOpenApiModule } from '../field/open-api/field-open-api.module';
 import { BaseNodeModule } from '../base-node/base-node.module';
 import { RecordOpenApiModule } from '../record/open-api/record-open-api.module';
+import { ViewOpenApiModule } from '../view/open-api/view-open-api.module';
 import { WorkflowModule } from '../workflow/workflow.module';
 import { AgentModule } from '../agent/agent.module';
 import { ActionProposalService } from './action-proposal.service';
@@ -18,6 +19,7 @@ import { WorkspaceStateService } from './workspace-state.service';
     BaseNodeModule,
     RecordOpenApiModule,
     FieldOpenApiModule,
+    ViewOpenApiModule,
     WorkflowModule,
     forwardRef(() => AgentModule),
   ],

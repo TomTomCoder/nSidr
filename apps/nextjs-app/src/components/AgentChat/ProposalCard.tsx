@@ -30,6 +30,7 @@ const ACTION_LABELS: Record<string, string> = {
   create_table: 'Créer une table',
   create_base: 'Créer une base',
   create_field: 'Créer un champ',
+  create_view: 'Créer une vue',
   update_table: 'Modifier la table',
   update_field: 'Modifier le champ',
   delete_table: 'Supprimer la table',
