@@ -56,8 +56,9 @@ export const MessageItem = memo(function MessageItem({
     );
   }
 
-  // Assistant text
-  if ((type === 'text' || type === 'text_chunk') && message.role === 'assistant') {
+  // Assistant text — the backend never sets `role` on its SSE text_chunk events, so
+  // anything that isn't explicitly tagged 'user' is assistant output.
+  if ((type === 'text' || type === 'text_chunk') && message.role !== 'user') {
     return (
       <div className="flex w-full justify-start py-1">
         <div className="min-w-0 w-full rounded-lg border border-border bg-background px-3 py-2 text-foreground dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-200">
@@ -106,7 +107,14 @@ export const MessageItem = memo(function MessageItem({
   if (type === 'proposal') {
     const proposal = 'proposal' in message ? message.proposal : undefined;
     if (proposal && spaceId && conversationId) {
-      return <ProposalCard proposal={proposal} spaceId={spaceId} conversationId={conversationId} activeBaseId={activeBaseId} />;
+      return (
+        <ProposalCard
+          proposal={proposal}
+          spaceId={spaceId}
+          conversationId={conversationId}
+          activeBaseId={activeBaseId}
+        />
+      );
     }
   }
 

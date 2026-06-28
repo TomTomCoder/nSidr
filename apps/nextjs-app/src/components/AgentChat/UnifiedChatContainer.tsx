@@ -11,7 +11,9 @@ import {
   TooltipTrigger,
 } from '@teable/ui-lib/shadcn/ui/tooltip';
 import {
+  AppWindow,
   BarChart2,
+  Bot,
   BookOpen,
   ChevronDown,
   ChevronRight,
@@ -19,21 +21,24 @@ import {
   Cpu,
   Database,
   File as FileIcon,
+  LayoutPanelTop,
   Loader2,
   Plus,
   Search,
   Sparkles,
   Square,
+  Table2,
+  Wand2,
   Workflow,
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ModelSelector } from '@/features/app/components/ModelSelector';
 import { useAvailableModels } from '@/features/app/hooks/useAvailableModels';
-import { uploadFiles } from '@/features/app/utils/uploadFile';
-import { useUnifiedChatStore } from '@/features/app/stores/useUnifiedChatStore';
-import type { UnifiedChatEvent } from '@/types/agent';
 import { useAppBuilderStore } from '@/features/app/stores/useAppBuilderStore';
+import { useUnifiedChatStore } from '@/features/app/stores/useUnifiedChatStore';
+import { uploadFiles } from '@/features/app/utils/uploadFile';
+import type { UnifiedChatEvent } from '@/types/agent';
 import { MessageItem } from './MessageItem';
 import { TaskProgressPanel } from './TaskProgressPanel';
 
@@ -44,9 +49,6 @@ const ASK_PLACEHOLDERS = [
   'Crée un suivi de tâches avec vue Kanban…',
   'Génère un rapport hebdomadaire à partir de mes tables…',
 ];
-
-const AGENT_PLACEHOLDER =
-  'Décrivez les objectifs, les rôles, les tâches ou les processus de votre agent builder.';
 
 const TOOL_COLLAPSE_THRESHOLD = 2;
 
@@ -128,6 +130,212 @@ const AGENT_CARDS = [
   },
 ];
 
+type TargetType = 'table' | 'interface' | 'automation' | 'agent' | 'app' | 'mock_data';
+
+const TARGET_TYPES: { key: TargetType; label: string; icon: React.ElementType }[] = [
+  { key: 'table', label: 'Table', icon: Table2 },
+  { key: 'interface', label: 'Interface', icon: LayoutPanelTop },
+  { key: 'automation', label: 'Automation', icon: Workflow },
+  { key: 'agent', label: 'Agent', icon: Bot },
+  { key: 'app', label: 'Application complète', icon: AppWindow },
+  { key: 'mock_data', label: 'Données fictives', icon: Wand2 },
+];
+
+const TARGET_PLACEHOLDERS: Record<TargetType, string> = {
+  table: 'Décrivez la table que vous voulez créer (champs, type de contenu)…',
+  interface: 'Décrivez l’interface que vous voulez créer pour cette base…',
+  automation: 'Décrivez le déclencheur et l’action de votre automation…',
+  agent: 'Décrivez les objectifs, les rôles, les tâches ou les processus de votre agent.',
+  app: 'Décrivez l’application complète que vous voulez générer…',
+  mock_data: 'Décrivez le thème des données fictives à générer pour cette table…',
+};
+
+const TABLE_CARDS = [
+  {
+    icon: Database,
+    color: '#38bdf8',
+    bg: 'rgba(56,189,248,0.12)',
+    border: 'rgba(56,189,248,0.25)',
+    label: 'Créer une table',
+    desc: 'Nouvelle table sur mesure',
+    prompt: "Crée une nouvelle table adaptée à mon cas d'usage.",
+  },
+  {
+    icon: Table2,
+    color: '#a78bfa',
+    bg: 'rgba(167,139,250,0.12)',
+    border: 'rgba(167,139,250,0.25)',
+    label: 'Lier des tables',
+    desc: 'Relations entre tables',
+    prompt: 'Relie deux tables existantes avec un champ de lien.',
+  },
+  {
+    icon: Search,
+    color: '#34d399',
+    bg: 'rgba(52,211,153,0.12)',
+    border: 'rgba(52,211,153,0.25)',
+    label: 'Ajouter une vue',
+    desc: 'Kanban, Calendrier…',
+    prompt: 'Ajoute une nouvelle vue à une table existante.',
+  },
+  {
+    icon: Sparkles,
+    color: '#fbbf24',
+    bg: 'rgba(251,191,36,0.12)',
+    border: 'rgba(251,191,36,0.25)',
+    label: 'Importer des données',
+    desc: 'Remplir une table',
+    prompt: "Ajoute des exemples d'enregistrements dans cette table.",
+  },
+];
+
+const INTERFACE_CARDS = [
+  {
+    icon: LayoutPanelTop,
+    color: '#38bdf8',
+    bg: 'rgba(56,189,248,0.12)',
+    border: 'rgba(56,189,248,0.25)',
+    label: 'Créer une interface',
+    desc: 'App no-code sur cette base',
+    prompt: "Crée une interface d'application pour visualiser mes données.",
+  },
+  {
+    icon: BarChart2,
+    color: '#a78bfa',
+    bg: 'rgba(167,139,250,0.12)',
+    border: 'rgba(167,139,250,0.25)',
+    label: 'Tableau de bord',
+    desc: "Vue d'ensemble visuelle",
+    prompt: 'Crée une interface tableau de bord pour suivre mes données clés.',
+  },
+  {
+    icon: ClipboardList,
+    color: '#34d399',
+    bg: 'rgba(52,211,153,0.12)',
+    border: 'rgba(52,211,153,0.25)',
+    label: 'Formulaire de saisie',
+    desc: 'Interface de collecte',
+    prompt: 'Crée une interface formulaire pour saisir de nouveaux enregistrements.',
+  },
+  {
+    icon: Sparkles,
+    color: '#fbbf24',
+    bg: 'rgba(251,191,36,0.12)',
+    border: 'rgba(251,191,36,0.25)',
+    label: 'Interface personnalisée',
+    desc: 'Sur mesure',
+    prompt: 'Propose-moi une interface adaptée à cette base.',
+  },
+];
+
+const AUTOMATION_CARDS = [
+  {
+    icon: Workflow,
+    color: '#38bdf8',
+    bg: 'rgba(56,189,248,0.12)',
+    border: 'rgba(56,189,248,0.25)',
+    label: 'Créer une automation',
+    desc: 'Déclencheur + action',
+    prompt: 'Crée une automation qui se déclenche sur un nouvel enregistrement.',
+  },
+  {
+    icon: ClipboardList,
+    color: '#a78bfa',
+    bg: 'rgba(167,139,250,0.12)',
+    border: 'rgba(167,139,250,0.25)',
+    label: 'Notification automatique',
+    desc: 'Alerte par email',
+    prompt: 'Crée une automation qui envoie un email quand un statut change.',
+  },
+  {
+    icon: BarChart2,
+    color: '#34d399',
+    bg: 'rgba(52,211,153,0.12)',
+    border: 'rgba(52,211,153,0.25)',
+    label: 'Mise à jour automatique',
+    desc: 'Champs calculés',
+    prompt: 'Crée une automation qui met à jour un champ selon une condition.',
+  },
+  {
+    icon: Sparkles,
+    color: '#fbbf24',
+    bg: 'rgba(251,191,36,0.12)',
+    border: 'rgba(251,191,36,0.25)',
+    label: 'Automation personnalisée',
+    desc: 'Sur mesure',
+    prompt: 'Propose-moi une automation utile pour cette base.',
+  },
+];
+
+const APP_CARDS = [
+  {
+    icon: AppWindow,
+    color: '#38bdf8',
+    bg: 'rgba(56,189,248,0.12)',
+    border: 'rgba(56,189,248,0.25)',
+    label: 'Application complète',
+    desc: 'App générée avec code',
+    prompt: 'Génère une application complète avec interface et logique sur cette base.',
+  },
+  {
+    icon: Database,
+    color: '#a78bfa',
+    bg: 'rgba(167,139,250,0.12)',
+    border: 'rgba(167,139,250,0.25)',
+    label: 'App de gestion',
+    desc: 'CRUD complet',
+    prompt: 'Crée une application complète pour gérer mes enregistrements.',
+  },
+  {
+    icon: BarChart2,
+    color: '#34d399',
+    bg: 'rgba(52,211,153,0.12)',
+    border: 'rgba(52,211,153,0.25)',
+    label: 'App tableau de bord',
+    desc: 'Visualisation de données',
+    prompt: 'Génère une application complète de tableau de bord pour cette base.',
+  },
+  {
+    icon: Sparkles,
+    color: '#fbbf24',
+    bg: 'rgba(251,191,36,0.12)',
+    border: 'rgba(251,191,36,0.25)',
+    label: 'App personnalisée',
+    desc: 'Sur mesure',
+    prompt: 'Propose-moi une application complète adaptée à cette base.',
+  },
+];
+
+const MOCK_DATA_CARDS = [
+  {
+    icon: Wand2,
+    color: '#38bdf8',
+    bg: 'rgba(56,189,248,0.12)',
+    border: 'rgba(56,189,248,0.25)',
+    label: 'Remplir les lignes vides',
+    desc: 'Données cohérentes avec la table',
+    prompt: 'Génère des données fictives pour les lignes vides de cette table.',
+  },
+  {
+    icon: Sparkles,
+    color: '#a78bfa',
+    bg: 'rgba(167,139,250,0.12)',
+    border: 'rgba(167,139,250,0.25)',
+    label: 'Données réalistes',
+    desc: 'Cohérentes et variées',
+    prompt: 'Génère des données fictives réalistes et variées pour cette table.',
+  },
+];
+
+const CARDS_BY_TARGET: Record<TargetType, typeof TABLE_CARDS> = {
+  table: TABLE_CARDS,
+  interface: INTERFACE_CARDS,
+  automation: AUTOMATION_CARDS,
+  agent: AGENT_CARDS,
+  app: APP_CARDS,
+  mock_data: MOCK_DATA_CARDS,
+};
+
 const AGENT_CATEGORIES = [
   'Applications',
   'Projets',
@@ -185,7 +393,7 @@ export function UnifiedChatContainer({
   const [input, setInput] = useState('');
   const [selectedModel, setSelectedModel] = useState<string | undefined>(undefined);
   const [phIdx, setPhIdx] = useState(0);
-  const [mode, setMode] = useState<'ask' | 'agent'>('ask');
+  const [targetType, setTargetType] = useState<TargetType | null>(null);
   const [activeCat, setActiveCat] = useState('Applications');
   const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
@@ -226,10 +434,10 @@ export function UnifiedChatContainer({
   );
 
   useEffect(() => {
-    if (isStreaming || input || mode === 'agent') return;
+    if (isStreaming || input || targetType) return;
     const id = setInterval(() => setPhIdx((i) => (i + 1) % ASK_PLACEHOLDERS.length), 3500);
     return () => clearInterval(id);
-  }, [isStreaming, input, mode]);
+  }, [isStreaming, input, targetType]);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -282,7 +490,15 @@ export function UnifiedChatContainer({
       const endpoint = agentId ? `/api/agent/${agentId}/run` : `/api/spaces/${spaceId}/ai/chat`;
       const requestBody = agentId
         ? { trigger: 'manual', triggerPayload: { message: text }, conversationId, pageContext }
-        : { message: text, conversationId, modelKey: selectedModel, activeBaseId, attachments };
+        : {
+            message: text,
+            conversationId,
+            modelKey: selectedModel,
+            activeBaseId,
+            attachments,
+            targetType: targetType ?? undefined,
+            pageContext: targetType === 'mock_data' ? pageContext : undefined,
+          };
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -333,7 +549,10 @@ export function UnifiedChatContainer({
     () =>
       messages
         .filter((m) => m.type === 'proposal' && m.proposal)
-        .map((m) => (m as { proposal: { proposalId: string; action: string; preview: unknown } }).proposal)
+        .map(
+          (m) =>
+            (m as { proposal: { proposalId: string; action: string; preview: unknown } }).proposal
+        )
         .filter((p) => (activeProposals[p.proposalId] ?? 'pending') === 'pending'),
     [messages, activeProposals]
   );
@@ -352,7 +571,14 @@ export function UnifiedChatContainer({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ proposalId: proposal.proposalId, conversationId }),
         });
-        const result = (await res.json()) as { status?: string; agentId?: string; shouldStream?: boolean; appId?: string; baseId?: string; prompt?: string };
+        const result = (await res.json()) as {
+          status?: string;
+          agentId?: string;
+          shouldStream?: boolean;
+          appId?: string;
+          baseId?: string;
+          prompt?: string;
+        };
         setProposalStatus(proposal.proposalId, result?.status === 'skipped' ? 'error' : 'accepted');
         if (result?.shouldStream && result?.appId && result?.baseId) {
           useAppBuilderStore.getState().queueGeneration({
@@ -373,7 +599,6 @@ export function UnifiedChatContainer({
     }
     setIsAcceptingAll(false);
   }, [isAcceptingAll, pendingProposals, spaceId, conversationId, setProposalStatus]);
-
 
   const isGeneratingApp = useMemo(() => {
     if (!isStreaming) return false;
@@ -410,39 +635,47 @@ export function UnifiedChatContainer({
   const renderInput = (large: boolean) => (
     <div className="ai-gradient-ring overflow-hidden rounded-xl p-[1.5px]">
       <div className="rounded-[10px] bg-background">
-        {/* Mode tabs */}
-        <div className="flex items-center gap-0.5 px-3 pt-2.5">
-          {(['ask', 'agent'] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setMode(m)}
-              className="relative rounded-md px-3 py-1 text-xs font-semibold transition-all duration-200"
-              style={
-                mode === m
-                  ? {
-                      background: 'linear-gradient(135deg,#7c3aed,#4f46e5)',
-                      color: '#fff',
-                      boxShadow: '0 1px 6px rgba(124,58,237,0.45)',
-                    }
-                  : { color: 'hsl(var(--muted-foreground))', background: 'transparent' }
-              }
-            >
-              {m === 'ask' ? 'Demander' : 'Agents'}
-            </button>
-          ))}
-        </div>
-
         {/* Textarea */}
         <Textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={mode === 'agent' ? AGENT_PLACEHOLDER : ASK_PLACEHOLDERS[phIdx]}
-          className={`resize-none border-0 bg-transparent px-4 pb-1 pt-2 text-sm shadow-none focus-visible:ring-0 dark:bg-transparent ${large ? 'max-h-[200px] min-h-[72px]' : 'max-h-[120px] min-h-[40px]'}`}
+          placeholder={targetType ? TARGET_PLACEHOLDERS[targetType] : ASK_PLACEHOLDERS[phIdx]}
+          className={`resize-none border-0 bg-transparent px-4 pb-1 pt-2.5 text-sm shadow-none focus-visible:ring-0 dark:bg-transparent ${large ? 'max-h-[200px] min-h-[72px]' : 'max-h-[120px] min-h-[40px]'}`}
           disabled={isStreaming}
           rows={large ? 3 : 1}
         />
+
+        {/* Target type selector — narrows AI generation to one kind of result */}
+        <div className="flex flex-wrap gap-1 px-4 pb-2">
+          {TARGET_TYPES.map(({ key, label, icon: Icon }) => {
+            const active = targetType === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTargetType(active ? null : key)}
+                className="flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors duration-200"
+                style={
+                  active
+                    ? {
+                        background: 'linear-gradient(135deg,#7c3aed,#4f46e5)',
+                        color: '#fff',
+                        borderColor: 'transparent',
+                      }
+                    : {
+                        borderColor: 'hsl(var(--border)/0.7)',
+                        color: 'hsl(var(--muted-foreground))',
+                        background: 'transparent',
+                      }
+                }
+              >
+                <Icon className="size-3" />
+                {label}
+              </button>
+            );
+          })}
+        </div>
 
         {/* Attached file chips */}
         {attachedFiles.length > 0 && (
@@ -549,7 +782,7 @@ export function UnifiedChatContainer({
   );
 
   // ── Shared: action / agent card grid ─────────────────────────────────────
-  const cards = mode === 'ask' ? ASK_CARDS : AGENT_CARDS;
+  const cards = targetType ? CARDS_BY_TARGET[targetType] : ASK_CARDS;
   const renderCards = (delayStart: number) => (
     <div className="grid w-full max-w-xl grid-cols-2 gap-2 sm:grid-cols-4">
       {cards.map((card, i) => {
@@ -623,22 +856,18 @@ export function UnifiedChatContainer({
                   boxShadow: '0 0 24px rgba(124,58,237,0.2), inset 0 1px 0 rgba(255,255,255,0.1)',
                 }}
               >
-                {mode === 'ask' ? (
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                    <defs>
-                      <linearGradient id="icg" x1="0" y1="0" x2="1" y2="1">
-                        <stop offset="0%" stopColor="#c4b5fd" />
-                        <stop offset="100%" stopColor="#7dd3fc" />
-                      </linearGradient>
-                    </defs>
-                    <path
-                      d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"
-                      fill="url(#icg)"
-                    />
-                  </svg>
-                ) : (
-                  <Workflow className="size-5" style={{ color: '#c4b5fd' }} />
-                )}
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <defs>
+                    <linearGradient id="icg" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0%" stopColor="#c4b5fd" />
+                      <stop offset="100%" stopColor="#7dd3fc" />
+                    </linearGradient>
+                  </defs>
+                  <path
+                    d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"
+                    fill="url(#icg)"
+                  />
+                </svg>
               </div>
               <div>
                 <h1
@@ -647,13 +876,9 @@ export function UnifiedChatContainer({
                     backgroundImage: 'linear-gradient(135deg,#c4b5fd,#818cf8,#7dd3fc)',
                   }}
                 >
-                  {mode === 'ask' ? 'AI Assistant' : 'Agent Builder'}
+                  AI Assistant
                 </h1>
-                <p className="text-xs text-muted-foreground/70">
-                  {mode === 'ask'
-                    ? 'Interrogez, créez et analysez'
-                    : 'Construisez des workflows autonomes'}
-                </p>
+                <p className="text-xs text-muted-foreground/70">Interrogez, créez et générez</p>
               </div>
             </div>
 
@@ -666,7 +891,7 @@ export function UnifiedChatContainer({
             <div className="ai-hero-enter-delay-2 relative z-10 mt-4">{renderCards(3)}</div>
 
             {/* Agent category chips */}
-            {mode === 'agent' && (
+            {targetType === 'agent' && (
               <div className="ai-hero-enter-delay-3 relative z-10 mt-4 flex w-full max-w-xl flex-wrap gap-1.5">
                 {AGENT_CATEGORIES.map((cat) => (
                   <button

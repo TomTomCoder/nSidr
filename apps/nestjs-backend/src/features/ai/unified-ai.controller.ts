@@ -10,13 +10,13 @@ import {
   ForbiddenException,
   Logger,
 } from '@nestjs/common';
-import { Request, Response } from 'express';
 import { PrismaService } from '@teable/db-main-prisma';
+import { Request, Response } from 'express';
 import { ClsService } from 'nestjs-cls';
 import type { IClsStore } from '../../types/cls';
 import { TokenAccess } from '../auth/decorators/token.decorator';
-import { UnifiedAiService, UnifiedChatContext } from './unified-ai.service';
 import { ActionProposalService } from './action-proposal.service';
+import { UnifiedAiService, UnifiedChatContext } from './unified-ai.service';
 
 @Controller('api/spaces/:spaceId/ai')
 export class UnifiedAiController {
@@ -47,6 +47,8 @@ export class UnifiedAiController {
       baseId?: string;
       activeBaseId?: string;
       attachments?: { url: string; name: string; mimetype: string }[];
+      targetType?: 'table' | 'interface' | 'automation' | 'agent' | 'app' | 'mock_data';
+      pageContext?: { tableId?: string; tableName?: string };
     },
     @Res() res: Response,
     @Req() req: Request
@@ -71,6 +73,8 @@ export class UnifiedAiController {
       modelKey: body.modelKey,
       activeBaseId: body.activeBaseId ?? body.baseId,
       attachments: body.attachments,
+      targetType: body.targetType,
+      pageContext: body.pageContext,
     };
 
     try {

@@ -1,6 +1,6 @@
-import { Inject, Injectable } from '@nestjs/common';
 import { fakerFR as faker } from '@faker-js/faker';
-import { HttpErrorCode } from '@teable/core';
+import { Inject, Injectable } from '@nestjs/common';
+import { FieldKeyType, HttpErrorCode } from '@teable/core';
 import { PrismaService } from '@teable/db-main-prisma';
 import type { LLMProvider } from '@teable/openapi';
 import {
@@ -14,6 +14,7 @@ import {
 import { z } from 'zod';
 import { CustomHttpException } from '../../custom.exception';
 import { AI_SERVICE } from '../../shared/tokens/ai.token';
+import { RecordService } from '../record/record.service';
 import { ActionProposalService } from './action-proposal.service';
 import { WorkspaceStateService } from './workspace-state.service';
 
@@ -57,7 +58,23 @@ export interface UnifiedChatContext {
   activeBaseId?: string;
   /** Files attached via the chat "+" button — only sent when the selected model supports them */
   attachments?: { url: string; name: string; mimetype: string }[];
+  /** Explicit generation target picked via the chat UI buttons — restricts which write tools the model may call */
+  targetType?: 'table' | 'interface' | 'automation' | 'agent' | 'app' | 'mock_data';
+  /** The table currently displayed in the UI — used by the "Données fictives" target to know which table to fill */
+  pageContext?: { tableId?: string; tableName?: string };
 }
+
+// targetType → allowed write tool names. Read tools are always available regardless of targetType.
+// 'mock_data' is handled as a separate deterministic branch (see generateMockDataForCurrentTable) —
+// it never reaches the generic tool-calling loop, so it needs no entry here.
+const TARGET_TYPE_TOOLS: Record<NonNullable<UnifiedChatContext['targetType']>, string[]> = {
+  table: ['create_table', 'create_field', 'create_view', 'link_tables', 'create_record'],
+  interface: ['create_app_interface'],
+  automation: ['create_automation'],
+  agent: ['create_agent'],
+  app: ['create_app_interface', 'generate_app_code'],
+  mock_data: [],
+};
 
 // Write tool names — these go through proposal gating
 const WRITE_TOOLS = new Set([
@@ -84,6 +101,7 @@ export class UnifiedAiService {
     private readonly prismaService: PrismaService,
     private readonly workspaceStateService: WorkspaceStateService,
     private readonly actionProposalService: ActionProposalService,
+    private readonly recordService: RecordService,
     @Inject(AI_SERVICE) private readonly aiService: IAiService
   ) {}
 
@@ -125,6 +143,9 @@ export class UnifiedAiService {
     const activeBaseHint = activeBase
       ? `\n⚠️ ACTIVE BASE (user is currently viewing this base — USE THIS for all write operations unless the user says otherwise):\n  "${activeBase.name}" (baseId: ${activeBase.id})\n`
       : '';
+    const targetTypeHint = ctx.targetType
+      ? `\n⚠️ EXPLICIT TARGET: the user picked "${ctx.targetType}" via the chat UI. Only call tools for this target (${TARGET_TYPE_TOOLS[ctx.targetType].join(', ')}). Do NOT call tools for any other target type.\n`
+      : '';
 
     const rawPrompt =
       'You are a workspace AI assistant for Teable — a no-code database platform.\n' +
@@ -141,6 +162,7 @@ export class UnifiedAiService {
       'several tables). A tool call will come back as a clarification message in that case — relay it ' +
       'to the user verbatim as your reply instead of guessing an ID or calling another tool.\n\n' +
       activeBaseHint +
+      targetTypeHint +
       '## Tool calling rules\n' +
       `1. Pass baseId="${ctx.activeBaseId ?? '<use active base id shown above>'}" on EVERY write tool call.\n` +
       '2. create_table: fields = array of objects [{name:"...",type:"singleLineText"}]. Include ALL fields in one call.\n' +
@@ -199,6 +221,13 @@ export class UnifiedAiService {
       aiConfig.llmProviders
     );
 
+    // "Données fictives" bypasses the generic tool-calling loop entirely — we already know
+    // exactly which table to fill and exactly what to do with it.
+    if (ctx.targetType === 'mock_data') {
+      yield* this.generateMockDataForCurrentTable(ctx, conversation.id, snapshot, modelInstance);
+      return;
+    }
+
     // Step 6: Build tool registry
     // READ tools — execute directly, return data
     const readTools = {
@@ -251,6 +280,15 @@ export class UnifiedAiService {
         description,
         parameters: params,
         execute: async (args: Record<string, unknown>) => {
+          // Defense-in-depth: tool registration already excludes out-of-target tools,
+          // but refuse here too in case that ever drifts (e.g. a future tool rename).
+          if (ctx.targetType && !TARGET_TYPE_TOOLS[ctx.targetType].includes(toolName)) {
+            return {
+              __type: 'clarification',
+              message: `Cette action ne correspond pas à la cible "${ctx.targetType}" sélectionnée.`,
+            };
+          }
+
           // Resolve baseName → baseId using the snapshot when AI omits the ID
           const rawArgs = args as Record<string, unknown>;
           const resolvedArgs = { ...rawArgs };
@@ -535,7 +573,19 @@ export class UnifiedAiService {
       ),
     };
 
-    const rawTools = { ...readTools, ...writeTools };
+    // When a targetType was picked in the UI, hard-restrict the model to that target's
+    // write tools instead of relying solely on the prompt hint above.
+    const allowedWriteTools = ctx.targetType
+      ? Object.fromEntries(
+          Object.entries(writeTools).filter(([name]) =>
+            TARGET_TYPE_TOOLS[
+              ctx.targetType as NonNullable<UnifiedChatContext['targetType']>
+            ].includes(name)
+          )
+        )
+      : writeTools;
+
+    const rawTools = { ...readTools, ...allowedWriteTools };
 
     // Patch: ai SDK v6 reads `tool.inputSchema` but `tool()` stores the schema as `parameters`.
     // When `inputSchema` is undefined, `asSchema(undefined)` returns `{properties:{}}` (no type:"object"),
@@ -643,6 +693,11 @@ export class UnifiedAiService {
       }
     }
 
+    // Only auto-propose an app interface on top of a new table when the user didn't
+    // explicitly ask for something else (table/automation/agent) via the chat UI buttons.
+    const wantsInterface =
+      !ctx.targetType || ctx.targetType === 'interface' || ctx.targetType === 'app';
+
     for (const tableInfo of autoTableProposals) {
       // Auto-create 3 mock record proposals
       for (let i = 0; i < 3; i++) {
@@ -668,7 +723,7 @@ export class UnifiedAiService {
 
       // Auto-create app interface proposal only if this is a single-table session.
       // Multi-table sessions get a single shared CRM app proposed below.
-      if (autoTableProposals.length === 1) {
+      if (wantsInterface && autoTableProposals.length === 1) {
         const appName = `App ${tableInfo.tableName}`;
         const appProposal = await this.actionProposalService.createProposal({
           action: 'create_app_interface',
@@ -729,7 +784,7 @@ export class UnifiedAiService {
     }
 
     // For multi-table sessions (e.g. CRM with Entreprise + Contacts), propose one unified app.
-    if (autoTableProposals.length > 1) {
+    if (wantsInterface && autoTableProposals.length > 1) {
       const tableNames = autoTableProposals.map((t) => t.tableName).join(' & ');
       const crmAppName = `App CRM — ${tableNames}`;
       const baseId = autoTableProposals[0].baseId;
@@ -964,5 +1019,128 @@ export class UnifiedAiService {
       default:
         return faker.lorem.words(3);
     }
+  }
+
+  /** Zod value schema per Teable field type, used to ground generateObject's output. */
+  private mockValueSchemaForFieldType(fieldType: string) {
+    switch (fieldType) {
+      case 'number':
+      case 'currency':
+      case 'percent':
+      case 'rating':
+        return z.number();
+      case 'checkbox':
+        return z.boolean();
+      default:
+        // date, select, text-like fields — a plain string is valid input for all of them
+        return z.string();
+    }
+  }
+
+  /**
+   * "Données fictives": fills the empty rows of the table the user currently has open with
+   * values correlated to their request, instead of generic faker placeholders. Only touches
+   * rows that are genuinely empty — a table that already has data is left untouched.
+   */
+  private async *generateMockDataForCurrentTable(
+    ctx: UnifiedChatContext,
+    conversationId: string,
+    snapshot: {
+      bases: Array<{
+        tables: Array<{ id: string; name: string; fields: Array<{ name: string; type: string }> }>;
+      }>;
+    },
+    modelInstance: unknown
+  ): AsyncGenerator<UnifiedChatEvent> {
+    const allTables = snapshot.bases.flatMap((b) => b.tables);
+    const table = ctx.pageContext?.tableId
+      ? allTables.find((t) => t.id === ctx.pageContext?.tableId)
+      : ctx.pageContext?.tableName
+        ? allTables.find((t) => t.name.toLowerCase() === ctx.pageContext?.tableName?.toLowerCase())
+        : undefined;
+
+    if (!table) {
+      const message =
+        'Ouvre une table avant de demander des données fictives — je dois savoir laquelle remplir.';
+      yield { type: 'text_chunk', content: message };
+      await this.prismaService.workspaceConversationMessage.create({
+        data: {
+          conversationId,
+          role: 'assistant',
+          type: 'text',
+          content: message,
+          proposalId: null,
+        },
+      });
+      yield { type: 'done', conversationId };
+      return;
+    }
+
+    const { records } = await this.recordService.getRecords(table.id, {
+      take: 5,
+      fieldKeyType: FieldKeyType.Name,
+      ignoreViewQuery: true,
+    } as Parameters<RecordService['getRecords']>[1]);
+
+    const isEmptyRecord = (fields: Record<string, unknown>) =>
+      Object.values(fields).every((v) => v === null || v === undefined || v === '');
+    const emptyRecords = records.filter((r) => isEmptyRecord(r.fields)).slice(0, 3);
+
+    if (emptyRecords.length === 0) {
+      const message = `La table "${table.name}" contient déjà des données — aucune ligne n'a été remplacée.`;
+      yield { type: 'text_chunk', content: message };
+      await this.prismaService.workspaceConversationMessage.create({
+        data: {
+          conversationId,
+          role: 'assistant',
+          type: 'text',
+          content: message,
+          proposalId: null,
+        },
+      });
+      yield { type: 'done', conversationId };
+      return;
+    }
+
+    const fieldsShape = Object.fromEntries(
+      table.fields.map((f) => [f.name, this.mockValueSchemaForFieldType(f.type)])
+    );
+    const schema = z.object({
+      records: z.array(z.object(fieldsShape)).length(emptyRecords.length),
+    });
+
+    const { object } = await generateObject({
+      model: modelInstance as Parameters<typeof generateObject>[0]['model'],
+      schema,
+      prompt:
+        `Table "${table.name}" — champs: ${table.fields.map((f) => `${f.name} (${f.type})`).join(', ')}.\n` +
+        `Génère ${emptyRecords.length} enregistrement(s) fictif(s) réaliste(s) et cohérent(s) entre eux, ` +
+        `en corrélation avec la demande de l'utilisateur : "${ctx.message}".`,
+    });
+
+    for (let i = 0; i < emptyRecords.length; i++) {
+      const fields = object.records[i];
+      const proposal = await this.actionProposalService.createProposal({
+        action: 'update_record',
+        args: { tableId: table.id, recordId: emptyRecords[i].id, fields },
+        conversationId,
+        preview: { tableName: table.name, fields },
+      });
+      yield {
+        type: 'proposal',
+        proposal: {
+          proposalId: proposal.proposalId,
+          action: proposal.action,
+          preview: proposal.preview,
+        },
+      };
+    }
+
+    const summary = `J'ai préparé ${emptyRecords.length} ligne(s) de données fictives pour "${table.name}", en lien avec ta demande.`;
+    await this.prismaService.workspaceConversationMessage.create({
+      data: { conversationId, role: 'assistant', type: 'text', content: summary, proposalId: null },
+    });
+    yield { type: 'text_chunk', content: summary };
+    yield { type: 'done', conversationId };
   }
 }

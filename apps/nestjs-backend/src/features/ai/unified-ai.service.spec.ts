@@ -11,6 +11,11 @@ const mockActionProposalService = {
   createProposal: vi.fn(),
 };
 
+// Mock record service
+const mockRecordService = {
+  getRecords: vi.fn(),
+};
+
 // Mock AI service
 const mockAiService = {
   getAIConfig: vi.fn(),
@@ -54,6 +59,7 @@ const createService = () =>
     mockPrismaService as any,
     mockWorkspaceStateService as any,
     mockActionProposalService as any,
+    mockRecordService as any,
     mockAiService as any
   );
 
