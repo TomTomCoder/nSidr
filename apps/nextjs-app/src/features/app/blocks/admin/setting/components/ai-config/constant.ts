@@ -67,7 +67,7 @@ export const LLM_PROVIDERS = [
     label: 'DeepSeek',
     baseUrlPlaceholder: 'https://api.deepseek.ai/v1',
     modelsPlaceholder: 'deepseek-chat,deepseek-reasoner',
-    modelsDocsUrl: 'https://api-docs.deepseek.com/articles/new_api',
+    modelsDocsUrl: 'https://platform.deepseek.com/api-docs/',
     Icon: LLM_PROVIDER_ICONS[LLMProviderType.DEEPSEEK],
   },
   {
@@ -83,7 +83,7 @@ export const LLM_PROVIDERS = [
     label: 'Anthropic',
     baseUrlPlaceholder: 'https://api.anthropic.com/v1',
     modelsPlaceholder: 'claude-sonnet-4-6,claude-opus-4-6',
-    modelsDocsUrl: 'https://docs.anthropic.com/en/docs/about/models/overview',
+    modelsDocsUrl: 'https://docs.anthropic.com/claude/docs/models-overview',
     Icon: LLM_PROVIDER_ICONS[LLMProviderType.ANTHROPIC],
   },
   {
@@ -91,7 +91,7 @@ export const LLM_PROVIDERS = [
     label: 'Google',
     baseUrlPlaceholder: 'https://generativelanguage.googleapis.com/v1beta',
     modelsPlaceholder: 'gemini-3-flash-preview,gemini-2.5-pro',
-    modelsDocsUrl: 'https://ai.google.dev/gemini-2/docs/models/gemini-2-5',
+    modelsDocsUrl: 'https://ai.google.dev/gemini-2/docs/models/gemini-2-5-flash',
     Icon: LLM_PROVIDER_ICONS[LLMProviderType.GOOGLE],
   },
   {
@@ -123,7 +123,7 @@ export const LLM_PROVIDERS = [
     label: 'Qwen',
     baseUrlPlaceholder: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     modelsPlaceholder: 'qwen3.5-plus,qwen3-max',
-    modelsDocsUrl: 'https://help.aliyun.com/zh/dashscope/developer-reference/model-square',
+    modelsDocsUrl: 'https://help.aliyun.com/en/dashscope/developer-reference/model-list',
     Icon: LLM_PROVIDER_ICONS[LLMProviderType.QWEN],
   },
   {
@@ -155,7 +155,7 @@ export const LLM_PROVIDERS = [
     label: 'TogetherAI',
     baseUrlPlaceholder: 'https://api.together.xyz/v1',
     modelsPlaceholder: 'deepseek-ai/DeepSeek-R1,meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8',
-    modelsDocsUrl: 'https://docs.together.ai/docs/models-overview',
+    modelsDocsUrl: 'https://www.together.ai/models',
     Icon: LLM_PROVIDER_ICONS[LLMProviderType.TOGETHERAI],
   },
   {
@@ -163,7 +163,8 @@ export const LLM_PROVIDERS = [
     label: 'Ollama',
     baseUrlPlaceholder: 'http://localhost:11434',
     modelsPlaceholder: 'deepseek-r1,qwen3:8b,llama4:8b',
-    modelsDocsUrl: 'https://ollama.com/library',
+    modelsDocsUrl: 'https://ollama.ai/library',
+    buttonLabelKey: 'viewLibrary',
     Icon: LLM_PROVIDER_ICONS[LLMProviderType.OLLAMA],
   },
   {

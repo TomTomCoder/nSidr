@@ -882,7 +882,7 @@ export const LLMProviderForm = ({
                       onClick={() => window.open(currentProvider.modelsDocsUrl, '_blank')}
                     >
                       <Eye className="size-3.5" />
-                      {t('admin.setting.ai.viewModels')}
+                      {t(`admin.setting.ai.${currentProvider.buttonLabelKey || 'viewModels'}`)}
                     </Button>
                   )}
                 </div>

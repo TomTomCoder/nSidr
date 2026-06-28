@@ -609,6 +609,7 @@
         "models": "Models",
         "modelsDescription": "The models supported by the LLM provider",
         "viewModels": "View Models",
+        "viewLibrary": "View Library",
         "baseUrlRequired": "Base URL is required",
         "fetchModelListError": "Failed to fetch model list",
         "provider": "LLM provider",
