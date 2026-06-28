@@ -67,6 +67,7 @@ export const LLM_PROVIDERS = [
     label: 'DeepSeek',
     baseUrlPlaceholder: 'https://api.deepseek.ai/v1',
     modelsPlaceholder: 'deepseek-chat,deepseek-reasoner',
+    modelsDocsUrl: 'https://api-docs.deepseek.com/articles/new_api',
     Icon: LLM_PROVIDER_ICONS[LLMProviderType.DEEPSEEK],
   },
   {
@@ -74,6 +75,7 @@ export const LLM_PROVIDERS = [
     label: 'OpenAI',
     baseUrlPlaceholder: 'https://api.openai.com/v1',
     modelsPlaceholder: 'gpt-5.2, o3, gpt-5-mini',
+    modelsDocsUrl: 'https://platform.openai.com/docs/models',
     Icon: LLM_PROVIDER_ICONS[LLMProviderType.OPENAI],
   },
   {
@@ -81,6 +83,7 @@ export const LLM_PROVIDERS = [
     label: 'Anthropic',
     baseUrlPlaceholder: 'https://api.anthropic.com/v1',
     modelsPlaceholder: 'claude-sonnet-4-6,claude-opus-4-6',
+    modelsDocsUrl: 'https://docs.anthropic.com/en/docs/about/models/overview',
     Icon: LLM_PROVIDER_ICONS[LLMProviderType.ANTHROPIC],
   },
   {
@@ -88,6 +91,7 @@ export const LLM_PROVIDERS = [
     label: 'Google',
     baseUrlPlaceholder: 'https://generativelanguage.googleapis.com/v1beta',
     modelsPlaceholder: 'gemini-3-flash-preview,gemini-2.5-pro',
+    modelsDocsUrl: 'https://ai.google.dev/gemini-2/docs/models/gemini-2-5',
     Icon: LLM_PROVIDER_ICONS[LLMProviderType.GOOGLE],
   },
   {
@@ -95,6 +99,7 @@ export const LLM_PROVIDERS = [
     label: 'Azure',
     baseUrlPlaceholder: 'https://{your-resource-name}.openai.azure.com',
     modelsPlaceholder: 'gpt-4,gpt-35-turbo',
+    modelsDocsUrl: 'https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models',
     Icon: LLM_PROVIDER_ICONS[LLMProviderType.AZURE],
   },
   {
@@ -102,6 +107,7 @@ export const LLM_PROVIDERS = [
     label: 'Cohere',
     baseUrlPlaceholder: 'https://api.cohere.ai/v1',
     modelsPlaceholder: 'command-r,command-r-plus,command-r-plus-online',
+    modelsDocsUrl: 'https://docs.cohere.com/docs/models',
     Icon: LLM_PROVIDER_ICONS[LLMProviderType.COHERE],
   },
   {
@@ -109,6 +115,7 @@ export const LLM_PROVIDERS = [
     label: 'Mistral',
     baseUrlPlaceholder: 'https://api.mistral.ai/v1',
     modelsPlaceholder: 'mistral-large-latest,codestral-latest',
+    modelsDocsUrl: 'https://docs.mistral.ai/capabilities/function_calling/',
     Icon: LLM_PROVIDER_ICONS[LLMProviderType.MISTRAL],
   },
   {
@@ -116,6 +123,7 @@ export const LLM_PROVIDERS = [
     label: 'Qwen',
     baseUrlPlaceholder: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     modelsPlaceholder: 'qwen3.5-plus,qwen3-max',
+    modelsDocsUrl: 'https://help.aliyun.com/zh/dashscope/developer-reference/model-square',
     Icon: LLM_PROVIDER_ICONS[LLMProviderType.QWEN],
   },
   {
@@ -123,6 +131,7 @@ export const LLM_PROVIDERS = [
     label: 'Zhipu',
     baseUrlPlaceholder: 'https://open.bigmodel.cn/api/paas/v4',
     modelsPlaceholder: 'glm-3-turbo,glm-4,glm-4-air',
+    modelsDocsUrl: 'https://bigmodel.cn/dev/api',
     Icon: LLM_PROVIDER_ICONS[LLMProviderType.ZHIPU],
   },
   {
@@ -130,6 +139,7 @@ export const LLM_PROVIDERS = [
     label: 'Yi',
     baseUrlPlaceholder: 'https://api.lingyiwanwu.com/v1',
     modelsPlaceholder: 'yi-lightning,yi-large',
+    modelsDocsUrl: 'https://platform.lingyiwanwu.com/docs',
     Icon: LLM_PROVIDER_ICONS[LLMProviderType.LINGYIWANWU],
   },
   {
@@ -137,6 +147,7 @@ export const LLM_PROVIDERS = [
     label: 'XAI',
     baseUrlPlaceholder: 'https://api.x.ai/v1',
     modelsPlaceholder: 'grok-4-1-fast,grok-3-beta',
+    modelsDocsUrl: 'https://docs.x.ai/docs',
     Icon: LLM_PROVIDER_ICONS[LLMProviderType.XAI],
   },
   {
@@ -144,6 +155,7 @@ export const LLM_PROVIDERS = [
     label: 'TogetherAI',
     baseUrlPlaceholder: 'https://api.together.xyz/v1',
     modelsPlaceholder: 'deepseek-ai/DeepSeek-R1,meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8',
+    modelsDocsUrl: 'https://docs.together.ai/docs/models-overview',
     Icon: LLM_PROVIDER_ICONS[LLMProviderType.TOGETHERAI],
   },
   {
@@ -151,6 +163,7 @@ export const LLM_PROVIDERS = [
     label: 'Ollama',
     baseUrlPlaceholder: 'http://localhost:11434',
     modelsPlaceholder: 'deepseek-r1,qwen3:8b,llama4:8b',
+    modelsDocsUrl: 'https://ollama.com/library',
     Icon: LLM_PROVIDER_ICONS[LLMProviderType.OLLAMA],
   },
   {
@@ -159,6 +172,7 @@ export const LLM_PROVIDERS = [
     baseUrlPlaceholder: 'https://bedrock-runtime.us-east-1.amazonaws.com',
     modelsPlaceholder: 'amazon.titan-embed-image-v1,amazon.titan-embed-text-v1',
     apiKeyPlaceholder: 'REGION.ACCESS_KEY_ID.SECRET_ACCESS_KEY',
+    modelsDocsUrl: 'https://docs.aws.amazon.com/bedrock/latest/userguide/models-support.html',
     Icon: LLM_PROVIDER_ICONS[LLMProviderType.AMAZONBEDROCK],
   },
   {
@@ -166,6 +180,7 @@ export const LLM_PROVIDERS = [
     label: 'Kilo Code',
     baseUrlPlaceholder: 'https://api.kilo.ai/api/gateway',
     modelsPlaceholder: 'anthropic/claude-sonnet-4-5,deepseek/deepseek-r1',
+    modelsDocsUrl: 'https://www.kilo.ai/docs',
     Icon: LLM_PROVIDER_ICONS[LLMProviderType.KILOCODE],
   },
   {
@@ -173,6 +188,7 @@ export const LLM_PROVIDERS = [
     label: 'OpenRouter',
     baseUrlPlaceholder: 'https://openrouter.ai/api/v1',
     modelsPlaceholder: 'anthropic/claude-sonnet-4-6,google/gemini-2.5-flash',
+    modelsDocsUrl: 'https://openrouter.ai/docs/models',
     Icon: LLM_PROVIDER_ICONS[LLMProviderType.OPENROUTER],
   },
   {

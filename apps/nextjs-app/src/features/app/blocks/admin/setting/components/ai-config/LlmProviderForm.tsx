@@ -868,9 +868,23 @@ export const LLMProviderForm = ({
             name="models"
             render={({ field }) => (
               <FormItem>
-                <div>
-                  <FormLabel>{t('admin.setting.ai.models')}</FormLabel>
-                  <FormDescription>{t('admin.setting.ai.modelsDescription')}</FormDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <FormLabel>{t('admin.setting.ai.models')}</FormLabel>
+                    <FormDescription>{t('admin.setting.ai.modelsDescription')}</FormDescription>
+                  </div>
+                  {currentProvider?.modelsDocsUrl && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 gap-1 px-2 text-xs"
+                      onClick={() => window.open(currentProvider.modelsDocsUrl, '_blank')}
+                    >
+                      <Eye className="size-3.5" />
+                      {t('admin.setting.ai.viewModels')}
+                    </Button>
+                  )}
                 </div>
                 <FormControl>
                   <ModelTagInput

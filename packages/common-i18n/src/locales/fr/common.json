@@ -611,6 +611,7 @@
         "apiKeyDescription": "La clé API du fournisseur LLM",
         "models": "Modèles",
         "modelsDescription": "Les modèles pris en charge par le fournisseur LLM",
+        "viewModels": "Voir les modèles",
         "baseUrlRequired": "L'URL de base est requise",
         "fetchModelListError": "Impossible de récupérer la liste des modèles",
         "provider": "Fournisseur LLM",

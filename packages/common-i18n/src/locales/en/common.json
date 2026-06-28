@@ -608,6 +608,7 @@
         "apiKeyDescription": "The API key of the LLM provider",
         "models": "Models",
         "modelsDescription": "The models supported by the LLM provider",
+        "viewModels": "View Models",
         "baseUrlRequired": "Base URL is required",
         "fetchModelListError": "Failed to fetch model list",
         "provider": "LLM provider",
