@@ -186,6 +186,16 @@ body {
   animation: ui-attention-pulse 700ms ease-in-out 2;
 }
 /* ── AI Hero animations ─────────────────────────────────────────── */
+/* Single source of truth for the app's AI accent gradient (violet → indigo →
+   sky → cyan). Every AI surface — the panel ring, the send/thinking bar, and
+   the ambient processing glow — reuses these stops so the palette can't drift. */
+:root {
+  --ai-grad-1: #7c3aed;
+  --ai-grad-2: #4f46e5;
+  --ai-grad-3: #0ea5e9;
+  --ai-grad-4: #06b6d4;
+}
+
 @keyframes ai-gradient-spin {
   0% {
     background-position: 0% 50%;
@@ -238,7 +248,14 @@ body {
    (hover / focus-within) — an idle table page should not keep the compositor
    busy with decorative motion. */
 .ai-gradient-ring {
-  background: linear-gradient(270deg, #7c3aed, #4f46e5, #0ea5e9, #06b6d4, #7c3aed);
+  background: linear-gradient(
+    270deg,
+    var(--ai-grad-1),
+    var(--ai-grad-2),
+    var(--ai-grad-3),
+    var(--ai-grad-4),
+    var(--ai-grad-1)
+  );
   background-size: 300% 300%;
   animation:
     ai-gradient-spin 4s ease infinite,
@@ -252,7 +269,14 @@ body {
 
 /* Keep old name as alias so nothing else breaks */
 .ai-gradient-border {
-  background: linear-gradient(270deg, #7c3aed, #4f46e5, #0ea5e9, #06b6d4, #7c3aed);
+  background: linear-gradient(
+    270deg,
+    var(--ai-grad-1),
+    var(--ai-grad-2),
+    var(--ai-grad-3),
+    var(--ai-grad-4),
+    var(--ai-grad-1)
+  );
   background-size: 300% 300%;
   animation:
     ai-gradient-spin 4s ease infinite,
@@ -304,14 +328,13 @@ body {
   }
 }
 .ai-thinking-bar {
-  background: linear-gradient(90deg, #7c3aed, #4f46e5, #0ea5e9);
+  background: linear-gradient(90deg, var(--ai-grad-1), var(--ai-grad-2), var(--ai-grad-3));
   animation: ai-thinking-sweep 1.3s ease-in-out infinite;
 }
 
-/* "Ocean Sunset" ambient glow — wraps the whole app while an AI request is
-   streaming. Two conic-gradient layers (per reactnativeglow.com's Ocean
-   Sunset preset): a heavily blurred wash bleeding into the page, and a
-   crisper ring right at the viewport edge. */
+/* Ambient glow — frames the viewport while an AI request is streaming, using
+   the same violet→indigo→sky→cyan accent as the rest of the AI surfaces
+   (.ai-gradient-ring / .ai-thinking-bar) instead of a clashing one-off palette. */
 @property --ai-glow-angle {
   syntax: '<angle>';
   initial-value: 0deg;
@@ -340,7 +363,14 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  background: conic-gradient(from var(--ai-glow-angle), #ff7cab, #3f64c7, #f0732e, #ff7cab);
+  background: conic-gradient(
+    from var(--ai-glow-angle),
+    var(--ai-grad-1),
+    var(--ai-grad-2),
+    var(--ai-grad-3),
+    var(--ai-grad-4),
+    var(--ai-grad-1)
+  );
   animation: ai-glow-rotate 6s linear infinite;
   /* Fade each edge inward (no hard ring) so the glow reads as a soft frame,
      not a rectangle outline. Four edge gradients unioned via mask-composite. */
@@ -356,14 +386,14 @@ body {
   mask-composite: add, add, add;
 }
 .ai-app-glow::before {
-  --ai-glow-band: 14vmin;
-  filter: blur(20px);
+  --ai-glow-band: 7vmin;
+  filter: blur(10px);
   opacity: 0.5;
 }
 .ai-app-glow::after {
-  --ai-glow-band: 6vmin;
+  --ai-glow-band: 3vmin;
   opacity: 0.8;
-  filter: blur(6px);
+  filter: blur(3px);
 }
 
 @media (prefers-reduced-motion: reduce) {
