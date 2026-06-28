@@ -505,6 +505,16 @@ export const LLMProviderForm = ({
     setTestProgress({ current: 0, total: 0 });
   }, [baseUrl, apiKey, models, formType]);
 
+  // Auto-fill baseUrl when provider type changes (only when creating new providers)
+  useEffect(() => {
+    if (!value) {
+      const provider = LLM_PROVIDERS.find((p) => p.value === formType);
+      if (provider?.baseUrlPlaceholder) {
+        form.setValue('baseUrl', provider.baseUrlPlaceholder);
+      }
+    }
+  }, [formType, value, form]);
+
   function onSubmit(data: LLMProvider) {
     onChange ? onChange(data) : onAdd?.(data);
   }
