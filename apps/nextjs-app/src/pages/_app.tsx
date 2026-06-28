@@ -9,6 +9,7 @@ import App from 'next/app';
 import Head from 'next/head';
 import { appWithTranslation } from 'next-i18next';
 import { useEffect } from 'react';
+import { AppAiGlow } from '@/components/AppAiGlow';
 import { Guide } from '@/components/Guide';
 import { GoogleAnalytics, MicrosoftClarity, Umami } from '@/components/Metrics';
 import RouterProgressBar from '@/components/RouterProgress';
@@ -97,6 +98,7 @@ const MyApp = (appProps: AppPropsWithLayout) => {
       </AppProviders>
       {user && <Guide user={user} />}
       <RouterProgressBar />
+      <AppAiGlow />
     </>
   );
 };

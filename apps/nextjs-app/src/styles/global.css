@@ -308,6 +308,64 @@ body {
   animation: ai-thinking-sweep 1.3s ease-in-out infinite;
 }
 
+/* "Ocean Sunset" ambient glow — wraps the whole app while an AI request is
+   streaming. Two conic-gradient layers (per reactnativeglow.com's Ocean
+   Sunset preset): a heavily blurred wash bleeding into the page, and a
+   crisper ring right at the viewport edge. */
+@property --ai-glow-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes ai-glow-rotate {
+  to {
+    --ai-glow-angle: 360deg;
+  }
+}
+
+.ai-app-glow {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.ai-app-glow.is-active {
+  opacity: 1;
+}
+.ai-app-glow::before,
+.ai-app-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: conic-gradient(from var(--ai-glow-angle), #ff7cab, #3f64c7, #f0732e, #ff7cab);
+  animation: ai-glow-rotate 6s linear infinite;
+  /* Fade each edge inward (no hard ring) so the glow reads as a soft frame,
+     not a rectangle outline. Four edge gradients unioned via mask-composite. */
+  -webkit-mask-image: linear-gradient(to bottom, #fff, transparent var(--ai-glow-band)),
+    linear-gradient(to top, #fff, transparent var(--ai-glow-band)),
+    linear-gradient(to right, #fff, transparent var(--ai-glow-band)),
+    linear-gradient(to left, #fff, transparent var(--ai-glow-band));
+  -webkit-mask-composite: source-over, source-over, source-over;
+  mask-image: linear-gradient(to bottom, #fff, transparent var(--ai-glow-band)),
+    linear-gradient(to top, #fff, transparent var(--ai-glow-band)),
+    linear-gradient(to right, #fff, transparent var(--ai-glow-band)),
+    linear-gradient(to left, #fff, transparent var(--ai-glow-band));
+  mask-composite: add, add, add;
+}
+.ai-app-glow::before {
+  --ai-glow-band: 14vmin;
+  filter: blur(20px);
+  opacity: 0.5;
+}
+.ai-app-glow::after {
+  --ai-glow-band: 6vmin;
+  opacity: 0.8;
+  filter: blur(6px);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ai-gradient-ring,
   .ai-gradient-border,
@@ -318,7 +376,9 @@ body {
   .ai-hero-enter-delay-3,
   .ai-hero-enter-delay-4,
   .ai-hero-enter-delay-5,
-  .ai-thinking-bar {
+  .ai-thinking-bar,
+  .ai-app-glow::before,
+  .ai-app-glow::after {
     animation: none;
     transform: none;
   }

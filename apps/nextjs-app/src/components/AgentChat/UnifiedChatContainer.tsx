@@ -35,6 +35,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ModelSelector } from '@/features/app/components/ModelSelector';
 import { useAvailableModels } from '@/features/app/hooks/useAvailableModels';
+import { useAiProcessingStore } from '@/features/app/stores/useAiProcessingStore';
 import { useAppBuilderStore } from '@/features/app/stores/useAppBuilderStore';
 import { useUnifiedChatStore } from '@/features/app/stores/useUnifiedChatStore';
 import { uploadFiles } from '@/features/app/utils/uploadFile';
@@ -389,6 +390,12 @@ export function UnifiedChatContainer({
     activeProposals,
     setProposalStatus,
   } = useUnifiedChatStore(spaceId, activeBaseId);
+
+  // Drives the app-wide ambient glow overlay (.ai-app-glow) while this panel streams.
+  useEffect(() => {
+    useAiProcessingStore.getState().setIsProcessing(isStreaming);
+    return () => useAiProcessingStore.getState().setIsProcessing(false);
+  }, [isStreaming]);
 
   const [input, setInput] = useState('');
   const [selectedModel, setSelectedModel] = useState<string | undefined>(undefined);
