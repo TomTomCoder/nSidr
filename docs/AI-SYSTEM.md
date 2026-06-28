@@ -1,6 +1,6 @@
 # L'IA dans Teable — fonctionnement
 
-> Documentation du système d'IA côté backend (`apps/nestjs-backend/src/features/ai`) et de son intégration frontend (`apps/nextjs-app`). Dernière mise à jour : 2026-06-27.
+> Documentation du système d'IA côté backend (`apps/nestjs-backend/src/features/ai`) et de son intégration frontend (`apps/nextjs-app`). Dernière mise à jour : 2026-06-28.
 
 ## Vue d'ensemble
 
@@ -61,13 +61,61 @@ Pour toute opération d'écriture, la base actuellement ouverte par l'utilisateu
 
 `generateText` est appelé avec `stopWhen: stepCountIs(30)` : le modèle peut enchaîner jusqu'à 30 étapes d'appels d'outils dans un seul tour (ex. `create_table` → `create_table` → `link_tables`).
 
+### Cible explicite (`targetType`) — la bulle de chat unifiée
+
+Le panneau de chat (`UnifiedChatContainer.tsx`) n'a plus d'onglets « Demander » / « Agents » disjoints : **une seule interface**, avec sous le champ de saisie des boutons de cible explicite qui précisent l'intention avant même que le modèle ne lise le texte libre :
+
+| Bouton | `targetType` envoyé | Outils autorisés |
+|---|---|---|
+| Table | `table` | `create_table`, `create_field`, `create_view`, `link_tables`, `create_record` |
+| Interface | `interface` | `create_app_interface` |
+| Automation | `automation` | `create_automation` |
+| Agent | `agent` | `create_agent` |
+| Application complète | `app` | `create_app_interface`, `generate_app_code` |
+| Données fictives | `mock_data` | *(aucun — branche dédiée, voir ci-dessous)* |
+| *(aucun bouton sélectionné)* | `undefined` | tous les write tools — comportement historique, le modèle déduit l'intention du texte |
+
+Le mapping est défini par `TARGET_TYPE_TOOLS` dans [unified-ai.service.ts](../apps/nestjs-backend/src/features/ai/unified-ai.service.ts). Quand `ctx.targetType` est défini :
+
+1. **Filtrage à l'enregistrement** : seuls les outils listés pour cette cible sont passés au modèle (`tools = {...readTools, ...allowedWriteTools}`) — le modèle ne *peut pas* appeler un outil hors cible, il n'existe pas dans son schéma.
+2. **Defense-in-depth** : chaque `buildWriteTool` revérifie `TARGET_TYPE_TOOLS[ctx.targetType].includes(toolName)` au début de son `execute` et renvoie une `clarification` sinon — au cas où l'enregistrement dériverait un jour (renommage d'outil, oubli de mise à jour du mapping).
+3. **System prompt** : une ligne `targetTypeHint` rappelle explicitement au modèle la cible choisie, en complément du filtrage (la contrainte technique prime, ce n'est qu'un renfort).
+4. **Effet de bord corrigé** : l'auto-proposition d'une interface après `create_table` (voir § snapshot/auto-propositions) est désactivée dès que `targetType` est défini et différent de `interface`/`app` — sinon choisir « Table » produisait quand même une proposition « Créer une interface » non désirée.
+
+### Cas spécial : « Données fictives » (`targetType: 'mock_data'`)
+
+Cette cible ne passe **pas** par la boucle d'outils générique : `chat()` la détecte juste après la résolution du modèle et délègue à `generateMockDataForCurrentTable()`, qui fait tout en code déterministe :
+
+```
+ctx.pageContext.tableId  (la table actuellement affichée, transmise par le frontend)
+   │
+   ▼
+résout la table dans le snapshot
+   │
+   ▼
+RecordService.getRecords(tableId, { fieldKeyType: Name, ignoreViewQuery: true })
+   │
+   ▼
+ne garde que les lignes vides (tous les champs null/undefined/'') — max 3
+   │
+   ├─ aucune ligne vide → message texte « contient déjà des données », rien n'est proposé
+   │
+   ▼
+generateObject({ schema: champs de la table typés, prompt: contexte + message utilisateur })
+   │
+   ▼
+une proposition `update_record` par ligne vide (preview + proposalId), comme tout autre write tool
+```
+
+Le frontend transmet `pageContext: { tableId, tableName }` (issu de `useTable()` dans `ChatPanel.tsx`) **uniquement** quand `targetType === 'mock_data'`. Sans table ouverte, l'IA répond qu'elle a besoin qu'une table soit affichée — elle ne devine jamais la table depuis le texte libre pour cette cible.
+
 ### Événements SSE (`UnifiedChatEvent`)
 
 ```ts
 type: 'text_chunk' | 'tool_result' | 'proposal' | 'done' | 'error'
 ```
 
-- `text_chunk` — texte de l'assistant
+- `text_chunk` — texte de l'assistant. ⚠️ le backend ne renseigne jamais de champ `role` sur ces événements ; côté frontend, `MessageItem.tsx` traite tout `text_chunk`/`text` dont `role !== 'user'` comme un message assistant (un `text_chunk` reçu depuis le flux SSE ne peut, par construction, être qu'une réponse du serveur).
 - `tool_result` — résultat d'un **read tool**
 - `proposal` — une écriture proposée (`{ proposalId, action, preview }`)
 - `done` / `error` — fin / erreur

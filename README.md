@@ -143,7 +143,7 @@ Because Teable stores data in real PostgreSQL, you are never locked into the UI.
 
 #### Built-in assistant
 
-Every base has a built-in **AI chat** (`Ask` mode). The assistant has live read/write access to your data and can execute actions directly:
+Every base has a built-in **AI chat**. The assistant has live read/write access to your data and can execute actions directly. Explicit target buttons (Table, Interface, Automation, Agent, Application complète, Données fictives) let you tell the assistant exactly what to generate instead of relying on it to guess from free text — see [docs/AI-SYSTEM.md](docs/AI-SYSTEM.md) for the full architecture.
 
 > *"Create a table for tracking customer support tickets with status, priority, and assignee"*  
 > *"Find all overdue records and summarize them in a bullet list"*  
