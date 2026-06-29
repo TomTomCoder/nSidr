@@ -566,11 +566,11 @@ export function UnifiedChatContainer({
 
   const [isAcceptingAll, setIsAcceptingAll] = useState(false);
 
-  const handleAcceptAll = useCallback(async () => {
-    if (isAcceptingAll || pendingProposals.length === 0) return;
-    setIsAcceptingAll(true);
-    let pendingNavigation: { baseId: string; appId: string } | null = null;
-    for (const proposal of pendingProposals) {
+  // Accepts one proposal and returns app-generation navigation info if applicable, or null.
+  // Extracted out of handleAcceptAll's loop to keep that function's cognitive complexity in
+  // check after adding 409 handling (see the matching comment in ProposalCard.tsx).
+  const acceptSingleProposal = useCallback(
+    async (proposal: { proposalId: string }): Promise<{ baseId: string; appId: string } | null> => {
       setProposalStatus(proposal.proposalId, 'accepting');
       try {
         const res = await fetch(`/api/spaces/${spaceId}/ai/accept-proposal`, {
@@ -578,6 +578,13 @@ export function UnifiedChatContainer({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ proposalId: proposal.proposalId, conversationId }),
         });
+        // 409 = already accepted, typically a slow first call outliving the dev proxy's
+        // timeout — see the matching comment in ProposalCard.tsx's handleAccept.
+        if (res.status === 409) {
+          setProposalStatus(proposal.proposalId, 'accepted');
+          return null;
+        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const result = (await res.json()) as {
           status?: string;
           agentId?: string;
@@ -587,25 +594,36 @@ export function UnifiedChatContainer({
           prompt?: string;
         };
         setProposalStatus(proposal.proposalId, result?.status === 'skipped' ? 'error' : 'accepted');
+        if (result?.agentId) window.dispatchEvent(new Event('agent-created'));
         if (result?.shouldStream && result?.appId && result?.baseId) {
           useAppBuilderStore.getState().queueGeneration({
-            appId: result.appId as string,
-            prompt: (result.prompt as string) ?? '',
-            baseId: result.baseId as string,
+            appId: result.appId,
+            prompt: result.prompt ?? '',
+            baseId: result.baseId,
           });
-          // Navigate after the loop finishes
-          pendingNavigation = { baseId: result.baseId as string, appId: result.appId as string };
+          return { baseId: result.baseId, appId: result.appId };
         }
-        if (result?.agentId) window.dispatchEvent(new Event('agent-created'));
+        return null;
       } catch {
         setProposalStatus(proposal.proposalId, 'error');
+        return null;
       }
+    },
+    [spaceId, conversationId, setProposalStatus]
+  );
+
+  const handleAcceptAll = useCallback(async () => {
+    if (isAcceptingAll || pendingProposals.length === 0) return;
+    setIsAcceptingAll(true);
+    let pendingNavigation: { baseId: string; appId: string } | null = null;
+    for (const proposal of pendingProposals) {
+      pendingNavigation = (await acceptSingleProposal(proposal)) ?? pendingNavigation;
     }
     if (pendingNavigation) {
       window.location.href = `/base/${pendingNavigation.baseId}/app/${pendingNavigation.appId}`;
     }
     setIsAcceptingAll(false);
-  }, [isAcceptingAll, pendingProposals, spaceId, conversationId, setProposalStatus]);
+  }, [isAcceptingAll, pendingProposals, acceptSingleProposal]);
 
   const isGeneratingApp = useMemo(() => {
     if (!isStreaming) return false;

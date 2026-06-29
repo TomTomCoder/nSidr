@@ -15,8 +15,9 @@ import { z } from 'zod';
 import { CustomHttpException } from '../../custom.exception';
 import { AI_SERVICE } from '../../shared/tokens/ai.token';
 import { RecordService } from '../record/record.service';
+import { WorkflowTriggerSchema, WorkflowStepSchema } from '../workflow/workflow-ai.service';
 import { ActionProposalService } from './action-proposal.service';
-import { WorkspaceStateService } from './workspace-state.service';
+import { WorkspaceStateService, type WorkspaceSnapshot } from './workspace-state.service';
 
 // Type for AiService (avoid circular import)
 interface IAiService {
@@ -67,6 +68,42 @@ export interface UnifiedChatContext {
 // targetType → allowed write tool names. Read tools are always available regardless of targetType.
 // 'mock_data' is handled as a separate deterministic branch (see generateMockDataForCurrentTable) —
 // it never reaches the generic tool-calling loop, so it needs no entry here.
+// Real, executable agent tool names (AgentToolRegistryService.BUILT_IN_TOOLS + SCHEMA_TOOLS +
+// WORKFLOW_TOOLS) — the AI may only enable tools that actually exist, never invent one.
+export const AGENT_TOOL_NAMES = [
+  'search_records',
+  'get_records',
+  'get_record',
+  'create_comment',
+  'get_record_activity',
+  'create_record',
+  'update_record',
+  'delete_record',
+  'search_knowledge_base',
+  'create_knowledge_doc',
+  'update_knowledge_doc',
+  'link_docs',
+  'get_doc_links',
+  'search_memory',
+  'get_memory',
+  'save_memory',
+  'set_preference',
+  'web_search',
+  'request_human_approval',
+  'list_agents',
+  'delegate_to_agent',
+  'create_agent',
+  'list_workflows',
+  'get_workflow',
+  'run_workflow',
+  'list_tables',
+  'get_table_schema',
+  'create_table',
+  'create_field',
+  'create_app',
+  'create_view',
+] as const;
+
 const TARGET_TYPE_TOOLS: Record<NonNullable<UnifiedChatContext['targetType']>, string[]> = {
   table: ['create_table', 'create_field', 'create_view', 'link_tables', 'create_record'],
   interface: ['create_app_interface'],
@@ -75,25 +112,6 @@ const TARGET_TYPE_TOOLS: Record<NonNullable<UnifiedChatContext['targetType']>, s
   app: ['create_app_interface', 'generate_app_code'],
   mock_data: [],
 };
-
-// Write tool names — these go through proposal gating
-const WRITE_TOOLS = new Set([
-  'create_table',
-  'create_base',
-  'create_field',
-  'create_view',
-  'link_tables',
-  'delete_field',
-  'rename_table',
-  'rename_field',
-  'create_record',
-  'update_record',
-  'create_folder',
-  'create_app_interface',
-  'create_automation',
-  'create_agent',
-  'generate_app_code',
-]);
 
 @Injectable()
 export class UnifiedAiService {
@@ -105,7 +123,40 @@ export class UnifiedAiService {
     @Inject(AI_SERVICE) private readonly aiService: IAiService
   ) {}
 
+  /**
+   * Public entry point — wraps chatInner() so any uncaught exception (Prisma, the model
+   * provider, RecordService, ...) yields a clean `error` event and a saved assistant
+   * message instead of an unhandled rejection the controller can only forward raw.
+   */
   async *chat(ctx: UnifiedChatContext): AsyncGenerator<UnifiedChatEvent> {
+    const state: { conversationId?: string } = {};
+    try {
+      yield* this.chatInner(ctx, state);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unexpected error';
+      if (state.conversationId) {
+        await this.prismaService.workspaceConversationMessage
+          .create({
+            data: {
+              conversationId: state.conversationId,
+              role: 'assistant',
+              type: 'text',
+              content: `Une erreur est survenue : ${message}`,
+              proposalId: null,
+            },
+          })
+          .catch(() => {
+            // ponytail: best-effort — the error event below still reaches the user either way
+          });
+      }
+      yield { type: 'error', content: message };
+    }
+  }
+
+  private async *chatInner(
+    ctx: UnifiedChatContext,
+    state: { conversationId?: string }
+  ): AsyncGenerator<UnifiedChatEvent> {
     // Step 1: Get or create conversation
     let conversation: { id: string };
     if (ctx.conversationId) {
@@ -124,71 +175,13 @@ export class UnifiedAiService {
         data: { spaceId: ctx.spaceId, createdBy: ctx.userId, status: 'in_progress' },
       });
     }
+    state.conversationId = conversation.id;
 
     // Step 2: Snapshot — called once (D-04)
     const snapshot = await this.workspaceStateService.getSnapshot(ctx.spaceId);
 
-    // Step 3: Build system prompt — truncated to 8000 chars (T-10-02 mitigation)
-    // Build a compact base summary first so IDs are always visible even after truncation
-    const baseSummary = snapshot.bases
-      .map(
-        (b) =>
-          `  - "${b.name}" (baseId: ${b.id}) — tables: ${b.tables.map((t) => `"${t.name}" (tableId: ${t.id})`).join(', ') || 'none'}`
-      )
-      .join('\n');
-    // Resolve active base info for the system prompt
-    const activeBase = ctx.activeBaseId
-      ? snapshot.bases.find((b) => b.id === ctx.activeBaseId)
-      : undefined;
-    const activeBaseHint = activeBase
-      ? `\n⚠️ ACTIVE BASE (user is currently viewing this base — USE THIS for all write operations unless the user says otherwise):\n  "${activeBase.name}" (baseId: ${activeBase.id})\n`
-      : '';
-    const targetTypeHint = ctx.targetType
-      ? `\n⚠️ EXPLICIT TARGET: the user picked "${ctx.targetType}" via the chat UI. Only call tools for this target (${TARGET_TYPE_TOOLS[ctx.targetType].join(', ')}). Do NOT call tools for any other target type.\n`
-      : '';
-
-    const rawPrompt =
-      'You are a workspace AI assistant for Teable — a no-code database platform.\n' +
-      'You help users build, organize, and manage their databases by calling tools.\n\n' +
-      '## ⚠️ ABSOLUTE RULES\n' +
-      'For ANY write request, call the appropriate tool IMMEDIATELY.\n' +
-      'NEVER respond with text describing what you would do. NEVER ask for confirmation before creating.\n' +
-      'The only exception: before deleting many records irreversibly, ask once.\n' +
-      'NEVER call create_base unless the user says "create a new base" explicitly — always use the ACTIVE BASE for tables, apps, automations, and agents.\n\n' +
-      '## Genuine ambiguity (different from confirmation)\n' +
-      'Confirmation = "should I do this?" — never ask that.\n' +
-      'Disambiguation = "which one do you mean?" — ask that ONCE when you genuinely cannot resolve it ' +
-      '(e.g. several bases exist and none is active, or a tableName you were given matches zero or ' +
-      'several tables). A tool call will come back as a clarification message in that case — relay it ' +
-      'to the user verbatim as your reply instead of guessing an ID or calling another tool.\n\n' +
-      activeBaseHint +
-      targetTypeHint +
-      '## Tool calling rules\n' +
-      `1. Pass baseId="${ctx.activeBaseId ?? '<use active base id shown above>'}" on EVERY write tool call.\n` +
-      '2. create_table: fields = array of objects [{name:"...",type:"singleLineText"}]. Include ALL fields in one call.\n' +
-      '3. create_record: fields = FLAT object {"Field Name": value}. Use tableName (not tableId).\n' +
-      '3b. create_view: add a view to an EXISTING table. type = grid|gallery|kanban|calendar|gantt|form|ai. Use tableName + the requested type. For "ai", also pass prompt describing what to show (filters/sort/hidden columns).\n' +
-      '4. After create_table: sample records + app interface are auto-proposed — do NOT call create_record or create_app_interface yourself.\n' +
-      '5. LINKING IS NEVER AUTOMATIC: If the user asks to link/relate tables, you MUST call link_tables explicitly — always after all create_table calls.\n' +
-      '   - Use sourceTableName + targetTableName (not IDs)\n' +
-      '   - "manyOne" = many source rows → one target row (e.g. many Contacts → one Company) ← default\n' +
-      '   - "oneMany" = one source row → many target rows\n' +
-      '   - Example CRM: create_table("Company") → create_table("Contact") → link_tables(source:"Contact", target:"Company", relationship:"manyOne", fieldName:"Company")\n' +
-      '6. All name/trigger/action parameters must be plain strings, not nested objects.\n' +
-      '7. When designing schemas, follow these field types:\n' +
-      '   Short text/title → singleLineText | Long notes → longText | Number → number\n' +
-      '   Fixed choices → singleSelect | Multiple tags → multipleSelect | Date → date\n' +
-      '   True/False → checkbox | File → attachment\n' +
-      '   Email/URL/Phone → singleLineText (no dedicated type — use longText for free text) | Stars → rating\n' +
-      '8. When create_app_interface is accepted, code generation triggers automatically — do NOT call any separate tool for it.\n\n' +
-      '## After completing a task\n' +
-      'Give a brief confirmation (1-2 sentences) summarizing what was created/changed.\n' +
-      'Suggest a logical next step if relevant (e.g. "You may want to link this to your Contacts table.").\n\n' +
-      '## Current workspace\n' +
-      baseSummary +
-      '\n\nFULL STATE:\n' +
-      JSON.stringify(snapshot, null, 2);
-    const systemPrompt = rawPrompt.slice(0, 12000);
+    // Step 3: Build system prompt — truncated to 12000 chars (T-10-02 mitigation)
+    const systemPrompt = this.buildSystemPrompt(ctx, snapshot);
 
     // Step 4: Save user message
     await this.prismaService.workspaceConversationMessage.create({
@@ -202,24 +195,7 @@ export class UnifiedAiService {
     });
 
     // Step 5: Get model instance — getAIConfig is base-scoped; use the first base as proxy
-    const proxyBaseId = snapshot.bases[0]?.id;
-    if (!proxyBaseId) {
-      yield { type: 'error', content: 'No bases found in this space. Create a base first.' };
-      return;
-    }
-    const aiConfig = await this.aiService.getAIConfig(proxyBaseId);
-    const resolvedModelKey = ctx.modelKey ?? aiConfig.chatModel?.lg;
-    if (!resolvedModelKey) {
-      yield {
-        type: 'error',
-        content: 'No AI model configured. Please configure an AI provider in space settings.',
-      };
-      return;
-    }
-    const modelInstance = await this.aiService.getModelInstance(
-      resolvedModelKey,
-      aiConfig.llmProviders
-    );
+    const modelInstance = await this.resolveModelInstance(ctx, snapshot);
 
     // "Données fictives" bypasses the generic tool-calling loop entirely — we already know
     // exactly which table to fill and exactly what to do with it.
@@ -238,12 +214,27 @@ export class UnifiedAiService {
         execute: async () => snapshot,
       }),
       query_records: (tool as (def: object) => object)({
-        description: 'Query records in a table by tableId.',
+        description:
+          'Query up to 20 records in a table by tableId, optionally filtered by a search string across all fields.',
         parameters: z.object({
           tableId: z.string().describe('The ID of the table to query'),
           query: z.string().optional().describe('Search query string'),
         }),
-        execute: async () => [],
+        execute: async (args: { tableId: string; query?: string }) => {
+          try {
+            const { records } = await this.recordService.getRecords(args.tableId, {
+              take: 20,
+              fieldKeyType: FieldKeyType.Name,
+              ignoreViewQuery: true,
+              ...(args.query ? { search: [args.query] } : {}),
+            } as Parameters<RecordService['getRecords']>[1]);
+            return records.map((r) => ({ id: r.id, fields: r.fields }));
+          } catch {
+            // Read tools must never abort the whole turn — an invalid/deleted tableId
+            // just yields no results, same as a query that matched nothing.
+            return [];
+          }
+        },
       }),
     } as Record<string, object>;
 
@@ -390,10 +381,39 @@ export class UnifiedAiService {
               z.object({
                 name: z.string().describe('Field name'),
                 type: z
-                  .string()
+                  .enum([
+                    'singleLineText',
+                    'longText',
+                    'number',
+                    'date',
+                    'checkbox',
+                    'singleSelect',
+                    'multipleSelect',
+                    'attachment',
+                    'rating',
+                    'link',
+                  ])
                   .describe(
-                    'Field type: singleLineText | longText | number | date | checkbox | singleSelect | multipleSelect | attachment'
+                    'Field type. Use "link" for a relation to another existing table (requires foreignTableName + relationship).'
                   ),
+                required: z.boolean().optional().describe('Field cannot be left empty'),
+                unique: z.boolean().optional().describe('Values must be unique across records'),
+                defaultValue: z
+                  .union([z.string(), z.number(), z.boolean()])
+                  .optional()
+                  .describe('Default value — type must match the field type'),
+                choices: z
+                  .array(z.string())
+                  .optional()
+                  .describe('Option labels — required when type is singleSelect/multipleSelect'),
+                foreignTableName: z
+                  .string()
+                  .optional()
+                  .describe('Required when type is "link" — name of an existing table to link to'),
+                relationship: z
+                  .enum(['oneOne', 'oneMany', 'manyOne', 'manyMany'])
+                  .optional()
+                  .describe('Required when type is "link"'),
               })
             )
             .optional()
@@ -489,7 +509,7 @@ export class UnifiedAiService {
       ),
       create_app_interface: buildWriteTool(
         'create_app_interface',
-        'Create a new App (no-code app builder) inside a base.',
+        'Create a new App (no-code app builder) inside a base. Prefer "modules" (a declarative list of data-table/form/detail-view blocks bound to real tables) over free-form code generation whenever the request is a standard CRUD interface — it is more reliable. Only omit "modules" and rely on generate_app_code afterwards for genuinely custom UI.',
         z.object({
           name: z.string(),
           baseId: z.string().optional().describe('The base (database) ID — preferred if known'),
@@ -498,15 +518,35 @@ export class UnifiedAiService {
             .optional()
             .describe('The base name — used to resolve baseId if ID is not known'),
           tableId: z.string().optional(),
+          modules: z
+            .array(
+              z.object({
+                type: z.enum(['data-table', 'form', 'detail-view']),
+                tableName: z.string().describe('Name of an existing table this module is bound to'),
+                title: z.string().optional(),
+                fieldNames: z
+                  .array(z.string())
+                  .optional()
+                  .describe('Field names to show, in order; omit to show all fields'),
+              })
+            )
+            .optional()
+            .describe('Declarative CRUD modules — each binds to one existing table'),
         })
       ),
       create_automation: buildWriteTool(
         'create_automation',
-        'Create a new automation (trigger + action) for a base.',
+        'Create a new automation (trigger + steps) for a base. Prefer the structured `trigger` and `steps` fields — only the 8 trigger types and 9 step types listed are actually executable by the workflow engine. Use `description` as a free-text fallback solely to improve naming when you cannot fully determine the structured shape; never rely on free text for the actual logic.',
         z.object({
           name: z.string(),
-          trigger: z.string(),
-          action: z.string(),
+          trigger: WorkflowTriggerSchema.optional(),
+          steps: z.array(WorkflowStepSchema).min(1).max(10).optional(),
+          description: z
+            .string()
+            .optional()
+            .describe(
+              'Free-text fallback, naming/enrichment only — never the source of trigger/step logic'
+            ),
           baseId: z.string().optional().describe('The base (database) ID — preferred if known'),
           baseName: z
             .string()
@@ -516,13 +556,35 @@ export class UnifiedAiService {
       ),
       create_agent: buildWriteTool(
         'create_agent',
-        'Create a new AI agent for tasks that cannot be expressed as a deterministic automation (e.g. natural-language triage, multi-step reasoning, content drafting). The agent runs with ReAct + planner + memory.',
+        'Create a new AI agent for tasks that cannot be expressed as a deterministic automation (e.g. natural-language triage, multi-step reasoning, content drafting). The agent runs with ReAct + planner + memory. Third-party connectors (Gmail/GitHub/Slack) require an interactive OAuth flow and can never be created by this tool — you may only recommend the user connect one afterwards.',
         z.object({
           name: z.string().describe('Agent name'),
           description: z.string().optional().describe('Short purpose summary'),
           instructions: z
             .string()
             .describe('System instructions / role prompt that the agent will follow at runtime'),
+          modelKey: z
+            .string()
+            .optional()
+            .describe('Specific model to use; omit to use the space default'),
+          tools: z
+            .array(z.enum(AGENT_TOOL_NAMES))
+            .optional()
+            .describe(
+              'Tool names to enable for this agent — only real, executable tools. web_search defaults OFF unless explicitly listed here.'
+            ),
+          planningEnabled: z.boolean().optional().describe('Default true'),
+          reflectionEnabled: z.boolean().optional().describe('Default true'),
+          maxReflections: z.number().int().min(0).max(10).optional(),
+          maxIterations: z.number().int().min(1).max(50).optional(),
+          isPublic: z
+            .boolean()
+            .optional()
+            .describe('Whether other space members can use this agent'),
+          scheduling: z
+            .object({ cron: z.string().describe('Cron expression, e.g. "0 9 * * 1"') })
+            .optional()
+            .describe('Only set this for agents meant to run automatically on a schedule'),
           baseId: z.string().optional().describe('The base (database) ID — preferred if known'),
           baseName: z
             .string()
@@ -668,141 +730,9 @@ export class UnifiedAiService {
       }
     }
 
-    // Step 8.5: Auto-propose mock records + app interface for newly created tables.
-    // We do this programmatically instead of relying on AI multi-step tool calls.
-    const autoTableProposals: Array<{
-      tableName: string;
-      baseId: string;
-      fields: Array<{ name: string; type?: string }>;
-    }> = [];
-    for (const step of result.steps) {
-      for (const toolResult of step.toolResults ?? []) {
-        const res = (toolResult as unknown as { output?: unknown }).output as Record<
-          string,
-          unknown
-        >;
-        if (res && res.__type === 'proposal' && res.action === 'create_table') {
-          const preview = res.preview as Record<string, unknown> | undefined;
-          const tableName = preview?.tableName as string | undefined;
-          const fields = (preview?.fields ?? []) as Array<{ name: string; type?: string }>;
-          const baseId = ctx.activeBaseId ?? '';
-          if (tableName && baseId) {
-            autoTableProposals.push({ tableName, baseId, fields });
-          }
-        }
-      }
-    }
-
-    // Only auto-propose an app interface on top of a new table when the user didn't
-    // explicitly ask for something else (table/automation/agent) via the chat UI buttons.
-    const wantsInterface =
-      !ctx.targetType || ctx.targetType === 'interface' || ctx.targetType === 'app';
-
-    for (const tableInfo of autoTableProposals) {
-      // Auto-create 3 mock record proposals
-      for (let i = 0; i < 3; i++) {
-        const mockFields: Record<string, unknown> = {};
-        for (const field of tableInfo.fields) {
-          mockFields[field.name] = this.generateMockValue(field.name, field.type, i);
-        }
-        const recordProposal = await this.actionProposalService.createProposal({
-          action: 'create_record',
-          args: { tableName: tableInfo.tableName, baseId: tableInfo.baseId, fields: mockFields },
-          conversationId: conversation.id,
-          preview: { tableName: tableInfo.tableName, fields: mockFields },
-        });
-        yield {
-          type: 'proposal',
-          proposal: {
-            proposalId: recordProposal.proposalId,
-            action: recordProposal.action,
-            preview: recordProposal.preview,
-          },
-        };
-      }
-
-      // Auto-create app interface proposal only if this is a single-table session.
-      // Multi-table sessions get a single shared CRM app proposed below.
-      if (wantsInterface && autoTableProposals.length === 1) {
-        const appName = `App ${tableInfo.tableName}`;
-        const appProposal = await this.actionProposalService.createProposal({
-          action: 'create_app_interface',
-          args: { name: appName, baseId: tableInfo.baseId },
-          conversationId: conversation.id,
-          preview: { name: appName },
-        });
-        yield {
-          type: 'proposal',
-          proposal: {
-            proposalId: appProposal.proposalId,
-            action: appProposal.action,
-            preview: appProposal.preview,
-          },
-        };
-      }
-    }
-
-    // Step 8.6: Auto-propose link_tables when:
-    //   - 2 tables were created AND
-    //   - model did NOT already call link_tables AND
-    //   - user message contains a linking keyword
-    const alreadyLinked = result.steps.some((s) =>
-      (s.toolResults ?? []).some(
-        (tr) =>
-          (tr as unknown as { output?: Record<string, unknown> }).output?.__type === 'proposal' &&
-          (tr as unknown as { output?: Record<string, unknown> }).output?.action === 'link_tables'
-      )
-    );
-    const linkKeywords = /li(e|en|er|ez)|relat|associat|appartient|belong|link/i;
-    if (autoTableProposals.length === 2 && !alreadyLinked && linkKeywords.test(ctx.message)) {
-      const [target, source] = autoTableProposals; // first=main entity (Entreprise), second=dependent (Contacts)
-      const linkProposal = await this.actionProposalService.createProposal({
-        action: 'link_tables',
-        args: {
-          baseId: source.baseId,
-          sourceTableName: source.tableName,
-          targetTableName: target.tableName,
-          fieldName: target.tableName,
-          relationship: 'manyOne',
-        },
-        conversationId: conversation.id,
-        preview: {
-          sourceTableName: source.tableName,
-          targetTableName: target.tableName,
-          relationship: 'manyOne',
-          fieldName: target.tableName,
-        },
-      });
-      yield {
-        type: 'proposal',
-        proposal: {
-          proposalId: linkProposal.proposalId,
-          action: linkProposal.action,
-          preview: linkProposal.preview,
-        },
-      };
-    }
-
-    // For multi-table sessions (e.g. CRM with Entreprise + Contacts), propose one unified app.
-    if (wantsInterface && autoTableProposals.length > 1) {
-      const tableNames = autoTableProposals.map((t) => t.tableName).join(' & ');
-      const crmAppName = `App CRM — ${tableNames}`;
-      const baseId = autoTableProposals[0].baseId;
-      const crmAppProposal = await this.actionProposalService.createProposal({
-        action: 'create_app_interface',
-        args: { name: crmAppName, baseId },
-        conversationId: conversation.id,
-        preview: { name: crmAppName, tables: autoTableProposals.map((t) => t.tableName) },
-      });
-      yield {
-        type: 'proposal',
-        proposal: {
-          proposalId: crmAppProposal.proposalId,
-          action: crmAppProposal.action,
-          preview: crmAppProposal.preview,
-        },
-      };
-    }
+    // Step 8.5/8.6: deterministic post-processing — auto-propose mock records, an app
+    // interface, and link_tables for newly created tables (see runAutoProposalHeuristics).
+    yield* this.runAutoProposalHeuristics(ctx, result, conversation.id);
 
     // Fallback: if no step text yielded but result.text exists, emit it
     if (!fullText && result.text) {
@@ -913,14 +843,27 @@ export class UnifiedAiService {
   private buildPreview(toolName: string, args: Record<string, unknown>): Record<string, unknown> {
     switch (toolName) {
       case 'create_table': {
-        // G-03 FIX: normalise fields — AI sometimes sends strings instead of {name, type} objects
-        const rawFields = args.fields as
-          | Array<{ name: string; type?: string } | string>
-          | undefined;
+        // G-03 FIX: normalise fields — AI sometimes sends strings instead of field objects
+        interface IPreviewRawField {
+          name: string;
+          type?: string;
+          required?: boolean;
+          unique?: boolean;
+          choices?: string[];
+          foreignTableName?: string;
+        }
+        const rawFields = args.fields as Array<IPreviewRawField | string> | undefined;
         const normalisedFields = (rawFields ?? []).map((f) =>
           typeof f === 'string'
             ? { name: f, type: 'singleLineText' }
-            : { name: f.name, type: f.type ?? 'singleLineText' }
+            : {
+                name: f.name,
+                type: f.type ?? 'singleLineText',
+                required: f.required,
+                unique: f.unique,
+                choices: f.choices,
+                foreignTableName: f.foreignTableName,
+              }
         );
         return {
           baseName: args.baseId,
@@ -959,11 +902,22 @@ export class UnifiedAiService {
       case 'create_folder':
         return { name: args.name };
       case 'create_app_interface':
-        return { name: args.name };
+        return { name: args.name, modules: args.modules };
       case 'create_automation':
-        return { name: args.name, trigger: args.trigger, action: args.action };
+        return {
+          name: args.name,
+          trigger: args.trigger,
+          steps: args.steps,
+          description: args.description,
+        };
       case 'create_agent':
-        return { name: args.name, description: args.description };
+        return {
+          name: args.name,
+          description: args.description,
+          tools: args.tools,
+          scheduling: args.scheduling,
+          isPublic: args.isPublic,
+        };
       default:
         return { action: toolName, args };
     }
@@ -1021,6 +975,238 @@ export class UnifiedAiService {
     }
   }
 
+  /**
+   * Resolves the LLM instance to use for this turn — getAIConfig is base-scoped, so the
+   * first base in the space is used as a proxy. Throws instead of yielding an error event
+   * directly: chat() wraps chatInner() in a try/catch that turns any thrown Error into a
+   * clean `error` SSE event, so callers further down don't need to special-case this.
+   */
+  private async resolveModelInstance(
+    ctx: UnifiedChatContext,
+    snapshot: WorkspaceSnapshot
+  ): Promise<unknown> {
+    const proxyBaseId = snapshot.bases[0]?.id;
+    if (!proxyBaseId) {
+      throw new Error('No bases found in this space. Create a base first.');
+    }
+    const aiConfig = await this.aiService.getAIConfig(proxyBaseId);
+    const resolvedModelKey = ctx.modelKey ?? aiConfig.chatModel?.lg;
+    if (!resolvedModelKey) {
+      throw new Error('No AI model configured. Please configure an AI provider in space settings.');
+    }
+    return this.aiService.getModelInstance(resolvedModelKey, aiConfig.llmProviders);
+  }
+
+  /**
+   * Deterministic post-processing run after the model's tool-calling turn finishes:
+   * auto-proposes 3 mock records + an app interface for any table the model just created
+   * (skipped when the user explicitly picked a non-interface targetType), auto-proposes
+   * link_tables when exactly 2 tables were created and the user's message hints at linking
+   * them, and proposes one shared "CRM" app interface for multi-table sessions.
+   */
+  private async *runAutoProposalHeuristics(
+    ctx: UnifiedChatContext,
+    result: Awaited<ReturnType<typeof generateText>>,
+    conversationId: string
+  ): AsyncGenerator<UnifiedChatEvent> {
+    const autoTableProposals: Array<{
+      tableName: string;
+      baseId: string;
+      fields: Array<{ name: string; type?: string }>;
+    }> = [];
+    for (const step of result.steps) {
+      for (const toolResult of step.toolResults ?? []) {
+        const res = (toolResult as unknown as { output?: unknown }).output as Record<
+          string,
+          unknown
+        >;
+        if (res && res.__type === 'proposal' && res.action === 'create_table') {
+          const preview = res.preview as Record<string, unknown> | undefined;
+          const tableName = preview?.tableName as string | undefined;
+          const fields = (preview?.fields ?? []) as Array<{ name: string; type?: string }>;
+          const baseId = ctx.activeBaseId ?? '';
+          if (tableName && baseId) {
+            autoTableProposals.push({ tableName, baseId, fields });
+          }
+        }
+      }
+    }
+
+    // Only auto-propose an app interface on top of a new table when the user didn't
+    // explicitly ask for something else (table/automation/agent) via the chat UI buttons.
+    const wantsInterface =
+      !ctx.targetType || ctx.targetType === 'interface' || ctx.targetType === 'app';
+
+    for (const tableInfo of autoTableProposals) {
+      // Auto-create 3 mock record proposals
+      for (let i = 0; i < 3; i++) {
+        const mockFields: Record<string, unknown> = {};
+        for (const field of tableInfo.fields) {
+          mockFields[field.name] = this.generateMockValue(field.name, field.type, i);
+        }
+        const recordProposal = await this.actionProposalService.createProposal({
+          action: 'create_record',
+          args: { tableName: tableInfo.tableName, baseId: tableInfo.baseId, fields: mockFields },
+          conversationId,
+          preview: { tableName: tableInfo.tableName, fields: mockFields },
+        });
+        yield {
+          type: 'proposal',
+          proposal: {
+            proposalId: recordProposal.proposalId,
+            action: recordProposal.action,
+            preview: recordProposal.preview,
+          },
+        };
+      }
+
+      // Auto-create app interface proposal only if this is a single-table session.
+      // Multi-table sessions get a single shared CRM app proposed below.
+      if (wantsInterface && autoTableProposals.length === 1) {
+        const appName = `App ${tableInfo.tableName}`;
+        const appProposal = await this.actionProposalService.createProposal({
+          action: 'create_app_interface',
+          args: { name: appName, baseId: tableInfo.baseId },
+          conversationId,
+          preview: { name: appName },
+        });
+        yield {
+          type: 'proposal',
+          proposal: {
+            proposalId: appProposal.proposalId,
+            action: appProposal.action,
+            preview: appProposal.preview,
+          },
+        };
+      }
+    }
+
+    // Auto-propose link_tables when:
+    //   - 2 tables were created AND
+    //   - model did NOT already call link_tables AND
+    //   - user message contains a linking keyword
+    const alreadyLinked = result.steps.some((s) =>
+      (s.toolResults ?? []).some(
+        (tr) =>
+          (tr as unknown as { output?: Record<string, unknown> }).output?.__type === 'proposal' &&
+          (tr as unknown as { output?: Record<string, unknown> }).output?.action === 'link_tables'
+      )
+    );
+    const linkKeywords = /li(e|en|er|ez)|relat|associat|appartient|belong|link/i;
+    if (autoTableProposals.length === 2 && !alreadyLinked && linkKeywords.test(ctx.message)) {
+      const [target, source] = autoTableProposals; // first=main entity (Entreprise), second=dependent (Contacts)
+      const linkProposal = await this.actionProposalService.createProposal({
+        action: 'link_tables',
+        args: {
+          baseId: source.baseId,
+          sourceTableName: source.tableName,
+          targetTableName: target.tableName,
+          fieldName: target.tableName,
+          relationship: 'manyOne',
+        },
+        conversationId,
+        preview: {
+          sourceTableName: source.tableName,
+          targetTableName: target.tableName,
+          relationship: 'manyOne',
+          fieldName: target.tableName,
+        },
+      });
+      yield {
+        type: 'proposal',
+        proposal: {
+          proposalId: linkProposal.proposalId,
+          action: linkProposal.action,
+          preview: linkProposal.preview,
+        },
+      };
+    }
+
+    // For multi-table sessions (e.g. CRM with Entreprise + Contacts), propose one unified app.
+    if (wantsInterface && autoTableProposals.length > 1) {
+      const tableNames = autoTableProposals.map((t) => t.tableName).join(' & ');
+      const crmAppName = `App CRM — ${tableNames}`;
+      const baseId = autoTableProposals[0].baseId;
+      const crmAppProposal = await this.actionProposalService.createProposal({
+        action: 'create_app_interface',
+        args: { name: crmAppName, baseId },
+        conversationId,
+        preview: { name: crmAppName, tables: autoTableProposals.map((t) => t.tableName) },
+      });
+      yield {
+        type: 'proposal',
+        proposal: {
+          proposalId: crmAppProposal.proposalId,
+          action: crmAppProposal.action,
+          preview: crmAppProposal.preview,
+        },
+      };
+    }
+  }
+
+  /** Builds the full system prompt (rules + active base/target hints + workspace snapshot), truncated to 12000 chars. */
+  private buildSystemPrompt(ctx: UnifiedChatContext, snapshot: WorkspaceSnapshot): string {
+    // Build a compact base summary first so IDs are always visible even after truncation
+    const baseSummary = snapshot.bases
+      .map(
+        (b) =>
+          `  - "${b.name}" (baseId: ${b.id}) — tables: ${b.tables.map((t) => `"${t.name}" (tableId: ${t.id})`).join(', ') || 'none'}`
+      )
+      .join('\n');
+    const activeBase = ctx.activeBaseId
+      ? snapshot.bases.find((b) => b.id === ctx.activeBaseId)
+      : undefined;
+    const activeBaseHint = activeBase
+      ? `\n⚠️ ACTIVE BASE (user is currently viewing this base — USE THIS for all write operations unless the user says otherwise):\n  "${activeBase.name}" (baseId: ${activeBase.id})\n`
+      : '';
+    const targetTypeHint = ctx.targetType
+      ? `\n⚠️ EXPLICIT TARGET: the user picked "${ctx.targetType}" via the chat UI. Only call tools for this target (${TARGET_TYPE_TOOLS[ctx.targetType].join(', ')}). Do NOT call tools for any other target type.\n`
+      : '';
+
+    const rawPrompt =
+      'You are a workspace AI assistant for Teable — a no-code database platform.\n' +
+      'You help users build, organize, and manage their databases by calling tools.\n\n' +
+      '## ⚠️ ABSOLUTE RULES\n' +
+      'For ANY write request, call the appropriate tool IMMEDIATELY.\n' +
+      'NEVER respond with text describing what you would do. NEVER ask for confirmation before creating.\n' +
+      'The only exception: before deleting many records irreversibly, ask once.\n' +
+      'NEVER call create_base unless the user says "create a new base" explicitly — always use the ACTIVE BASE for tables, apps, automations, and agents.\n\n' +
+      '## Genuine ambiguity (different from confirmation)\n' +
+      'Confirmation = "should I do this?" — never ask that.\n' +
+      'Disambiguation = "which one do you mean?" — ask that ONCE when you genuinely cannot resolve it ' +
+      '(e.g. several bases exist and none is active, or a tableName you were given matches zero or ' +
+      'several tables). A tool call will come back as a clarification message in that case — relay it ' +
+      'to the user verbatim as your reply instead of guessing an ID or calling another tool.\n\n' +
+      activeBaseHint +
+      targetTypeHint +
+      '## Tool calling rules\n' +
+      `1. Pass baseId="${ctx.activeBaseId ?? '<use active base id shown above>'}" on EVERY write tool call.\n` +
+      '2. create_table: fields = array of objects [{name:"...",type:"singleLineText"}]. Include ALL fields in one call.\n' +
+      '3. create_record: fields = FLAT object {"Field Name": value}. Use tableName (not tableId).\n' +
+      '3b. create_view: add a view to an EXISTING table. type = grid|gallery|kanban|calendar|gantt|form|ai. Use tableName + the requested type. For "ai", also pass prompt describing what to show (filters/sort/hidden columns).\n' +
+      '4. After create_table: sample records + app interface are auto-proposed — do NOT call create_record or create_app_interface yourself.\n' +
+      '5. LINKING IS NEVER AUTOMATIC: If the user asks to link/relate tables, you MUST call link_tables explicitly — always after all create_table calls.\n' +
+      '   - Use sourceTableName + targetTableName (not IDs)\n' +
+      '   - "manyOne" = many source rows → one target row (e.g. many Contacts → one Company) ← default\n' +
+      '   - "oneMany" = one source row → many target rows\n' +
+      '   - Example CRM: create_table("Company") → create_table("Contact") → link_tables(source:"Contact", target:"Company", relationship:"manyOne", fieldName:"Company")\n' +
+      '6. All name/trigger/action parameters must be plain strings, not nested objects.\n' +
+      '7. When designing schemas, follow these field types:\n' +
+      '   Short text/title → singleLineText | Long notes → longText | Number → number\n' +
+      '   Fixed choices → singleSelect | Multiple tags → multipleSelect | Date → date\n' +
+      '   True/False → checkbox | File → attachment\n' +
+      '   Email/URL/Phone → singleLineText (no dedicated type — use longText for free text) | Stars → rating\n' +
+      '8. When create_app_interface is accepted, code generation triggers automatically — do NOT call any separate tool for it.\n\n' +
+      '## After completing a task\n' +
+      'Give a brief confirmation (1-2 sentences) summarizing what was created/changed.\n' +
+      'Suggest a logical next step if relevant (e.g. "You may want to link this to your Contacts table.").\n\n' +
+      '## Current workspace\n' +
+      baseSummary +
+      '\n\nFULL STATE:\n' +
+      JSON.stringify(snapshot, null, 2);
+    return rawPrompt.slice(0, 12000);
+  }
+
   /** Zod value schema per Teable field type, used to ground generateObject's output. */
   private mockValueSchemaForFieldType(fieldType: string) {
     switch (fieldType) {
@@ -1035,6 +1221,46 @@ export class UnifiedAiService {
         // date, select, text-like fields — a plain string is valid input for all of them
         return z.string();
     }
+  }
+
+  /**
+   * Resolves 'link' fields to real candidate record IDs in their foreign table — the LLM may
+   * only pick among IDs that actually exist (Phase 4: never propose an orphaned relation).
+   * Returns missingTableName when a foreign table is itself empty, signalling the caller to
+   * abort generation entirely rather than produce a table with dangling links.
+   */
+  private async resolveLinkFieldCandidates(
+    fieldMetas: Array<{ name: string; type: string; options: string | null }>
+  ): Promise<{
+    candidates: Record<string, { ids: string[]; multi: boolean }>;
+    missingTableName?: string;
+  }> {
+    const candidates: Record<string, { ids: string[]; multi: boolean }> = {};
+    for (const f of fieldMetas) {
+      if (f.type !== 'link' || !f.options) continue;
+      const options = JSON.parse(f.options) as {
+        foreignTableId?: string;
+        relationship?: string;
+      };
+      if (!options.foreignTableId) continue;
+      const { records } = await this.recordService.getRecords(options.foreignTableId, {
+        take: 50,
+        fieldKeyType: FieldKeyType.Name,
+        ignoreViewQuery: true,
+      } as Parameters<RecordService['getRecords']>[1]);
+      if (records.length === 0) {
+        const foreignTable = await this.prismaService.tableMeta.findFirst({
+          where: { id: options.foreignTableId },
+          select: { name: true },
+        });
+        return { candidates, missingTableName: foreignTable?.name ?? 'la table liée' };
+      }
+      candidates[f.name] = {
+        ids: records.map((r) => r.id),
+        multi: options.relationship === 'oneMany' || options.relationship === 'manyMany',
+      };
+    }
+    return { candidates };
   }
 
   /**
@@ -1076,14 +1302,29 @@ export class UnifiedAiService {
       return;
     }
 
+    // take a wide-enough sample so rows beyond the first few aren't missed (#stability-audit) —
+    // a "table already has data" verdict based on too few rows would wrongly skip real empty rows.
     const { records } = await this.recordService.getRecords(table.id, {
-      take: 5,
+      take: 50,
       fieldKeyType: FieldKeyType.Name,
       ignoreViewQuery: true,
     } as Parameters<RecordService['getRecords']>[1]);
 
+    // Phase 4: real field metadata (options/unique) — the snapshot only has {id, name, type}.
+    const fieldMetas = await this.prismaService.field.findMany({
+      where: { tableId: table.id, deletedTime: null },
+      select: { name: true, type: true, options: true, unique: true },
+    });
+    // A row is "empty" based on its own content fields only — a `link` field can get
+    // auto-populated as the symmetric reverse side of a link created from the OTHER table
+    // (e.g. filling mock data on "Clients" sets the matching "Commandes" rows' reverse Client
+    // field too), which would otherwise make every row on a fresh table look "already filled"
+    // and permanently block mock-data generation on it.
+    const linkFieldNames = new Set(fieldMetas.filter((f) => f.type === 'link').map((f) => f.name));
     const isEmptyRecord = (fields: Record<string, unknown>) =>
-      Object.values(fields).every((v) => v === null || v === undefined || v === '');
+      Object.entries(fields).every(
+        ([name, v]) => linkFieldNames.has(name) || v === null || v === undefined || v === ''
+      );
     const emptyRecords = records.filter((r) => isEmptyRecord(r.fields)).slice(0, 3);
 
     if (emptyRecords.length === 0) {
@@ -1102,24 +1343,72 @@ export class UnifiedAiService {
       return;
     }
 
+    const { candidates: linkCandidates, missingTableName } =
+      await this.resolveLinkFieldCandidates(fieldMetas);
+    if (missingTableName) {
+      const message = `La table liée "${missingTableName}" est vide — ajoute d'abord des données dedans avant de générer des données fictives ici.`;
+      yield { type: 'text_chunk', content: message };
+      await this.prismaService.workspaceConversationMessage.create({
+        data: {
+          conversationId,
+          role: 'assistant',
+          type: 'text',
+          content: message,
+          proposalId: null,
+        },
+      });
+      yield { type: 'done', conversationId };
+      return;
+    }
+
     const fieldsShape = Object.fromEntries(
-      table.fields.map((f) => [f.name, this.mockValueSchemaForFieldType(f.type)])
+      table.fields.map((f) => {
+        const link = linkCandidates[f.name];
+        if (link) {
+          const idSchema = z.object({ id: z.enum(link.ids as [string, ...string[]]) });
+          return [f.name, link.multi ? z.array(idSchema).min(1) : idSchema];
+        }
+        return [f.name, this.mockValueSchemaForFieldType(f.type)];
+      })
     );
+    // min(1)/max(N) instead of an exact .length(N) — LLMs don't always honor an exact array
+    // length, and a strict schema throws (uncaught here) on the slightest mismatch. The loop
+    // below only proposes as many records as actually came back, capped at emptyRecords.length.
     const schema = z.object({
-      records: z.array(z.object(fieldsShape)).length(emptyRecords.length),
+      records: z.array(z.object(fieldsShape)).min(1).max(emptyRecords.length),
     });
+
+    // Phase 4: existing values per `unique` field — a generated row colliding with one of
+    // these is dropped rather than proposed (no proposal beats a silently-invalid duplicate).
+    const uniqueFieldNames = fieldMetas.filter((f) => f.unique).map((f) => f.name);
+    const existingValuesByField = new Map(
+      uniqueFieldNames.map((name) => [
+        name,
+        new Set(
+          records
+            .filter((r) => !isEmptyRecord(r.fields))
+            .map((r) => r.fields[name])
+            .filter((v) => v !== null && v !== undefined && v !== '')
+        ),
+      ])
+    );
 
     const { object } = await generateObject({
       model: modelInstance as Parameters<typeof generateObject>[0]['model'],
       schema,
       prompt:
         `Table "${table.name}" — champs: ${table.fields.map((f) => `${f.name} (${f.type})`).join(', ')}.\n` +
-        `Génère ${emptyRecords.length} enregistrement(s) fictif(s) réaliste(s) et cohérent(s) entre eux, ` +
+        `Génère exactement ${emptyRecords.length} enregistrement(s) fictif(s) réaliste(s) et cohérent(s) entre eux, ` +
         `en corrélation avec la demande de l'utilisateur : "${ctx.message}".`,
     });
 
-    for (let i = 0; i < emptyRecords.length; i++) {
-      const fields = object.records[i];
+    const generatedCount = Math.min(object.records.length, emptyRecords.length);
+    for (let i = 0; i < generatedCount; i++) {
+      const fields = object.records[i] as Record<string, unknown>;
+      const collidesOnUnique = uniqueFieldNames.some((name) =>
+        existingValuesByField.get(name)?.has(fields[name])
+      );
+      if (collidesOnUnique) continue;
       const proposal = await this.actionProposalService.createProposal({
         action: 'update_record',
         args: { tableId: table.id, recordId: emptyRecords[i].id, fields },
@@ -1136,7 +1425,7 @@ export class UnifiedAiService {
       };
     }
 
-    const summary = `J'ai préparé ${emptyRecords.length} ligne(s) de données fictives pour "${table.name}", en lien avec ta demande.`;
+    const summary = `J'ai préparé ${generatedCount} ligne(s) de données fictives pour "${table.name}", en lien avec ta demande.`;
     await this.prismaService.workspaceConversationMessage.create({
       data: { conversationId, role: 'assistant', type: 'text', content: summary, proposalId: null },
     });

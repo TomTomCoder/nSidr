@@ -16,6 +16,7 @@ import { ClsService } from 'nestjs-cls';
 import type { IClsStore } from '../../types/cls';
 import { TokenAccess } from '../auth/decorators/token.decorator';
 import { ActionProposalService } from './action-proposal.service';
+import { AppBlueprintService } from './app-blueprint.service';
 import { UnifiedAiService, UnifiedChatContext } from './unified-ai.service';
 
 @Controller('api/spaces/:spaceId/ai')
@@ -25,9 +26,17 @@ export class UnifiedAiController {
   constructor(
     private readonly unifiedAiService: UnifiedAiService,
     private readonly actionProposalService: ActionProposalService,
+    private readonly appBlueprintService: AppBlueprintService,
     private readonly prismaService: PrismaService,
     private readonly cls: ClsService<IClsStore>
   ) {}
+
+  /** Set SSE headers FIRST — before any write (shared by every SSE endpoint on this controller). */
+  private setSseHeaders(res: Response): void {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+  }
 
   /**
    * POST /api/spaces/:spaceId/ai/chat
@@ -53,10 +62,7 @@ export class UnifiedAiController {
     @Res() res: Response,
     @Req() req: Request
   ) {
-    // Set SSE headers FIRST — before any write
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
+    this.setSseHeaders(res);
 
     // Client disconnect flag (T-10-06: SSE connection never closed on client disconnect)
     let clientDisconnected = false;
@@ -86,6 +92,102 @@ export class UnifiedAiController {
       }
     } catch (err) {
       this.logger.error(`chat error: ${(err as Error).message}\n${(err as Error).stack}`);
+      res.write(`data: ${JSON.stringify({ type: 'error', content: (err as Error).message })}\n\n`);
+    }
+
+    res.end();
+  }
+
+  /**
+   * POST /api/spaces/:spaceId/ai/full-app
+   * Phase 6.1 — bootstraps a full app (analysis → blueprint → table proposals) as its own
+   * SSE stream, separate from /chat (see AI-GENERATION-ROADMAP.md for the architecture decision).
+   */
+  @TokenAccess()
+  @Post('full-app')
+  async fullApp(
+    @Param('spaceId') spaceId: string,
+    @Body() body: { baseId: string; prompt: string; modelKey: string; conversationId?: string },
+    @Res() res: Response,
+    @Req() req: Request
+  ) {
+    this.setSseHeaders(res);
+
+    let clientDisconnected = false;
+    req.on('close', () => {
+      clientDisconnected = true;
+    });
+
+    const userId = this.cls.get('user.id');
+
+    try {
+      if (!body.baseId) throw new Error('baseId is required to generate a full app');
+
+      let conversationId = body.conversationId;
+      if (!conversationId) {
+        const conversation = await this.prismaService.workspaceConversation.create({
+          data: { spaceId, createdBy: userId, status: 'in_progress' },
+        });
+        conversationId = conversation.id;
+      }
+
+      for await (const event of this.appBlueprintService.generateFullApp({
+        spaceId,
+        userId,
+        baseId: body.baseId,
+        prompt: body.prompt,
+        modelKey: body.modelKey,
+        conversationId,
+      })) {
+        if (clientDisconnected) break;
+        res.write(`data: ${JSON.stringify({ ...event, conversationId })}\n\n`);
+      }
+    } catch (err) {
+      this.logger.error(`full-app error: ${(err as Error).message}\n${(err as Error).stack}`);
+      res.write(`data: ${JSON.stringify({ type: 'error', content: (err as Error).message })}\n\n`);
+    }
+
+    res.end();
+  }
+
+  /**
+   * POST /api/spaces/:spaceId/ai/full-app/:conversationId/continue
+   * Advances the saga to its next stage (subgenerators → agents → report). Call this once the
+   * user has accepted every proposal from the previous stage — see AppBlueprintService's class
+   * doc for why this can't just be a continuation of the original /full-app stream.
+   */
+  @TokenAccess()
+  @Post('full-app/:conversationId/continue')
+  async continueFullApp(
+    @Param('spaceId') spaceId: string,
+    @Param('conversationId') conversationId: string,
+    @Res() res: Response,
+    @Req() req: Request
+  ) {
+    this.setSseHeaders(res);
+
+    let clientDisconnected = false;
+    req.on('close', () => {
+      clientDisconnected = true;
+    });
+
+    try {
+      const conversation = await this.prismaService.workspaceConversation.findUnique({
+        where: { id: conversationId },
+        select: { spaceId: true },
+      });
+      if (!conversation || conversation.spaceId !== spaceId) {
+        throw new ForbiddenException('Conversation does not belong to this space');
+      }
+
+      for await (const event of this.appBlueprintService.continueFullApp(conversationId)) {
+        if (clientDisconnected) break;
+        res.write(`data: ${JSON.stringify({ ...event, conversationId })}\n\n`);
+      }
+    } catch (err) {
+      this.logger.error(
+        `full-app continue error: ${(err as Error).message}\n${(err as Error).stack}`
+      );
       res.write(`data: ${JSON.stringify({ type: 'error', content: (err as Error).message })}\n\n`);
     }
 

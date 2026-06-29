@@ -17,6 +17,7 @@ import type {
   GatewayModelTag,
   IAIConfig,
   IAiGenerateRo,
+  IBrandDesignSystem,
   IChatModelAbility,
   IGatewayApiModel,
   IGatewayApiModelRaw,
@@ -1159,6 +1160,77 @@ export class AiService {
     return undefined;
   }
 
+  /**
+   * Renders the instance's brand design system (admin "Paramètres de marque" page) as a
+   * system-prompt block so AI-generated app interfaces follow the brand's colors,
+   * typography, component style, and design principles instead of generic defaults.
+   * Returns '' when no brand design system is configured — purely additive.
+   */
+  private buildBrandDesignSystemPrompt(
+    brandName: string | null | undefined,
+    designSystem: IBrandDesignSystem | null | undefined
+  ): string {
+    if (!brandName && !designSystem) return '';
+
+    const principleLabels: Record<string, string> = {
+      simplicity: 'Simplicity — minimal UI, no unnecessary elements',
+      accessibility: 'Accessibility — WCAG AA contrast, ARIA labels, keyboard navigation',
+      consistency: 'Consistency — reuse the same patterns across all screens',
+      clarity: 'Clarity — clear hierarchy, obvious actions',
+      performance: 'Performance — lightweight markup, no heavy assets',
+    };
+
+    const lines: string[] = [];
+    if (brandName) lines.push(`Brand: "${brandName}".`);
+
+    const colors = designSystem?.colors;
+    if (colors?.length) {
+      lines.push(
+        `Color palette (use these as the primary colors, e.g. via Tailwind arbitrary values like bg-[#hex]): ` +
+          colors.map((c) => `${c.name}=${c.hex}`).join(', ') +
+          '.'
+      );
+    }
+
+    const typography = designSystem?.typography;
+    if (typography?.fontFamily) {
+      const fontName =
+        typography.fontFamily === 'Custom'
+          ? typography.customFontName || 'the brand custom font'
+          : typography.fontFamily;
+      lines.push(`Typography: use "${fontName}" as the primary font family for all text.`);
+    }
+
+    const lib = designSystem?.componentLibrary;
+    const libParts: string[] = [];
+    if (lib?.buttonStyle) libParts.push(`buttons: ${lib.buttonStyle}`);
+    if (lib?.formStyle) libParts.push(`form fields: ${lib.formStyle}`);
+    if (lib?.navbarStyle) libParts.push(`navigation: ${lib.navbarStyle}`);
+    if (libParts.length) lines.push(`Component style — ${libParts.join(', ')}.`);
+
+    if (designSystem?.illustrations?.length) {
+      lines.push(
+        `Brand illustrations are available at these URLs — use them where relevant (empty states, hero sections, onboarding): ${designSystem.illustrations.join(', ')}`
+      );
+    }
+
+    const principles = designSystem?.principles;
+    if (principles?.length) {
+      lines.push(
+        `Design principles to respect:\n` +
+          principles.map((p) => `- ${principleLabels[p] ?? p}`).join('\n')
+      );
+    }
+    if (designSystem?.customPrinciples) {
+      lines.push(`Additional brand principles: ${designSystem.customPrinciples}`);
+    }
+
+    if (lines.length === 0) return '';
+    return (
+      '\n\n## BRAND DESIGN SYSTEM — apply consistently to all generated UI\n' + lines.join('\n')
+    );
+  }
+
   async generateAppCodeStream(
     baseId: string,
     prompt: string,
@@ -1196,7 +1268,9 @@ export class AiService {
         }),
         execute: async ({ path: rawPath, content }: { path: string; content: string }) => {
           const path = rawPath || 'app/page.tsx';
-          this.logger.log(`[generateAppCodeStream] createFile called: ${path} (${content.length} chars)`);
+          this.logger.log(
+            `[generateAppCodeStream] createFile called: ${path} (${content.length} chars)`
+          );
           sendEvent({ type: 'tool', label: `Écriture de ${path}…` });
           files[path] = content;
           sendEvent({ type: 'file', path, content });
@@ -1205,7 +1279,11 @@ export class AiService {
       },
       setProgress: {
         description: 'Update the task progress shown to the user',
-        parameters: jsonSchema<{ current: number; total: number; tasks: Array<{ label: string; done: boolean }> }>({
+        parameters: jsonSchema<{
+          current: number;
+          total: number;
+          tasks: Array<{ label: string; done: boolean }>;
+        }>({
           type: 'object',
           properties: {
             current: { type: 'number' },
@@ -1242,12 +1320,22 @@ export class AiService {
       const modelInstance = await this.getGenerationModelInstance(baseId, { prompt, modelKey });
 
       const appGeneratePrompt = await this.promptService.get(PROMPT_KEY.APP_GENERATE, modelKey);
+      const brandSetting = await this.settingService.getSetting([
+        SettingKey.BRAND_NAME,
+        SettingKey.BRAND_DESIGN_SYSTEM,
+      ]);
+      const brandPrompt = this.buildBrandDesignSystemPrompt(
+        brandSetting.brandName,
+        brandSetting.brandDesignSystem
+      );
       const { text } = await generateText({
         model: modelInstance,
         tools,
         stopWhen: stepCountIs(20),
         system:
-          appGeneratePrompt + `\n\nSCHÉMA DE LA BASE (utilise ces IDs exacts):\n${schemaJson}`,
+          appGeneratePrompt +
+          `\n\nSCHÉMA DE LA BASE (utilise ces IDs exacts):\n${schemaJson}` +
+          brandPrompt,
         prompt,
       });
 

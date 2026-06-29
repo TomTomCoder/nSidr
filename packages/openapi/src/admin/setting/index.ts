@@ -6,6 +6,7 @@ export * from './get';
 export * from './get-public';
 export * from './update';
 export * from './upload-logo';
+export * from './upload-brand-asset';
 export * from './test-llm';
 export * from './batch-test-llm';
 export * from './test-api-key';

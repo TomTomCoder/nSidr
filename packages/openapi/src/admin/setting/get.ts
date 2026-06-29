@@ -6,6 +6,7 @@ import { registerRoute } from '../../utils';
 import {
   aiConfigVoSchema,
   appConfigSchema,
+  brandDesignSystemSchema,
   canaryConfigSchema,
   imConfigSchema,
   sandboxAgentConfigSchema,
@@ -15,6 +16,7 @@ export const settingVoSchema = z.object({
   instanceId: z.string(),
   brandName: z.string().nullable().optional(),
   brandLogo: z.string().nullable().optional(),
+  brandDesignSystem: brandDesignSystemSchema.nullable().optional(),
   disallowSignUp: z.boolean().nullable().optional(),
   disallowSpaceCreation: z.boolean().nullable().optional(),
   disallowSpaceInvitation: z.boolean().nullable().optional(),

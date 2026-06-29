@@ -11,13 +11,46 @@ import type { UnifiedChatEvent } from '@/types/agent';
 interface IProposalField {
   name: string;
   type?: string;
+  required?: boolean;
+  unique?: boolean;
+  choices?: string[];
+  foreignTableName?: string;
 }
 
 interface IProposalPreview {
   tableName?: string;
   fields?: IProposalField[];
+  trigger?: { type: string; config?: Record<string, unknown> };
+  steps?: { type: string; name?: string; config?: Record<string, unknown> }[];
+  description?: string;
+  tools?: string[];
+  scheduling?: { cron: string };
+  isPublic?: boolean;
   [key: string]: unknown;
 }
+
+const TRIGGER_LABELS: Record<string, string> = {
+  scheduled: 'Planifié',
+  webhook_received: 'Webhook reçu',
+  email_received: 'Email reçu',
+  record_created: 'Enregistrement créé',
+  record_updated: 'Enregistrement modifié',
+  record_deleted: 'Enregistrement supprimé',
+  button_clicked: 'Bouton cliqué',
+  record_matches_conditions: 'Conditions remplies',
+};
+
+const STEP_LABELS: Record<string, string> = {
+  send_slack: 'Envoyer un message Slack',
+  send_email: 'Envoyer un email',
+  http_request: 'Appel HTTP',
+  if_condition: 'Condition',
+  ai_generate: 'Génération IA',
+  create_record: 'Créer un enregistrement',
+  update_record: 'Modifier un enregistrement',
+  get_records: 'Lire des enregistrements',
+  execute_script: 'Exécuter un script',
+};
 
 interface ProposalCardProps {
   proposal: { proposalId: string; action: string; preview: unknown };
@@ -69,6 +102,15 @@ function PreviewBody({ preview }: { preview: unknown }) {
               <li key={i} className="flex items-center gap-1.5">
                 <span className="size-1.5 shrink-0 rounded-full bg-primary/40" />
                 <span>{f.name}</span>
+                {f.required && <span className="text-xs text-destructive">*</span>}
+                {f.foreignTableName && (
+                  <span className="text-xs text-muted-foreground">→ {f.foreignTableName}</span>
+                )}
+                {f.choices && f.choices.length > 0 && (
+                  <span className="text-xs text-muted-foreground">
+                    ({f.choices.length} options)
+                  </span>
+                )}
                 {f.type && (
                   <span className="ml-auto rounded bg-muted px-1 py-0.5 text-xs">{f.type}</span>
                 )}
@@ -76,6 +118,73 @@ function PreviewBody({ preview }: { preview: unknown }) {
             ))}
           </ul>
         )}
+      </div>
+    );
+  }
+
+  if (p.trigger || (Array.isArray(p.steps) && p.steps.length > 0)) {
+    return (
+      <div className="mt-2 space-y-2 text-sm">
+        {p.trigger && (
+          <div>
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground dark:text-slate-500">
+              Déclencheur
+            </span>
+            <p className="text-foreground dark:text-slate-200">
+              {TRIGGER_LABELS[p.trigger.type] ?? p.trigger.type}
+            </p>
+          </div>
+        )}
+        {Array.isArray(p.steps) && p.steps.length > 0 && (
+          <div>
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground dark:text-slate-500">
+              Étapes
+            </span>
+            <ol className="mt-1 space-y-0.5 text-muted-foreground">
+              {p.steps.map((s, i) => (
+                <li key={i} className="flex items-center gap-1.5">
+                  <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] text-primary">
+                    {i + 1}
+                  </span>
+                  <span>{s.name ?? STEP_LABELS[s.type] ?? s.type}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+        {p.description && !p.trigger && (
+          <p className="text-xs italic text-muted-foreground">{p.description}</p>
+        )}
+      </div>
+    );
+  }
+
+  if (Array.isArray(p.tools) || p.scheduling) {
+    return (
+      <div className="mt-2 space-y-2 text-sm">
+        {Array.isArray(p.tools) && p.tools.length > 0 && (
+          <div>
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground dark:text-slate-500">
+              Outils activés
+            </span>
+            <div className="mt-1 flex flex-wrap gap-1">
+              {p.tools.map((toolName) => (
+                <Badge key={toolName} variant="outline" className="text-xs">
+                  {toolName.replace(/_/g, ' ')}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+        {p.scheduling?.cron && (
+          <div>
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground dark:text-slate-500">
+              Planification
+            </span>
+            <p className="text-foreground dark:text-slate-200">Cron : {p.scheduling.cron}</p>
+          </div>
+        )}
+        {p.isPublic && <Badge variant="secondary">Visible par l&apos;espace</Badge>}
       </div>
     );
   }
@@ -98,8 +207,16 @@ function PreviewBody({ preview }: { preview: unknown }) {
   );
 }
 
-export function ProposalCard({ proposal, spaceId, conversationId, activeBaseId }: ProposalCardProps) {
-  const { activeProposals, setProposalStatus, appendMessage } = useUnifiedChatStore(spaceId, activeBaseId);
+export function ProposalCard({
+  proposal,
+  spaceId,
+  conversationId,
+  activeBaseId,
+}: ProposalCardProps) {
+  const { activeProposals, setProposalStatus, appendMessage } = useUnifiedChatStore(
+    spaceId,
+    activeBaseId
+  );
   const status = activeProposals[proposal.proposalId] ?? 'pending';
   const router = useRouter();
 
@@ -111,6 +228,14 @@ export function ProposalCard({ proposal, spaceId, conversationId, activeBaseId }
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proposalId: proposal.proposalId, conversationId }),
       });
+      // 409 means the proposal was already accepted — typically because a slow first call
+      // (e.g. an LLM fallback retry) outlived the dev proxy's timeout and the UI surfaced a
+      // false "failed", so the user retried while the original request was still finishing
+      // successfully in the background. Treat it as the success it already is, not an error.
+      if (res.status === 409) {
+        setProposalStatus(proposal.proposalId, 'accepted');
+        return;
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const result = (await res.json()) as Record<string, unknown>;
       setProposalStatus(proposal.proposalId, 'accepted');

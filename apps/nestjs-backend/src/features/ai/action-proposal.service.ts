@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import {
   Injectable,
   ConflictException,
@@ -5,18 +6,17 @@ import {
   Inject,
   forwardRef,
 } from '@nestjs/common';
-import { PrismaService } from '@teable/db-main-prisma';
 import { FieldKeyType, FieldType, Relationship, ViewType } from '@teable/core';
+import { PrismaService } from '@teable/db-main-prisma';
 import { BaseNodeResourceType, type ICreateBaseNodeRo } from '@teable/openapi';
-import { randomUUID } from 'crypto';
-import { FieldOpenApiService } from '../field/open-api/field-open-api.service';
+import { AI_SERVICE } from '../../shared/tokens/ai.token';
+import { AgentService } from '../agent/agent.service';
 import { BaseNodeService } from '../base-node/base-node.service';
+import { FieldOpenApiService } from '../field/open-api/field-open-api.service';
 import { RecordOpenApiService } from '../record/open-api/record-open-api.service';
 import { ViewOpenApiService } from '../view/open-api/view-open-api.service';
-import { WorkflowAiService } from '../workflow/workflow-ai.service';
+import { WorkflowAiService, WorkflowConfigSchema } from '../workflow/workflow-ai.service';
 import { WorkflowService } from '../workflow/workflow.service';
-import { AgentService } from '../agent/agent.service';
-import { AI_SERVICE } from '../../shared/tokens/ai.token';
 
 /** AI-generated view config — mirrors AiService.generateViewConfig / IGeneratedViewConfig. */
 interface IGeneratedViewConfig {
@@ -145,7 +145,7 @@ export class ActionProposalService {
     });
 
     // Resolve baseId if missing — look up via conversationId → spaceId → first base
-    let resolvedArgs = { ...metadata.args };
+    const resolvedArgs = { ...metadata.args };
     if (!resolvedArgs.baseId || (metadata.action === 'create_base' && !resolvedArgs.spaceId)) {
       const conversation = await this.prismaService.workspaceConversation.findUnique({
         where: { id: message.conversationId },
@@ -189,11 +189,12 @@ export class ActionProposalService {
     switch (action) {
       case 'create_table': {
         if (!args.baseId) throw new Error('baseId is required for create_table');
-        // G-03 FIX: AI sometimes sends string fields ["Nom", "Email"] instead of [{name, type}] objects.
-        // Coerce both forms to the expected shape.
+        const baseIdForFields = args.baseId as string;
+        // G-03 FIX: AI sometimes sends string fields ["Nom", "Email"] instead of objects.
         // Simple field types that can be created without extra options.
-        // Complex types (link, formula, rollup, lookup) are downgraded to singleLineText
-        // because they require additional configuration we don't have at proposal time.
+        // 'formula'/'rollup'/'conditionalRollup' downgrade to singleLineText — interpolating
+        // {{fldXXX}} field IDs across sibling fields created in the same call is not yet
+        // supported (Phase 3 deferred, see AI-GENERATION-ROADMAP.md).
         // ponytail: url/email/phoneNumber aren't real FieldType values (core's
         // FieldType enum has no entry for them) — keep only types FieldSupplementService
         // actually accepts, everything else downgrades to singleLineText.
@@ -208,19 +209,86 @@ export class ActionProposalService {
           'attachment',
           'rating',
         ]);
-        const rawFields = args.fields as
-          | Array<{ name: string; type?: string } | string>
-          | undefined;
+        interface IRawField {
+          name: string;
+          type?: string;
+          required?: boolean;
+          unique?: boolean;
+          defaultValue?: string | number | boolean;
+          choices?: string[];
+          foreignTableName?: string;
+          relationship?: string;
+        }
+        const relMap: Record<string, Relationship> = {
+          manyOne: Relationship.ManyOne,
+          oneMany: Relationship.OneMany,
+          manyMany: Relationship.ManyMany,
+          oneOne: Relationship.OneOne,
+        };
+        // Resolves a 'link' field's foreignTableName → real foreignTableId, scoped to this base.
+        // Returns null when the field isn't a resolvable link (caller falls back to a safe type).
+        const resolveLinkOptions = async (f: IRawField) => {
+          if (!(f.type === 'link' && f.foreignTableName && f.relationship)) return null;
+          const foreignTable = await this.prismaService.tableMeta.findFirst({
+            where: { name: f.foreignTableName, baseId: baseIdForFields, deletedTime: null },
+            select: { id: true },
+          });
+          if (!foreignTable) return null;
+          return {
+            foreignTableId: foreignTable.id,
+            relationship: relMap[f.relationship] ?? Relationship.ManyOne,
+          };
+        };
+
+        const buildField = async (f: IRawField | string) => {
+          if (typeof f === 'string') return { name: f, type: 'singleLineText' };
+          const name = f.name || 'Field';
+          // `required` is accepted in the tool schema but never mapped to `notNull` here —
+          // field.service.ts's alterTableAddField throws unconditionally on notNull at field
+          // CREATION time (no backfill mechanism for a table with zero or existing rows), for
+          // every field type. Discovered via a real E2E run (AI-GENERATION-ROADMAP.md Phase 6
+          // verification) — `required` is silently a no-op at creation, not a hard error,
+          // since failing the whole table over an unsupported constraint would be worse.
+          const common = {
+            ...(f.unique ? { unique: true } : {}),
+          };
+
+          const linkOptions = await resolveLinkOptions(f);
+          if (linkOptions) return { name, type: 'link', options: linkOptions, ...common };
+
+          if ((f.type === 'singleSelect' || f.type === 'multipleSelect') && f.choices?.length) {
+            return {
+              name,
+              type: f.type,
+              options: { choices: f.choices.map((choiceName) => ({ name: choiceName })) },
+              ...common,
+            };
+          }
+
+          if (f.type === 'number') {
+            return {
+              name,
+              type: 'number',
+              ...(f.defaultValue !== undefined
+                ? { options: { defaultValue: f.defaultValue } }
+                : {}),
+              ...common,
+            };
+          }
+
+          const safeType = f.type && SAFE_FIELD_TYPES.has(f.type) ? f.type : 'singleLineText';
+          return {
+            name,
+            type: safeType,
+            ...(f.defaultValue !== undefined ? { options: { defaultValue: f.defaultValue } } : {}),
+            ...common,
+          };
+        };
+        const rawFields = args.fields as Array<IRawField | string> | undefined;
         const fields =
           rawFields && rawFields.length > 0
-            ? rawFields.map((f) => {
-                const rawName = typeof f === 'string' ? f : f.name ?? 'Field';
-                const rawType =
-                  typeof f === 'string' ? 'singleLineText' : f.type || 'singleLineText';
-                const safeType = SAFE_FIELD_TYPES.has(rawType) ? rawType : 'singleLineText';
-                return { name: rawName, type: safeType as unknown };
-              })
-            : [{ name: 'Name', type: 'singleLineText' as unknown }];
+            ? await Promise.all(rawFields.map(buildField))
+            : [{ name: 'Name', type: 'singleLineText' }];
         // G-03 FIX: default table name when AI omits it
         const tableName = (args.name as string | undefined)?.trim() || 'New Table';
         // Use baseNodeService.create so a baseNode entry is created alongside the table
@@ -278,6 +346,47 @@ export class ActionProposalService {
             .move(args.baseId as string, dashboardNodeVo.id, { parentId: appsFolderId })
             .catch(() => {});
         }
+
+        // Phase 5: declarative modules — resolve each tableName to a real tableId and persist
+        // a config-driven app.content instead of streaming free-form generated code.
+        const rawModules = args.modules as
+          | Array<{ type: string; tableName: string; title?: string; fieldNames?: string[] }>
+          | undefined;
+        if (rawModules?.length) {
+          const resolvedModules = await Promise.all(
+            rawModules.map(async (m) => {
+              const table = await this.prismaService.tableMeta.findFirst({
+                where: { name: m.tableName, baseId: args.baseId as string, deletedTime: null },
+                select: { id: true },
+              });
+              return {
+                type: m.type,
+                tableId: table?.id ?? null,
+                tableName: m.tableName,
+                title: m.title,
+                fieldNames: m.fieldNames,
+              };
+            })
+          );
+          // Real App.id is resourceId, not the BaseNode wrapper's .id — the sidebar/router
+          // (BaseNodeTree.tsx) always navigates via node.resourceId, and baseNodeService.create
+          // already auto-provisions an empty app_builder row at that id, so this upsert updates
+          // it rather than creating a stray duplicate. Confirmed via a real E2E run: writing to
+          // .id instead left the page the user actually reaches ("Aucune app générée") empty.
+          await this.prismaService.app.upsert({
+            where: { id: dashboardNodeVo.resourceId },
+            update: { content: { type: 'declarative', modules: resolvedModules } as object },
+            create: {
+              id: dashboardNodeVo.resourceId,
+              name: dashboardName,
+              baseId: args.baseId as string,
+              content: { type: 'declarative', modules: resolvedModules } as object,
+              createdBy: _userId,
+            },
+          });
+          return { ...dashboardNodeVo, declarative: true };
+        }
+
         return {
           ...dashboardNodeVo,
           shouldStream: true,
@@ -313,33 +422,70 @@ export class ActionProposalService {
             .catch(() => {});
         }
 
-        // Wire the empty workflow with AI-generated trigger+steps when the LLM
-        // gave us a description. Skip silently on AI failure — empty shell
-        // already exists and the user can edit it manually.
-        const trigger = (args.trigger as string | undefined)?.trim();
-        const action = (args.action as string | undefined)?.trim();
-        if (trigger || action) {
-          const composedPrompt = [
-            `Workflow name: ${automationName}.`,
-            trigger ? `Trigger: ${trigger}.` : '',
-            action ? `Action: ${action}.` : '',
-          ]
-            .filter(Boolean)
-            .join(' ');
+        // Structured trigger+steps (Phase 1): validate against the real workflow-engine
+        // schema and wire it directly — no LLM round-trip, no silent failure.
+        const structuredTrigger = args.trigger as Record<string, unknown> | undefined;
+        const structuredSteps = args.steps as Record<string, unknown>[] | undefined;
+        const description = (args.description as string | undefined)?.trim();
+
+        if (structuredTrigger && structuredSteps?.length) {
+          const parsed = WorkflowConfigSchema.safeParse({
+            name: automationName,
+            trigger: structuredTrigger,
+            steps: structuredSteps,
+          });
+          if (!parsed.success) {
+            return {
+              status: 'skipped',
+              reason: `Configuration d'automatisation invalide: ${parsed.error.issues[0]?.message ?? 'erreur inconnue'}`,
+            };
+          }
+          // updateWorkflow/updateSchedule operate on the real Workflow row, not the BaseNode
+          // wrapper — workflowNodeVo.id is the BaseNode id; the Workflow's own id is
+          // resourceId. Passing .id here is a silent no-op (Prisma "record not found" caught
+          // below in the free-text path) — confirmed via a real E2E run, not previously caught
+          // by mocked tests since they never exercised the real Prisma where-clause.
+          await this.workflowService.updateWorkflow(
+            args.baseId as string,
+            workflowNodeVo.resourceId,
+            {
+              name: parsed.data.name,
+              config: parsed.data as unknown as object,
+            }
+          );
+          await this.workflowService.updateSchedule(
+            args.baseId as string,
+            workflowNodeVo.resourceId
+          );
+          return workflowNodeVo;
+        }
+
+        // Free-text fallback (naming/enrichment only, per Phase 1 plan) — still goes
+        // through the LLM-backed generator, but failure is now reported, not swallowed.
+        if (description) {
           try {
             const generated = await this.workflowAiService.generateWorkflowFromPrompt(
               args.baseId as string,
-              composedPrompt
+              `Workflow name: ${automationName}. ${description}`
             );
-            await this.workflowService.updateWorkflow(args.baseId as string, workflowNodeVo.id, {
-              name: generated.name,
-              config: generated as unknown as object,
-            });
-            // Register cron for scheduled triggers; updateSchedule is idempotent
-            // and a no-op for non-scheduled triggers.
-            await this.workflowService.updateSchedule(args.baseId as string, workflowNodeVo.id);
-          } catch {
-            // ponytail: keep the empty workflow on AI failure; user can fill it.
+            await this.workflowService.updateWorkflow(
+              args.baseId as string,
+              workflowNodeVo.resourceId,
+              {
+                name: generated.name,
+                config: generated as unknown as object,
+              }
+            );
+            await this.workflowService.updateSchedule(
+              args.baseId as string,
+              workflowNodeVo.resourceId
+            );
+          } catch (err) {
+            return {
+              status: 'partial',
+              reason: `Automatisation créée mais la génération du déclencheur/des étapes a échoué : ${(err as Error).message}. Configurez-la manuellement.`,
+              workflow: workflowNodeVo,
+            };
           }
         }
         return workflowNodeVo;
@@ -359,9 +505,42 @@ export class ActionProposalService {
             name: (args.name as string | undefined)?.trim() || 'Untitled Agent',
             description: args.description as string | undefined,
             instructions: args.instructions as string | undefined,
+            modelKey: args.modelKey as string | undefined,
+            isPublic: args.isPublic as boolean | undefined,
+            planningEnabled: args.planningEnabled as boolean | undefined,
+            reflectionEnabled: args.reflectionEnabled as boolean | undefined,
+            maxReflections: args.maxReflections as number | undefined,
+            maxIterations: args.maxIterations as number | undefined,
           },
           _userId
         );
+
+        // Enable the requested tools — Zod already restricted these to real tool names.
+        const tools = args.tools as string[] | undefined;
+        if (tools?.length) {
+          await Promise.all(
+            tools.map((toolName) =>
+              this.prismaService.agentTool.upsert({
+                where: { agentId_toolName: { agentId: agent.id, toolName } },
+                update: { isEnabled: true },
+                create: { agentId: agent.id, toolName, isEnabled: true },
+              })
+            )
+          );
+        }
+
+        // Scheduling — only set up when explicitly requested (cron-triggered agent).
+        const scheduling = args.scheduling as { cron?: string } | undefined;
+        if (scheduling?.cron) {
+          await this.prismaService.agentTrigger.create({
+            data: {
+              agentId: agent.id,
+              triggerType: 'cron',
+              config: { cron: scheduling.cron },
+              isActive: true,
+            },
+          });
+        }
         // Register in base-node tree so the agent appears in the sidebar
         let agentNodeVo;
         try {
@@ -406,12 +585,11 @@ export class ActionProposalService {
       case 'create_field': {
         const tableId = args.tableId as string | undefined;
         if (!tableId) throw new Error('tableId is required for create_field');
-        const fieldVo = await this.fieldOpenApiService.createField(tableId, {
+        return await this.fieldOpenApiService.createField(tableId, {
           name: args.name as string,
           type: (args.type as FieldType) ?? FieldType.SingleLineText,
           ...(args.options ? { options: args.options as Record<string, unknown> } : {}),
         } as Parameters<typeof this.fieldOpenApiService.createField>[1]);
-        return fieldVo;
       }
 
       case 'create_view': {
@@ -585,8 +763,12 @@ export class ActionProposalService {
         if (!tableId || !recordId)
           throw new Error('tableId and recordId are required for update_record');
         const fields = (args.fields as Record<string, unknown> | undefined) ?? {};
+        // typecast: true, matching create_record above — without it, a generated singleSelect
+        // value not already in the field's choices throws (e.g. mock-data fill-in proposing a
+        // new status label), failing the whole update instead of auto-creating the choice.
         await this.recordOpenApiService.updateRecord(tableId, recordId, {
           fieldKeyType: FieldKeyType.Name,
+          typecast: true,
           record: { fields },
         });
         return { updated: true, recordId, tableId };

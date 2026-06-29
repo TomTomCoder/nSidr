@@ -1,9 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from '@teable/db-main-prisma';
 import { generateObject, generateText } from 'ai';
 import { z } from 'zod';
 import { AiService } from '../ai/ai.service';
 
-const WorkflowTriggerSchema = z.object({
+export const WorkflowTriggerSchema = z.object({
   type: z.enum([
     'scheduled',
     'webhook_received',
@@ -26,7 +27,7 @@ type IWorkflowStep = {
   elseSteps?: IWorkflowStep[];
 };
 
-const WorkflowStepSchema: z.ZodType<IWorkflowStep> = z.lazy(() =>
+export const WorkflowStepSchema: z.ZodType<IWorkflowStep> = z.lazy(() =>
   z.object({
     type: z.enum([
       'send_slack',
@@ -46,7 +47,7 @@ const WorkflowStepSchema: z.ZodType<IWorkflowStep> = z.lazy(() =>
   })
 );
 
-const WorkflowConfigSchema = z.object({
+export const WorkflowConfigSchema = z.object({
   name: z.string(),
   trigger: WorkflowTriggerSchema,
   steps: z.array(WorkflowStepSchema).min(1).max(10),
@@ -60,11 +61,13 @@ Trigger types available:
 - scheduled: use config.cron (cron expression, e.g. "0 9 * * 1" for Monday 9am)
 - webhook_received: no extra config needed
 - email_received: no extra config needed
-- record_created: no extra config needed
-- record_updated: no extra config needed
-- record_deleted: no extra config needed
+- record_created: ALWAYS set config.tableId to the real id of the table this should fire for — omitting it means the trigger fires on every record created in ANY table in the base, not just the one you intend
+- record_updated: same — ALWAYS set config.tableId, for the same reason
+- record_deleted: same — ALWAYS set config.tableId, for the same reason
 - button_clicked: use config.tableId and optionally config.fieldId to scope to a specific button field
 - record_matches_conditions: use config.tableId and config.conditions (array of {field, operator, value}) — fires when a record update matches all conditions
+
+Only use a tableId that appears in the "Real tables in this base" list given below. Never invent a tableId or use a table name as if it were an id — the engine looks up tables by id only, so a wrong id silently fails at execution time.
 
 Step types available:
 - send_slack: config needs { channel: "#channel-name", message: "text" }
@@ -95,7 +98,10 @@ Rules:
 export class WorkflowAiService {
   private readonly logger = new Logger(WorkflowAiService.name);
 
-  constructor(private readonly aiService: AiService) {}
+  constructor(
+    private readonly aiService: AiService,
+    private readonly prismaService: PrismaService
+  ) {}
 
   async generateWorkflowFromPrompt(
     baseId: string,
@@ -110,14 +116,41 @@ export class WorkflowAiService {
     });
     const modelInstance = chatModels.lg;
 
+    // Without the real table ids, the LLM has no choice but to invent a tableId or use a
+    // table's name as if it were one — both fail silently at execution time (trigger never
+    // scoped correctly, or a step's table lookup finds nothing). Confirmed via a real run.
+    const tables = await this.prismaService.tableMeta.findMany({
+      where: { baseId, deletedTime: null },
+      select: { id: true, name: true },
+    });
+    const tableContext =
+      tables.length > 0
+        ? `\n\nReal tables in this base:\n${tables.map((t) => `- ${t.name}: ${t.id}`).join('\n')}`
+        : '';
+    const system = SYSTEM_PROMPT + tableContext;
+
+    // Each attempt gets its own bounded timeout (same AbortController pattern as the
+    // http_request step below) — without this, a slow/hanging generateObject call (seen
+    // taking 47s end-to-end in a real run) outlives the dev proxy's own timeout, surfacing a
+    // false "failed" to the user while the request is still actually running server-side.
+    // Failing the first attempt fast also gets to the text+parse fallback sooner.
+    const withTimeout = <T>(ms: number, fn: (signal: AbortSignal) => Promise<T>): Promise<T> => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), ms);
+      return fn(controller.signal).finally(() => clearTimeout(timer));
+    };
+
     // Try structured output (generateObject) first; fall back to text+parse
     try {
-      const { object } = await generateObject({
-        model: modelInstance,
-        schema: WorkflowConfigSchema,
-        system: SYSTEM_PROMPT,
-        prompt,
-      });
+      const { object } = await withTimeout(15_000, (abortSignal) =>
+        generateObject({
+          model: modelInstance,
+          schema: WorkflowConfigSchema,
+          system,
+          prompt,
+          abortSignal,
+        })
+      );
       return object;
     } catch (err) {
       this.logger.warn(
@@ -125,13 +158,16 @@ export class WorkflowAiService {
       );
     }
 
-    const { text } = await generateText({
-      model: modelInstance,
-      system:
-        SYSTEM_PROMPT +
-        '\n\nRespond with ONLY a valid JSON object matching the schema. No markdown, no explanation.',
-      prompt,
-    });
+    const { text } = await withTimeout(15_000, (abortSignal) =>
+      generateText({
+        model: modelInstance,
+        system:
+          system +
+          '\n\nRespond with ONLY a valid JSON object matching the schema. No markdown, no explanation.',
+        prompt,
+        abortSignal,
+      })
+    );
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('AI did not return a valid JSON workflow config');

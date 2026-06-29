@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 /* eslint-disable sonarjs/no-duplicate-string */
+import { randomUUID } from 'crypto';
 import { readFile } from 'fs/promises';
 import { join, resolve } from 'path';
 import { Inject, Injectable, Logger } from '@nestjs/common';
@@ -179,6 +180,31 @@ export class SettingOpenApiService {
       },
       appGenerationEnabled: Boolean(appConfig?.vercelToken),
       availableIntegrationProviders,
+    };
+  }
+
+  async uploadBrandAsset(file: Express.Multer.File, kind: 'illustration' | 'font') {
+    const token = `brand-${kind}-${randomUUID()}`;
+    const path = join(StorageAdapter.getDir(UploadType.Logo), token);
+    const bucket = StorageAdapter.getBucket(UploadType.Logo);
+
+    const { hash } = await this.storageAdapter.uploadFileWidthPath(bucket, path, file.path, {
+      'Content-Type': file.mimetype,
+    });
+
+    const { size, mimetype } = file;
+    const userId = this.cls.get('user.id');
+
+    await this.prismaService.txClient().attachments.upsert({
+      create: { hash, size, mimetype, token, path, createdBy: userId },
+      update: { hash, size, mimetype, path },
+      where: { token, deletedTime: null },
+    });
+
+    // Unlike the logo (a single overwritten slot), illustrations/fonts are appended to a
+    // list/field managed client-side — callers merge this URL into brandDesignSystem themselves.
+    return {
+      url: getPublicFullStorageUrl(path),
     };
   }
 

@@ -18,6 +18,7 @@ import { useIsCloud } from '@/features/app/hooks/useIsCloud';
 import { useIsEE } from '@/features/app/hooks/useIsEE';
 import { AdminHelpPanel } from '../shared/AdminHelpPanel';
 import { CopyInstance } from './components';
+import { BrandDesignSystem } from './components/BrandDesignSystem';
 import { Branding } from './components/Branding';
 import { CanarySettings } from './components/canary';
 import type { IList } from './components/ConfigurationList';
@@ -169,6 +170,7 @@ export const SettingPage = (props: ISettingPageProps) => {
     enableWaitlist,
     brandName,
     brandLogo,
+    brandDesignSystem,
   } = setting;
 
   return (
@@ -409,11 +411,17 @@ export const SettingPage = (props: ISettingPageProps) => {
 
           {/* Branding Settings Section */}
           {instanceUsage?.level === BillingProductLevel.Enterprise && (
-            <Branding
-              brandName={brandName}
-              brandLogo={brandLogo}
-              onChange={(brandName) => onValueChange('brandName', brandName)}
-            />
+            <>
+              <Branding
+                brandName={brandName}
+                brandLogo={brandLogo}
+                onChange={(brandName) => onValueChange('brandName', brandName)}
+              />
+              <BrandDesignSystem
+                value={brandDesignSystem}
+                onChange={(value) => onValueChange('brandDesignSystem', value)}
+              />
+            </>
           )}
 
           <CopyInstance instanceId={instanceId} />

@@ -1,4 +1,5 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import { Relationship } from '@teable/core';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ActionProposalService } from './action-proposal.service';
 
@@ -370,6 +371,457 @@ describe('ActionProposalService', () => {
       );
 
       expect(result).toMatchObject({ agentId: 'agent1', name: 'Support Bot' });
+    });
+  });
+
+  describe('create_automation (Phase 1 — structured trigger/steps)', () => {
+    const buildSvc = (workflowAi?: object, workflow?: object) => {
+      // resourceId is the real Workflow.id — distinct from .id (the BaseNode wrapper's id).
+      // updateWorkflow/updateSchedule must be called with resourceId, never .id.
+      const mockBaseNode = {
+        create: vi.fn().mockResolvedValue({ id: 'wf1', resourceId: 'wfl1' }),
+        move: vi.fn().mockResolvedValue(undefined),
+      };
+      const prisma = {
+        ...mockPrismaService,
+        baseNodeFolder: { findFirst: vi.fn().mockResolvedValue(null) },
+      };
+      return new ActionProposalService(
+        prisma as any,
+        mockBaseNode as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        (workflowAi ?? {}) as any,
+        (workflow ?? {}) as any,
+        {} as any
+      );
+    };
+
+    it('valid structured trigger+steps → updates the workflow directly, no LLM call', async () => {
+      const mockWorkflowAi = { generateWorkflowFromPrompt: vi.fn() };
+      const mockWorkflow = {
+        updateWorkflow: vi.fn().mockResolvedValue(undefined),
+        updateSchedule: vi.fn().mockResolvedValue(undefined),
+      };
+      const svc = buildSvc(mockWorkflowAi, mockWorkflow);
+
+      const result = await (svc as any).executeAction(
+        'create_automation',
+        {
+          baseId: 'base-1',
+          name: 'Notify on new record',
+          trigger: { type: 'record_created', config: {} },
+          steps: [{ type: 'send_slack', config: { channel: '#alerts', message: 'New record!' } }],
+        },
+        'user-1'
+      );
+
+      expect(mockWorkflowAi.generateWorkflowFromPrompt).not.toHaveBeenCalled();
+      expect(mockWorkflow.updateWorkflow).toHaveBeenCalledWith(
+        'base-1',
+        'wfl1',
+        expect.objectContaining({
+          config: expect.objectContaining({
+            trigger: { type: 'record_created', config: {} },
+          }),
+        })
+      );
+      expect(mockWorkflow.updateSchedule).toHaveBeenCalledWith('base-1', 'wfl1');
+      expect(result).toMatchObject({ id: 'wf1' });
+    });
+
+    it('trigger/step type outside the real enum → skipped with a clear reason, no proposal mutation', async () => {
+      const mockWorkflowAi = { generateWorkflowFromPrompt: vi.fn() };
+      const mockWorkflow = { updateWorkflow: vi.fn(), updateSchedule: vi.fn() };
+      const svc = buildSvc(mockWorkflowAi, mockWorkflow);
+
+      const result = await (svc as any).executeAction(
+        'create_automation',
+        {
+          baseId: 'base-1',
+          name: 'Bogus automation',
+          trigger: { type: 'not_a_real_trigger', config: {} },
+          steps: [{ type: 'send_slack', config: {} }],
+        },
+        'user-1'
+      );
+
+      expect(result).toMatchObject({ status: 'skipped' });
+      expect((result as { reason: string }).reason).toContain('invalide');
+      expect(mockWorkflow.updateWorkflow).not.toHaveBeenCalled();
+    });
+
+    it('no structured trigger/steps, free-text description → falls back to generateWorkflowFromPrompt', async () => {
+      const mockWorkflowAi = {
+        generateWorkflowFromPrompt: vi.fn().mockResolvedValue({
+          name: 'Generated',
+          trigger: { type: 'scheduled', config: { cron: '0 9 * * 1' } },
+          steps: [{ type: 'send_email', config: {} }],
+        }),
+      };
+      const mockWorkflow = {
+        updateWorkflow: vi.fn().mockResolvedValue(undefined),
+        updateSchedule: vi.fn().mockResolvedValue(undefined),
+      };
+      const svc = buildSvc(mockWorkflowAi, mockWorkflow);
+
+      await (svc as any).executeAction(
+        'create_automation',
+        { baseId: 'base-1', name: 'Weekly digest', description: 'Every Monday, email a summary' },
+        'user-1'
+      );
+
+      expect(mockWorkflowAi.generateWorkflowFromPrompt).toHaveBeenCalled();
+      expect(mockWorkflow.updateWorkflow).toHaveBeenCalled();
+    });
+
+    it('free-text fallback generation failure is reported, not swallowed', async () => {
+      const mockWorkflowAi = {
+        generateWorkflowFromPrompt: vi.fn().mockRejectedValue(new Error('AI is not configured')),
+      };
+      const mockWorkflow = { updateWorkflow: vi.fn(), updateSchedule: vi.fn() };
+      const svc = buildSvc(mockWorkflowAi, mockWorkflow);
+
+      const result = await (svc as any).executeAction(
+        'create_automation',
+        { baseId: 'base-1', name: 'Will fail', description: 'do something' },
+        'user-1'
+      );
+
+      expect(result).toMatchObject({ status: 'partial' });
+      expect((result as { reason: string }).reason).toContain('AI is not configured');
+    });
+  });
+
+  describe('create_agent (Phase 2 — extended capabilities)', () => {
+    it('default capabilities → AgentTool rows created for each requested tool', async () => {
+      const mockAgent = {
+        create: vi.fn().mockResolvedValue({ id: 'agent1', name: 'Support Bot' }),
+      };
+      const mockBaseNode = {
+        create: vi.fn().mockResolvedValue({ id: 'node1' }),
+        move: vi.fn().mockResolvedValue(undefined),
+      };
+      const mockAgentTool = { upsert: vi.fn().mockResolvedValue(undefined) };
+      const mockAgentTrigger = { create: vi.fn().mockResolvedValue(undefined) };
+      const prisma = {
+        ...mockPrismaService,
+        baseNodeFolder: { findFirst: vi.fn().mockResolvedValue(null) },
+        agentTool: mockAgentTool,
+        agentTrigger: mockAgentTrigger,
+      };
+      const svc = new ActionProposalService(
+        prisma as any,
+        mockBaseNode as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        mockAgent as any
+      );
+
+      const result = await (svc as any).executeAction(
+        'create_agent',
+        {
+          baseId: 'base-1',
+          name: 'Support Bot',
+          instructions: 'Help users.',
+          tools: ['search_records', 'create_record'],
+          scheduling: { cron: '0 9 * * 1' },
+        },
+        'user-1'
+      );
+
+      expect(mockAgentTool.upsert).toHaveBeenCalledTimes(2);
+      expect(mockAgentTool.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: { agentId: 'agent1', toolName: 'search_records', isEnabled: true },
+        })
+      );
+      expect(mockAgentTrigger.create).toHaveBeenCalledWith({
+        data: {
+          agentId: 'agent1',
+          triggerType: 'cron',
+          config: { cron: '0 9 * * 1' },
+          isActive: true,
+        },
+      });
+      expect(result).toMatchObject({ agentId: 'agent1', name: 'Support Bot' });
+    });
+
+    it('no tools/scheduling provided → no AgentTool/AgentTrigger rows created', async () => {
+      const mockAgent = { create: vi.fn().mockResolvedValue({ id: 'agent2', name: 'Bare Bot' }) };
+      const mockBaseNode = {
+        create: vi.fn().mockResolvedValue({ id: 'node2' }),
+        move: vi.fn().mockResolvedValue(undefined),
+      };
+      const mockAgentTool = { upsert: vi.fn() };
+      const mockAgentTrigger = { create: vi.fn() };
+      const prisma = {
+        ...mockPrismaService,
+        baseNodeFolder: { findFirst: vi.fn().mockResolvedValue(null) },
+        agentTool: mockAgentTool,
+        agentTrigger: mockAgentTrigger,
+      };
+      const svc = new ActionProposalService(
+        prisma as any,
+        mockBaseNode as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        mockAgent as any
+      );
+
+      await (svc as any).executeAction(
+        'create_agent',
+        { baseId: 'base-1', name: 'Bare Bot', instructions: 'Do nothing fancy.' },
+        'user-1'
+      );
+
+      expect(mockAgentTool.upsert).not.toHaveBeenCalled();
+      expect(mockAgentTrigger.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('create_table (Phase 3 — per-field options)', () => {
+    it('number with defaultValue, select with choices, required/unique → real options built', async () => {
+      const mockBaseNode = {
+        create: vi.fn().mockResolvedValue({ id: 'tbl1' }),
+        move: vi.fn().mockResolvedValue(undefined),
+      };
+      const prisma = {
+        ...mockPrismaService,
+        baseNodeFolder: { findFirst: vi.fn().mockResolvedValue(null) },
+      };
+      const svc = new ActionProposalService(
+        prisma as any,
+        mockBaseNode as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any
+      );
+
+      await (svc as any).executeAction(
+        'create_table',
+        {
+          baseId: 'base-1',
+          name: 'Commandes',
+          fields: [
+            { name: 'Montant', type: 'number', defaultValue: 0, required: true },
+            { name: 'Statut', type: 'singleSelect', choices: ['Ouvert', 'Fermé'], unique: false },
+            { name: 'Réf', type: 'singleLineText', unique: true },
+          ],
+        },
+        'user-1'
+      );
+
+      const created = mockBaseNode.create.mock.calls[0][1];
+      // `required: true` is intentionally NOT mapped to `notNull` — the field-creation engine
+      // rejects notNull unconditionally at creation time (confirmed via real E2E run).
+      expect(created.fields).toEqual([
+        { name: 'Montant', type: 'number', options: { defaultValue: 0 } },
+        {
+          name: 'Statut',
+          type: 'singleSelect',
+          options: { choices: [{ name: 'Ouvert' }, { name: 'Fermé' }] },
+        },
+        { name: 'Réf', type: 'singleLineText', unique: true },
+      ]);
+    });
+
+    it('link field with an existing foreign table → resolves foreignTableId', async () => {
+      const mockBaseNode = {
+        create: vi.fn().mockResolvedValue({ id: 'tbl2' }),
+        move: vi.fn().mockResolvedValue(undefined),
+      };
+      const prisma = {
+        ...mockPrismaService,
+        baseNodeFolder: { findFirst: vi.fn().mockResolvedValue(null) },
+        tableMeta: { findFirst: vi.fn().mockResolvedValue({ id: 'tblCompany' }) },
+      };
+      const svc = new ActionProposalService(
+        prisma as any,
+        mockBaseNode as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any
+      );
+
+      await (svc as any).executeAction(
+        'create_table',
+        {
+          baseId: 'base-1',
+          name: 'Contacts',
+          fields: [
+            {
+              name: 'Entreprise',
+              type: 'link',
+              foreignTableName: 'Entreprises',
+              relationship: 'manyOne',
+            },
+          ],
+        },
+        'user-1'
+      );
+
+      const created = mockBaseNode.create.mock.calls[0][1];
+      expect(created.fields).toEqual([
+        {
+          name: 'Entreprise',
+          type: 'link',
+          options: { foreignTableId: 'tblCompany', relationship: Relationship.ManyOne },
+        },
+      ]);
+    });
+
+    it('link field with a non-existent foreign table → downgrades to singleLineText, no crash', async () => {
+      const mockBaseNode = {
+        create: vi.fn().mockResolvedValue({ id: 'tbl3' }),
+        move: vi.fn().mockResolvedValue(undefined),
+      };
+      const prisma = {
+        ...mockPrismaService,
+        baseNodeFolder: { findFirst: vi.fn().mockResolvedValue(null) },
+        tableMeta: { findFirst: vi.fn().mockResolvedValue(null) },
+      };
+      const svc = new ActionProposalService(
+        prisma as any,
+        mockBaseNode as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any
+      );
+
+      const result = await (svc as any).executeAction(
+        'create_table',
+        {
+          baseId: 'base-1',
+          name: 'Contacts',
+          fields: [
+            {
+              name: 'Entreprise',
+              type: 'link',
+              foreignTableName: 'Inexistante',
+              relationship: 'manyOne',
+            },
+          ],
+        },
+        'user-1'
+      );
+
+      const created = mockBaseNode.create.mock.calls[0][1];
+      expect(created.fields).toEqual([{ name: 'Entreprise', type: 'singleLineText' }]);
+      expect(result).toMatchObject({ id: 'tbl3' });
+    });
+  });
+
+  describe('create_app_interface (Phase 5 — declarative modules)', () => {
+    it('modules provided → persists declarative app.content, skips code-gen streaming', async () => {
+      // resourceId is the real App.id — distinct from .id (the BaseNode wrapper's id). The
+      // sidebar/router always navigates via resourceId, so content must be keyed by it.
+      const mockBaseNode = {
+        create: vi.fn().mockResolvedValue({ id: 'app1', resourceId: 'appReal1' }),
+        move: vi.fn().mockResolvedValue(undefined),
+      };
+      const mockAppUpsert = vi.fn().mockResolvedValue(undefined);
+      const prisma = {
+        ...mockPrismaService,
+        baseNodeFolder: { findFirst: vi.fn().mockResolvedValue(null) },
+        tableMeta: { findFirst: vi.fn().mockResolvedValue({ id: 'tblContacts' }) },
+        app: { upsert: mockAppUpsert },
+      };
+      const svc = new ActionProposalService(
+        prisma as any,
+        mockBaseNode as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any
+      );
+
+      const result = await (svc as any).executeAction(
+        'create_app_interface',
+        {
+          baseId: 'base-1',
+          name: 'Suivi Contacts',
+          modules: [{ type: 'data-table', tableName: 'Contacts', fieldNames: ['Name', 'Email'] }],
+        },
+        'user-1'
+      );
+
+      expect(mockAppUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'appReal1' },
+          update: expect.objectContaining({
+            content: {
+              type: 'declarative',
+              modules: [
+                {
+                  type: 'data-table',
+                  tableId: 'tblContacts',
+                  tableName: 'Contacts',
+                  title: undefined,
+                  fieldNames: ['Name', 'Email'],
+                },
+              ],
+            },
+          }),
+        })
+      );
+      expect(result).toMatchObject({ id: 'app1', declarative: true });
+      expect(result).not.toHaveProperty('shouldStream');
+    });
+
+    it('no modules → falls back to shouldStream free-form code-gen flow (back-compat)', async () => {
+      const mockBaseNode = {
+        create: vi.fn().mockResolvedValue({ id: 'app2' }),
+        move: vi.fn().mockResolvedValue(undefined),
+      };
+      const prisma = {
+        ...mockPrismaService,
+        baseNodeFolder: { findFirst: vi.fn().mockResolvedValue(null) },
+      };
+      const svc = new ActionProposalService(
+        prisma as any,
+        mockBaseNode as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any
+      );
+
+      const result = await (svc as any).executeAction(
+        'create_app_interface',
+        { baseId: 'base-1', name: 'Custom UI' },
+        'user-1'
+      );
+
+      expect(result).toMatchObject({ shouldStream: true, appId: 'app2' });
     });
   });
 });

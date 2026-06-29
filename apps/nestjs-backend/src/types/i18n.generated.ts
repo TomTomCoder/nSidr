@@ -904,6 +904,8 @@ export type I18nTranslations = {
                     "isOpenRouter": string;
                     "customModel": string;
                     "customModelDescription": string;
+                    "viewModels": string;
+                    "viewLibrary": string;
                     "aiAbilitySettings": string;
                     "aiAbilitySettingsDescription": string;
                     "imageModelAbility": {

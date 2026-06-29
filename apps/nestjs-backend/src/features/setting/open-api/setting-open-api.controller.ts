@@ -18,6 +18,7 @@ import type {
   ISettingVo,
   ITestLLMVo,
   IUploadLogoVo,
+  IUploadBrandAssetVo,
   IBatchTestLLMVo,
   ITestApiKeyVo,
   ITestPublicAccessVo,
@@ -33,6 +34,7 @@ import {
   IBatchTestLLMRo,
   testApiKeyRoSchema,
   ITestApiKeyRo,
+  brandAssetKindSchema,
 } from '@teable/openapi';
 import { IThresholdConfig, ThresholdConfig } from '../../../configs/threshold.config';
 import { ZodValidationPipe } from '../../../zod.validation.pipe';
@@ -101,6 +103,31 @@ export class SettingOpenApiController {
   @Permissions('instance|update')
   async uploadLogo(@UploadedFile() file: Express.Multer.File): Promise<IUploadLogoVo> {
     return this.settingOpenApiService.uploadLogo(file);
+  }
+
+  @UseInterceptors(
+    FileInterceptor('file', {
+      fileFilter: (_req, file, callback) => {
+        const allowed =
+          /^image\/|^font\/|^application\/(x-font-|font-|vnd\.ms-fontobject|octet-stream)/;
+        if (allowed.test(file.mimetype)) {
+          callback(null, true);
+        } else {
+          callback(new BadRequestException('Invalid file type'), false);
+        }
+      },
+      limits: {
+        fileSize: 2 * 1024 * 1024, // 2MB — covers illustrations and font files
+      },
+    })
+  )
+  @Patch('brand-asset')
+  @Permissions('instance|update')
+  async uploadBrandAsset(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('kind', new ZodValidationPipe(brandAssetKindSchema)) kind: 'illustration' | 'font'
+  ): Promise<IUploadBrandAssetVo> {
+    return this.settingOpenApiService.uploadBrandAsset(file, kind);
   }
 
   @Permissions('instance|update')

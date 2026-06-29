@@ -1,6 +1,8 @@
 # L'IA dans Teable — fonctionnement
 
-> Documentation du système d'IA côté backend (`apps/nestjs-backend/src/features/ai`) et de son intégration frontend (`apps/nextjs-app`). Dernière mise à jour : 2026-06-28.
+> Documentation du système d'IA côté backend (`apps/nestjs-backend/src/features/ai`) et de son intégration frontend (`apps/nextjs-app`). Dernière mise à jour : 2026-06-28 (audit de stabilité).
+>
+> Pour l'évolution vers une génération avancée (Tables/Interfaces/Automatisations/Agents/Application complète/Données fictives), voir [AI-GENERATION-ROADMAP.md](./AI-GENERATION-ROADMAP.md) — plan en phases avec dépendances et critères de stabilité.
 
 ## Vue d'ensemble
 
@@ -40,14 +42,19 @@ Frontend (ChatPanel)
    ▼
 UnifiedAiController.chat()
    └─► UnifiedAiService.chat(ctx)            [AsyncGenerator<UnifiedChatEvent>]
-        1. charge/crée la conversation (Prisma)
-        2. WorkspaceStateService.getSnapshot(spaceId)
-              → bases ▸ tables ▸ fields (IDs), intégrations, agentTriggers
-        3. construit le system prompt (snapshot inclus, tronqué à 12000 char)
-        4. AiService.getAIConfig + getModelInstance → instance LLM
-        5. generateText({ model, tools, stopWhen: stepCountIs(30) })
-        6. itère result.steps → yield d'événements SSE
+        └─► try { yield* chatInner(ctx, state) } catch → yield {type:'error'} + message sauvegardé
+              1. charge/crée la conversation (Prisma)            — state.conversationId mémorisé ici
+              2. WorkspaceStateService.getSnapshot(spaceId)
+                    → bases ▸ tables ▸ fields (IDs), intégrations, agentTriggers
+              3. buildSystemPrompt(ctx, snapshot)                 — system prompt, tronqué à 12000 char
+              4. resolveModelInstance(ctx, snapshot)               — throw si pas de base/modèle (capturé par chat())
+              5. branche mock_data ? generateMockDataForCurrentTable(...) : suite normale
+              6. generateText({ model, tools, stopWhen: stepCountIs(30) })
+              7. itère result.steps → yield d'événements SSE
+              8. runAutoProposalHeuristics(ctx, result, conversationId) — mock records/interface/link_tables auto
 ```
+
+`chat()` est un **wrapper try/catch** autour de `chatInner()` : toute exception non gérée (Prisma, provider LLM, `RecordService`…) devient un événement `error` propre + un message assistant sauvegardé, plutôt que de remonter brute jusqu'au contrôleur. `resolveModelInstance` et les heuristiques post-traitement sont des méthodes privées dédiées — extraites de l'ancien monolithe `chat()` (complexité cognitive 61 → 26 sur `chatInner`) pour limiter le risque de régression silencieuse à chaque évolution.
 
 ### Le snapshot = contexte de l'IA
 
@@ -93,7 +100,7 @@ ctx.pageContext.tableId  (la table actuellement affichée, transmise par le fron
 résout la table dans le snapshot
    │
    ▼
-RecordService.getRecords(tableId, { fieldKeyType: Name, ignoreViewQuery: true })
+RecordService.getRecords(tableId, { take: 50, fieldKeyType: Name, ignoreViewQuery: true })
    │
    ▼
 ne garde que les lignes vides (tous les champs null/undefined/'') — max 3
@@ -101,13 +108,18 @@ ne garde que les lignes vides (tous les champs null/undefined/'') — max 3
    ├─ aucune ligne vide → message texte « contient déjà des données », rien n'est proposé
    │
    ▼
-generateObject({ schema: champs de la table typés, prompt: contexte + message utilisateur })
+generateObject({ schema: champs typés, min(1)/max(N) — pas .length(N) strict, prompt: contexte + message utilisateur })
    │
    ▼
-une proposition `update_record` par ligne vide (preview + proposalId), comme tout autre write tool
+min(générées, lignes vides) propositions `update_record` (preview + proposalId), comme tout autre write tool
 ```
 
 Le frontend transmet `pageContext: { tableId, tableName }` (issu de `useTable()` dans `ChatPanel.tsx`) **uniquement** quand `targetType === 'mock_data'`. Sans table ouverte, l'IA répond qu'elle a besoin qu'une table soit affichée — elle ne devine jamais la table depuis le texte libre pour cette cible.
+
+**Durcissement (audit 2026-06-28)** :
+- `take: 50` (au lieu de 5) — un échantillon trop petit pouvait conclure à tort « table déjà remplie » si les premières lignes étaient pleines mais des lignes vides existaient plus loin.
+- Le schéma Zod de `generateObject` utilise `.min(1).max(N)` plutôt qu'un `.length(N)` strict — un LLM qui renvoie un tableau de longueur différente ne fait plus planter tout le tour de conversation (exception Zod non rattrapée). Le code ne propose que `min(lignes générées, lignes vides)` mises à jour, sans halluciner les manquantes.
+- Couvert par 4 tests dédiés dans `unified-ai.service.spec.ts` (table non ouverte, table déjà pleine, génération normale, désaccord de longueur LLM).
 
 ### Événements SSE (`UnifiedChatEvent`)
 
@@ -124,15 +136,17 @@ type: 'text_chunk' | 'tool_result' | 'proposal' | 'done' | 'error'
 
 ## 2. Read tools vs Write tools — le cœur de la sécurité
 
-Les outils sont enregistrés dans `chat()` ([unified-ai.service.ts](../apps/nestjs-backend/src/features/ai/unified-ai.service.ts)). Le nom des outils d'écriture est listé dans le set `WRITE_TOOLS`.
+Les outils sont enregistrés dans `chatInner()` ([unified-ai.service.ts](../apps/nestjs-backend/src/features/ai/unified-ai.service.ts)) sous deux objets littéraux distincts, `readTools` et `writeTools` — la distinction se fait **structurellement** (deux objets séparés), pas via un registre central.
 
-|  | **Read tools** | **Write tools** (`WRITE_TOOLS`) |
+|  | **Read tools** | **Write tools** |
 |---|---|---|
 | Exemples | `get_workspace_state`, `query_records` | `create_table`, `create_field`, `create_view`, `create_record`, `update_record`, `link_tables`, `create_base`, `create_folder`, `create_app_interface`, `create_automation`, `create_agent`, `generate_app_code`, `delete_field`, `rename_table`, `rename_field` |
 | Effet | s'exécutent **immédiatement**, renvoient les données | **ne mutent rien** : créent une *proposition* persistée |
 | Retour | données brutes | `{ __type: 'proposal', proposalId, action, preview }` |
 
-`buildWriteTool(toolName, description, params)` est l'usine commune : elle résout `baseId`/noms, construit un *preview*, appelle `ActionProposalService.createProposal()` (qui **persiste** la proposition sans écrire en base métier), et renvoie l'objet `proposal`.
+`buildWriteTool(toolName, description, params)` est l'usine commune : elle vérifie d'abord la cohérence avec `targetType` (defense-in-depth, voir §1), résout `baseId`/noms, construit un *preview*, appelle `ActionProposalService.createProposal()` (qui **persiste** la proposition sans écrire en base métier), et renvoie l'objet `proposal`.
+
+`query_records(tableId, query?)` interroge réellement `RecordService.getRecords` (jusqu'à 20 enregistrements, recherche plein-texte si `query` est fourni) — il ne renvoie plus systématiquement `[]` comme avant l'audit du 2026-06-28 ; une erreur (table supprimée, ID invalide) est absorbée localement et renvoie `[]` plutôt que de faire échouer tout le tour de conversation.
 
 ---
 
@@ -201,15 +215,23 @@ POST /ai/accept-proposal
 
 ## 5. Frontend
 
-Composants principaux ([apps/nextjs-app/src/components/AgentChat/](../apps/nextjs-app/src/components/AgentChat/)) :
+⚠️ **Deux surfaces de chat coexistent**, branchées sur deux backends différents — ce n'est pas un seul composant unifié malgré le nom :
 
-- `UnifiedChatContainer.tsx` / `ChatContainer.tsx` — conteneur, gère le flux SSE
-- `ChatPanel.tsx` ([features/app/components/chat-panel](../apps/nextjs-app/src/features/app/components/chat-panel/ChatPanel.tsx)) — panneau latéral
-- `MessageList.tsx` / `MessageItem.tsx` — affichage des messages
+| Surface | Composants | Backend | Contexte d'usage |
+|---|---|---|---|
+| **Panneau base** | `UnifiedChatContainer.tsx`, `MessageItem.tsx` | `POST /api/spaces/:spaceId/ai/chat` (`UnifiedAiService`) | Panneau latéral d'une base (`ChatPanel.tsx`). Porte les boutons `targetType` (Table/Interface/Automation/Agent/Application/Données fictives). |
+| **Agent dédié** | `ChatContainer.tsx`, `ChatInput.tsx`, `MessageList.tsx` | `POST /api/agent/:id/run` | Pages `/agent/[id]` et `/base/[baseId]/agent/[agentId]` — fait tourner un agent **déjà créé** (triggers, plan-and-execute). |
+
+Conséquence concrète : les boutons `targetType` et « Données fictives » **n'existent pas** sur la surface agent dédié — `MessageItem.tsx` gère d'ailleurs deux types d'événements en union (`AgentRunEvent` legacy + `UnifiedChatEvent`) pour pouvoir s'afficher dans les deux contextes. À garder en tête avant de supposer qu'une évolution du panneau base s'applique partout.
+
+Autres composants ([apps/nextjs-app/src/components/AgentChat/](../apps/nextjs-app/src/components/AgentChat/)) :
+
+- `ChatPanel.tsx` ([features/app/components/chat-panel](../apps/nextjs-app/src/features/app/components/chat-panel/ChatPanel.tsx)) — panneau latéral, fournit `pageContext` (table actuellement affichée)
 - `ProposalCard.tsx` — carte « Accepter / Refuser » d'une proposition (labels FR par action dans `ACTION_LABELS`)
 - `ToolExecutionCard.tsx` — affichage de l'exécution des read tools
 - `ConversationHistory.tsx` — historique
-- `ChatInput.tsx`, `PromptCarousel.tsx`, `TemplateSuggestionCards.tsx` — saisie & suggestions
+
+> `PromptCarousel.tsx` et `TemplateSuggestionCards.tsx` ont été supprimés le 2026-06-28 (audit) : aucun import nulle part dans le code, confirmés orphelins avant suppression.
 
 ---
 
@@ -217,13 +239,13 @@ Composants principaux ([apps/nextjs-app/src/components/AgentChat/](../apps/nextj
 
 Exemple concret (suivre le patron de `create_view`) :
 
-1. **Déclarer l'outil** dans `writeTools` de [unified-ai.service.ts](../apps/nestjs-backend/src/features/ai/unified-ai.service.ts) via `buildWriteTool(name, description, zodSchema)`.
-2. **Ajouter le nom** au set `WRITE_TOOLS` (sinon l'outil mute directement au lieu de proposer).
+1. **Déclarer l'outil** dans `writeTools` de [unified-ai.service.ts](../apps/nestjs-backend/src/features/ai/unified-ai.service.ts) via `buildWriteTool(name, description, zodSchema)` — il est automatiquement traité comme write tool (créé une proposition) du simple fait d'être dans cet objet, sans registre séparé à mettre à jour.
+2. **Si l'outil doit être restreint par `targetType`** : ajouter son nom à l'entrée correspondante de `TARGET_TYPE_TOOLS`.
 3. **Ajouter un cas** dans `buildPreview()` (ce que voit l'utilisateur dans la `ProposalCard`).
 4. **Ajouter le cas d'exécution** dans `executeAction()` de [action-proposal.service.ts](../apps/nestjs-backend/src/features/ai/action-proposal.service.ts), qui route vers le service Teable réel.
 5. **Câbler la DI** : importer le module du service cible dans [unified-ai.module.ts](../apps/nestjs-backend/src/features/ai/unified-ai.module.ts) + injecter le service dans `ActionProposalService`.
 6. **Label frontend** : ajouter une entrée dans `ACTION_LABELS` de `ProposalCard.tsx`.
-7. **(Optionnel)** ligne de guidage dans le system prompt + test unitaire dans [action-proposal.service.spec.ts](../apps/nestjs-backend/src/features/ai/action-proposal.service.spec.ts).
+7. **(Optionnel)** ligne de guidage dans le system prompt + test unitaire dans [action-proposal.service.spec.ts](../apps/nestjs-backend/src/features/ai/action-proposal.service.spec.ts) et [unified-ai.service.spec.ts](../apps/nestjs-backend/src/features/ai/unified-ai.service.spec.ts).
 
 ---
 

@@ -8,4 +8,8 @@ export class CreateAgentDto {
   modelKey?: string;
   isPublic?: boolean;
   knowledgeSources?: KnowledgeSources | null;
+  planningEnabled?: boolean;
+  reflectionEnabled?: boolean;
+  maxReflections?: number;
+  maxIterations?: number;
 }

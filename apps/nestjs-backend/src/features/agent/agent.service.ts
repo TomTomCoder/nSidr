@@ -21,6 +21,10 @@ export class AgentService {
         modelKey: dto.modelKey,
         isPublic: dto.isPublic ?? false,
         knowledgeSources: (dto.knowledgeSources ?? undefined) as object | undefined,
+        planningEnabled: dto.planningEnabled,
+        reflectionEnabled: dto.reflectionEnabled,
+        maxReflections: dto.maxReflections,
+        maxIterations: dto.maxIterations,
         createdBy,
       },
     });

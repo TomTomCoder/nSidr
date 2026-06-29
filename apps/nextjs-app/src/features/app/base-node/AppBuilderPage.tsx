@@ -17,8 +17,62 @@ import { useBaseResource } from '../hooks/useBaseResource';
 import { useAppBuilderStore } from '../stores/useAppBuilderStore';
 import { CodeEditor } from './CodeEditor';
 
+interface IDeclarativeModule {
+  type: 'data-table' | 'form' | 'detail-view';
+  tableId: string | null;
+  tableName: string;
+  title?: string;
+  fieldNames?: string[];
+}
+
 interface IAppContent {
   files?: Record<string, string>;
+  type?: 'declarative';
+  modules?: IDeclarativeModule[];
+}
+
+const MODULE_TYPE_LABELS: Record<IDeclarativeModule['type'], string> = {
+  'data-table': 'Tableau de données',
+  form: 'Formulaire',
+  'detail-view': 'Vue détaillée',
+};
+
+// Phase 5: declarative interfaces embed the existing, already-tested native table view via
+// iframe (same pattern as window.TeableView used inside generated app code) instead of a new
+// parallel renderer. 'form'/'detail-view' render the same grid for now — ponytail: distinguishing
+// them (auto-provisioning a Form view, opening expand-record) is a follow-up, not built blind here.
+function DeclarativeAppView({
+  baseId,
+  modules,
+}: {
+  baseId: string;
+  modules: IDeclarativeModule[];
+}) {
+  return (
+    <div className="flex h-full flex-col gap-4 overflow-y-auto p-4">
+      {modules.map((m, i) => (
+        <div key={i} className="flex flex-col gap-2 rounded-lg border">
+          <div className="border-b px-3 py-2">
+            <p className="text-sm font-medium">{m.title ?? m.tableName}</p>
+            <p className="text-xs text-muted-foreground">
+              {MODULE_TYPE_LABELS[m.type]} — {m.tableName}
+            </p>
+          </div>
+          {m.tableId ? (
+            <iframe
+              className="h-[500px] w-full border-0"
+              src={`/base/${baseId}/table/${m.tableId}?embed=1`}
+              title={m.title ?? m.tableName}
+            />
+          ) : (
+            <p className="px-3 py-6 text-center text-xs text-muted-foreground">
+              Table « {m.tableName} » introuvable.
+            </p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 /* eslint-disable regexp/no-obscure-range, regexp/no-dupe-characters-character-class */
@@ -255,6 +309,10 @@ export function AppBuilderPage() {
         <Loader2 className="size-5 animate-spin text-muted-foreground" />
       </div>
     );
+  }
+
+  if (remoteContent?.type === 'declarative') {
+    return <DeclarativeAppView baseId={baseId} modules={remoteContent.modules ?? []} />;
   }
 
   return (

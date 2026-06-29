@@ -16,6 +16,7 @@ import {
   Plus,
   Settings,
   Sparkles,
+  Wand2,
   Zap,
 } from 'lucide-react';
 import { useParams } from 'next/navigation';
@@ -23,9 +24,11 @@ import { useRouter } from 'next/router';
 import { useCallback, useEffect, useState } from 'react';
 import { AgentProfilePanel } from '@/components/AgentChat/AgentProfilePanel';
 import { ConversationHistory } from '@/components/AgentChat/ConversationHistory';
+import { FullAppPanel } from '@/components/AgentChat/FullAppPanel';
 import { UnifiedChatContainer } from '@/components/AgentChat/UnifiedChatContainer';
 import { useBaseResource } from '../../hooks/useBaseResource';
 import { useAppBuilderStore } from '../../stores/useAppBuilderStore';
+import { useFullAppGenerationStore } from '../../stores/useFullAppGenerationStore';
 import { useUnifiedChatStore } from '../../stores/useUnifiedChatStore';
 import { useChatPanelStore } from '../sidebar/useChatPanelStore';
 
@@ -81,8 +84,10 @@ function ChatPanelInner({ spaceId }: { spaceId: string }) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [configAgent, setConfigAgent] = useState<Record<string, unknown> | null>(null);
   const [agents, setAgents] = useState<Record<string, unknown>[]>([]);
+  const [fullAppMode, setFullAppMode] = useState(false);
   useAppBuilderStore(); // only used via getState()
   const chatStore = useUnifiedChatStore(spaceId);
+  const resetFullAppGeneration = useFullAppGenerationStore((s) => s.reset);
   const suggestionGroups = buildSuggestionGroups(table?.name);
   const isAppBuilderMode = panelType === 'app-builder';
 
@@ -114,7 +119,9 @@ function ChatPanelInner({ spaceId }: { spaceId: string }) {
       void createApp(base.id, text.slice(0, 60)).then((res) => {
         const newAppId = (res.data as { id?: string })?.id;
         if (!newAppId) return;
-        useAppBuilderStore.getState().queueGeneration({ appId: newAppId, prompt: text, baseId: base.id });
+        useAppBuilderStore
+          .getState()
+          .queueGeneration({ appId: newAppId, prompt: text, baseId: base.id });
         void router.push(`/base/${base.id}/app/${newAppId}`);
       });
       return true;
@@ -148,9 +155,24 @@ function ChatPanelInner({ spaceId }: { spaceId: string }) {
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-3 py-2.5 dark:border-slate-800/70">
         <span className="text-sm font-semibold text-foreground dark:text-slate-200">
-          Nouveau Chat
+          {fullAppMode ? 'Application complète' : 'Nouveau Chat'}
         </span>
         <div className="flex items-center gap-0.5">
+          {/* Toggle: full-app generation saga vs. regular chat */}
+          {base?.id && (
+            <Button
+              variant={fullAppMode ? 'secondary' : 'ghost'}
+              size="icon-xs"
+              className="size-6"
+              onClick={() => {
+                resetFullAppGeneration();
+                setFullAppMode((v) => !v);
+              }}
+              title="Générer une application complète"
+            >
+              <Wand2 className="size-3.5" />
+            </Button>
+          )}
           {/* Expand to full-screen */}
           <Button
             variant="ghost"
@@ -202,14 +224,18 @@ function ChatPanelInner({ spaceId }: { spaceId: string }) {
         </div>
       </div>
 
-      {/* Unified chat container */}
-      <UnifiedChatContainer
-        spaceId={spaceId}
-        className="min-h-0 flex-1"
-        suggestionGroups={suggestionGroups}
-        pageContext={table ? { tableId: table.id, tableName: table.name } : undefined}
-        onSubmit={isAppBuilderMode ? handleGeneratorSubmit : undefined}
-      />
+      {fullAppMode && base?.id ? (
+        <FullAppPanel spaceId={spaceId} baseId={base.id} />
+      ) : (
+        /* Unified chat container */
+        <UnifiedChatContainer
+          spaceId={spaceId}
+          className="min-h-0 flex-1"
+          suggestionGroups={suggestionGroups}
+          pageContext={table ? { tableId: table.id, tableName: table.name } : undefined}
+          onSubmit={isAppBuilderMode ? handleGeneratorSubmit : undefined}
+        />
+      )}
 
       {/* Conversation history drawer */}
       <ConversationHistory

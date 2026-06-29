@@ -325,6 +325,75 @@ export const imConfigSchema = z.object({
 
 export type IImConfig = z.infer<typeof imConfigSchema>;
 
+// ---- Brand design system (colors, typography, illustrations, component library, principles) ----
+// Drives both the admin "Paramètres de marque" page and AI app-interface generation.
+
+export const brandColorSchema = z.object({
+  name: z.string().min(1).max(40),
+  hex: z.string().regex(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i, 'Must be a #RGB or #RRGGBB hex color'),
+});
+
+export type IBrandColor = z.infer<typeof brandColorSchema>;
+
+export const brandFontFamilySchema = z.enum([
+  'Inter',
+  'Roboto',
+  'Open Sans',
+  'Lato',
+  'Poppins',
+  'Montserrat',
+  'Nunito',
+  'Source Sans Pro',
+  'Playfair Display',
+  'Custom',
+]);
+
+export type IBrandFontFamily = z.infer<typeof brandFontFamilySchema>;
+
+export const brandTypographySchema = z.object({
+  fontFamily: brandFontFamilySchema.optional(),
+  // Set when fontFamily === 'Custom' — URL of an uploaded font file (woff/woff2/ttf/otf)
+  customFontUrl: z.string().optional(),
+  customFontName: z.string().optional(),
+});
+
+export type IBrandTypography = z.infer<typeof brandTypographySchema>;
+
+export const brandButtonStyleSchema = z.enum(['rounded', 'pill', 'square']);
+export const brandFormStyleSchema = z.enum(['outlined', 'filled', 'underlined']);
+export const brandNavbarStyleSchema = z.enum(['fixed-top', 'sticky', 'sidebar', 'minimal']);
+
+export const brandComponentLibrarySchema = z.object({
+  buttonStyle: brandButtonStyleSchema.optional(),
+  formStyle: brandFormStyleSchema.optional(),
+  navbarStyle: brandNavbarStyleSchema.optional(),
+});
+
+export type IBrandComponentLibrary = z.infer<typeof brandComponentLibrarySchema>;
+
+export const brandPrincipleSchema = z.enum([
+  'simplicity',
+  'accessibility',
+  'consistency',
+  'clarity',
+  'performance',
+]);
+
+export type IBrandPrinciple = z.infer<typeof brandPrincipleSchema>;
+
+export const brandDesignSystemSchema = z.object({
+  colors: z.array(brandColorSchema).max(20).optional(),
+  typography: brandTypographySchema.optional(),
+  // Uploaded illustration/icon-set URLs
+  illustrations: z.array(z.string()).max(20).optional(),
+  componentLibrary: brandComponentLibrarySchema.optional(),
+  principles: z.array(brandPrincipleSchema).optional(),
+  // Free-text principles beyond the curated list above
+  customPrinciples: z.string().max(2000).optional(),
+});
+
+export type IBrandDesignSystem = z.infer<typeof brandDesignSystemSchema>;
+
 export const updateSettingRoSchema = z.object({
   disallowSignUp: z.boolean().optional(),
   disallowSpaceCreation: z.boolean().optional(),
@@ -335,6 +404,7 @@ export const updateSettingRoSchema = z.object({
   enableWaitlist: z.boolean().optional(),
   appConfig: appConfigSchema.optional(),
   brandName: z.string().optional(),
+  brandDesignSystem: brandDesignSystemSchema.nullable().optional(),
   canaryConfig: canaryConfigSchema.optional(),
   sandboxAgentConfig: sandboxAgentConfigSchema.optional(),
   notifyMailTransportConfig: mailTransportConfigSchema.nullable().optional(),

@@ -2,6 +2,7 @@ export enum SettingKey {
   INSTANCE_ID = 'instanceId',
   BRAND_NAME = 'brandName',
   BRAND_LOGO = 'brandLogo',
+  BRAND_DESIGN_SYSTEM = 'brandDesignSystem',
   DISALLOW_SIGN_UP = 'disallowSignUp',
   DISALLOW_SPACE_CREATION = 'disallowSpaceCreation',
   DISALLOW_SPACE_INVITATION = 'disallowSpaceInvitation',

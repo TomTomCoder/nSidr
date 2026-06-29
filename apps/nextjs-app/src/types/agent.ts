@@ -64,6 +64,21 @@ export interface UnifiedChatEvent {
   role?: 'user' | 'assistant';
 }
 
+// FullAppEvent — matches backend AppBlueprintService's FullAppEvent (Phase 6 saga)
+export type FullAppStage = 'tables' | 'subgenerators' | 'agents' | 'mock_data' | 'done';
+
+export interface FullAppEvent {
+  type: 'phase' | 'proposal' | 'error' | 'done' | 'awaiting_acceptance' | 'report';
+  phase?: 'analysis' | 'blueprint' | 'tables' | 'subgenerators' | 'agents' | 'mock_data' | 'report';
+  status?: 'start' | 'done';
+  data?: unknown;
+  proposal?: { proposalId: string; action: string; preview: unknown };
+  generator?: string;
+  stage?: FullAppStage;
+  content?: string;
+  conversationId?: string;
+}
+
 // WorkspaceConversation — for history panel
 export interface WorkspaceConversation {
   id: string;

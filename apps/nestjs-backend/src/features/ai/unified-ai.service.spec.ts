@@ -33,6 +33,12 @@ const mockPrismaService = {
   workspaceConversationMessage: {
     create: vi.fn(),
   },
+  field: {
+    findMany: vi.fn().mockResolvedValue([]),
+  },
+  tableMeta: {
+    findFirst: vi.fn().mockResolvedValue(null),
+  },
 };
 
 // Mock generateText from ai
@@ -45,7 +51,7 @@ vi.mock('ai', () => ({
   stepCountIs: vi.fn((n) => n),
 }));
 
-import { generateText } from 'ai';
+import { generateText, generateObject } from 'ai';
 
 const mockSnapshot = {
   bases: [{ id: 'base-1', name: 'My Base', tables: [] }],
@@ -383,6 +389,375 @@ describe('UnifiedAiService', () => {
         expect.any(Array)
       );
       expect(result).toEqual(mockEmbeddings);
+    });
+  });
+
+  describe("targetType restriction — only the picked target's write tools are registered", () => {
+    it('targetType "automation" exposes create_automation but not create_table/create_app_interface', async () => {
+      let seenTools: Record<string, unknown> = {};
+      vi.mocked(generateText).mockImplementation(async (opts: any) => {
+        seenTools = opts.tools;
+        return { text: 'ok', steps: [{ text: 'ok', toolCalls: [], toolResults: [] }] } as any;
+      });
+
+      const ctx = {
+        spaceId: 'space-1',
+        userId: 'user-1',
+        message: 'Crée une automation',
+        modelKey: 'test-model',
+        targetType: 'automation' as const,
+      };
+      for await (const _event of service.chat(ctx)) {
+        // drain
+      }
+
+      expect(seenTools.create_automation).toBeDefined();
+      expect(seenTools.create_table).toBeUndefined();
+      expect(seenTools.create_app_interface).toBeUndefined();
+      expect(seenTools.create_agent).toBeUndefined();
+      // Read tools stay available regardless of targetType
+      expect(seenTools.get_workspace_state).toBeDefined();
+    });
+
+    it('no targetType exposes every write tool (back-compat free-text flow)', async () => {
+      let seenTools: Record<string, unknown> = {};
+      vi.mocked(generateText).mockImplementation(async (opts: any) => {
+        seenTools = opts.tools;
+        return { text: 'ok', steps: [{ text: 'ok', toolCalls: [], toolResults: [] }] } as any;
+      });
+
+      const ctx = {
+        spaceId: 'space-1',
+        userId: 'user-1',
+        message: "Fais ce qu'il faut",
+        modelKey: 'test-model',
+      };
+      for await (const _event of service.chat(ctx)) {
+        // drain
+      }
+
+      expect(seenTools.create_table).toBeDefined();
+      expect(seenTools.create_automation).toBeDefined();
+      expect(seenTools.create_agent).toBeDefined();
+      expect(seenTools.create_app_interface).toBeDefined();
+    });
+  });
+
+  describe('create_agent tool schema (Phase 2) — only real tool names accepted', () => {
+    it('rejects an invented tool name and accepts a real one', async () => {
+      let seenTools: Record<
+        string,
+        { parameters: { safeParse: (v: unknown) => { success: boolean } } }
+      > = {};
+      vi.mocked(generateText).mockImplementation(async (opts: any) => {
+        seenTools = opts.tools;
+        return { text: 'ok', steps: [{ text: 'ok', toolCalls: [], toolResults: [] }] } as any;
+      });
+
+      const ctx = {
+        spaceId: 'space-1',
+        userId: 'user-1',
+        message: 'Crée un agent',
+        modelKey: 'test-model',
+        targetType: 'agent' as const,
+      };
+      for await (const _event of service.chat(ctx)) {
+        // drain
+      }
+
+      const schema = seenTools.create_agent.parameters;
+      expect(
+        schema.safeParse({ name: 'Bot', instructions: 'x', tools: ['not_a_real_tool'] }).success
+      ).toBe(false);
+      expect(
+        schema.safeParse({ name: 'Bot', instructions: 'x', tools: ['search_records'] }).success
+      ).toBe(true);
+    });
+  });
+
+  describe('generateMockDataForCurrentTable — "Données fictives"', () => {
+    const mockTableSnapshot = {
+      bases: [
+        {
+          id: 'base-1',
+          name: 'Base',
+          tables: [
+            {
+              id: 'tbl-1',
+              name: 'Items',
+              fields: [
+                { name: 'Name', type: 'singleLineText' },
+                { name: 'Qty', type: 'number' },
+              ],
+            },
+          ],
+        },
+      ],
+      integrations: [],
+      agentTriggers: [],
+      plugins: [],
+    };
+
+    it('asks the user to open a table when pageContext has no tableId/tableName', async () => {
+      mockWorkspaceStateService.getSnapshot.mockResolvedValue(mockTableSnapshot);
+
+      const ctx = {
+        spaceId: 'space-1',
+        userId: 'user-1',
+        message: 'Génère des données',
+        modelKey: 'test-model',
+        targetType: 'mock_data' as const,
+      };
+      const events = [];
+      for await (const event of service.chat(ctx)) events.push(event);
+
+      expect(mockRecordService.getRecords).not.toHaveBeenCalled();
+      expect(events.some((e) => e.type === 'proposal')).toBe(false);
+      expect(events.find((e) => e.type === 'text_chunk')?.content).toMatch(/Ouvre une table/);
+    });
+
+    it('skips rows and reports "already has data" when no row is empty', async () => {
+      mockWorkspaceStateService.getSnapshot.mockResolvedValue(mockTableSnapshot);
+      mockRecordService.getRecords.mockResolvedValue({
+        records: [
+          { id: 'rec-1', fields: { Name: 'Alpha', Qty: 1 } },
+          { id: 'rec-2', fields: { Name: 'Beta', Qty: 2 } },
+        ],
+      });
+
+      const ctx = {
+        spaceId: 'space-1',
+        userId: 'user-1',
+        message: 'Génère des données',
+        modelKey: 'test-model',
+        targetType: 'mock_data' as const,
+        pageContext: { tableId: 'tbl-1' },
+      };
+      const events = [];
+      for await (const event of service.chat(ctx)) events.push(event);
+
+      expect(vi.mocked(generateObject)).not.toHaveBeenCalled();
+      expect(events.some((e) => e.type === 'proposal')).toBe(false);
+      expect(events.find((e) => e.type === 'text_chunk')?.content).toMatch(
+        /contient déjà des données/
+      );
+    });
+
+    it('proposes an update_record per empty row, filled with LLM-generated values', async () => {
+      mockWorkspaceStateService.getSnapshot.mockResolvedValue(mockTableSnapshot);
+      mockRecordService.getRecords.mockResolvedValue({
+        records: [
+          { id: 'rec-1', fields: { Name: null, Qty: null } },
+          { id: 'rec-2', fields: { Name: '', Qty: undefined } },
+          { id: 'rec-3', fields: { Name: 'Filled', Qty: 9 } },
+        ],
+      });
+      vi.mocked(generateObject).mockResolvedValue({
+        object: {
+          records: [
+            { Name: 'Alpha', Qty: 10 },
+            { Name: 'Beta', Qty: 20 },
+          ],
+        },
+      } as any);
+      mockActionProposalService.createProposal.mockImplementation(async (input: any) => ({
+        proposalId: `prop-${input.args.recordId}`,
+        action: input.action,
+        preview: input.preview,
+        conversationMessageId: 'msg-x',
+      }));
+
+      const ctx = {
+        spaceId: 'space-1',
+        userId: 'user-1',
+        message: 'Génère des données fictives sur le thème jardinage',
+        modelKey: 'test-model',
+        targetType: 'mock_data' as const,
+        pageContext: { tableId: 'tbl-1' },
+      };
+      const events = [];
+      for await (const event of service.chat(ctx)) events.push(event);
+
+      const proposals = events.filter((e) => e.type === 'proposal');
+      expect(proposals).toHaveLength(2);
+      expect(proposals.every((p: any) => p.proposal.action === 'update_record')).toBe(true);
+
+      const calls = mockActionProposalService.createProposal.mock.calls;
+      expect(calls[0][0].args).toMatchObject({
+        tableId: 'tbl-1',
+        recordId: 'rec-1',
+        fields: { Name: 'Alpha', Qty: 10 },
+      });
+      expect(calls[1][0].args).toMatchObject({
+        tableId: 'tbl-1',
+        recordId: 'rec-2',
+        fields: { Name: 'Beta', Qty: 20 },
+      });
+    });
+
+    it('does not throw and proposes fewer rows when the LLM returns fewer records than empty rows', async () => {
+      mockWorkspaceStateService.getSnapshot.mockResolvedValue(mockTableSnapshot);
+      mockRecordService.getRecords.mockResolvedValue({
+        records: [
+          { id: 'rec-1', fields: { Name: null, Qty: null } },
+          { id: 'rec-2', fields: { Name: null, Qty: null } },
+        ],
+      });
+      // LLM only returns 1 record even though there are 2 empty rows — must not throw.
+      vi.mocked(generateObject).mockResolvedValue({
+        object: { records: [{ Name: 'Solo', Qty: 1 }] },
+      } as any);
+      mockActionProposalService.createProposal.mockImplementation(async (input: any) => ({
+        proposalId: `prop-${input.args.recordId}`,
+        action: input.action,
+        preview: input.preview,
+        conversationMessageId: 'msg-x',
+      }));
+
+      const ctx = {
+        spaceId: 'space-1',
+        userId: 'user-1',
+        message: 'Génère des données',
+        modelKey: 'test-model',
+        targetType: 'mock_data' as const,
+        pageContext: { tableId: 'tbl-1' },
+      };
+      const events = [];
+      for await (const event of service.chat(ctx)) events.push(event);
+
+      expect(events.some((e) => e.type === 'error')).toBe(false);
+      const proposals = events.filter((e) => e.type === 'proposal');
+      expect(proposals).toHaveLength(1);
+    });
+
+    describe('Phase 4 — relation fields use real linked-record IDs', () => {
+      const linkSnapshot = {
+        bases: [
+          {
+            id: 'base-1',
+            name: 'Base',
+            tables: [
+              {
+                id: 'tbl-contacts',
+                name: 'Contacts',
+                fields: [
+                  { name: 'Name', type: 'singleLineText' },
+                  { name: 'Entreprise', type: 'link' },
+                ],
+              },
+            ],
+          },
+        ],
+        integrations: [],
+        agentTriggers: [],
+        plugins: [],
+      };
+
+      beforeEach(() => {
+        mockPrismaService.field.findMany.mockResolvedValue([
+          { name: 'Name', type: 'singleLineText', options: null, unique: false },
+          {
+            name: 'Entreprise',
+            type: 'link',
+            options: JSON.stringify({ foreignTableId: 'tbl-company', relationship: 'manyOne' }),
+            unique: false,
+          },
+        ]);
+      });
+
+      it('non-empty foreign table → generated link value constrained to a real record ID', async () => {
+        mockWorkspaceStateService.getSnapshot.mockResolvedValue(linkSnapshot);
+        mockRecordService.getRecords.mockImplementation(async (tableId: string) =>
+          tableId === 'tbl-company'
+            ? { records: [{ id: 'recCompanyA', fields: { Name: 'Acme' } }] }
+            : { records: [{ id: 'rec-1', fields: { Name: null, Entreprise: null } }] }
+        );
+        vi.mocked(generateObject).mockImplementation(async (opts: any) => {
+          // The schema must only accept the real foreign record ID.
+          expect(opts.schema.shape.records.element.shape.Entreprise.shape.id.options).toEqual([
+            'recCompanyA',
+          ]);
+          return {
+            object: { records: [{ Name: 'Alpha', Entreprise: { id: 'recCompanyA' } }] },
+          } as any;
+        });
+        mockActionProposalService.createProposal.mockImplementation(async (input: any) => ({
+          proposalId: 'prop-1',
+          action: input.action,
+          preview: input.preview,
+          conversationMessageId: 'msg-x',
+        }));
+
+        const ctx = {
+          spaceId: 'space-1',
+          userId: 'user-1',
+          message: 'Génère des contacts',
+          modelKey: 'test-model',
+          targetType: 'mock_data' as const,
+          pageContext: { tableId: 'tbl-contacts' },
+        };
+        const events = [];
+        for await (const event of service.chat(ctx)) events.push(event);
+
+        expect(events.some((e) => e.type === 'error')).toBe(false);
+        expect(events.filter((e) => e.type === 'proposal')).toHaveLength(1);
+      });
+
+      it('empty foreign table → explicit message, no proposal, no orphaned link', async () => {
+        mockWorkspaceStateService.getSnapshot.mockResolvedValue(linkSnapshot);
+        mockPrismaService.tableMeta.findFirst.mockResolvedValue({ name: 'Entreprises' });
+        mockRecordService.getRecords.mockImplementation(async (tableId: string) =>
+          tableId === 'tbl-company'
+            ? { records: [] }
+            : { records: [{ id: 'rec-1', fields: { Name: null, Entreprise: null } }] }
+        );
+
+        const ctx = {
+          spaceId: 'space-1',
+          userId: 'user-1',
+          message: 'Génère des contacts',
+          modelKey: 'test-model',
+          targetType: 'mock_data' as const,
+          pageContext: { tableId: 'tbl-contacts' },
+        };
+        const events = [];
+        for await (const event of service.chat(ctx)) events.push(event);
+
+        expect(vi.mocked(generateObject)).not.toHaveBeenCalled();
+        expect(events.some((e) => e.type === 'proposal')).toBe(false);
+        expect(events.find((e) => e.type === 'text_chunk')?.content).toMatch(/Entreprises.*vide/);
+      });
+    });
+
+    it('Phase 4 — unique field collision with an existing value is dropped, not proposed', async () => {
+      mockWorkspaceStateService.getSnapshot.mockResolvedValue(mockTableSnapshot);
+      mockPrismaService.field.findMany.mockResolvedValue([
+        { name: 'Name', type: 'singleLineText', options: null, unique: true },
+        { name: 'Qty', type: 'number', options: null, unique: false },
+      ]);
+      mockRecordService.getRecords.mockResolvedValue({
+        records: [
+          { id: 'rec-1', fields: { Name: 'Existing', Qty: 5 } },
+          { id: 'rec-2', fields: { Name: null, Qty: null } },
+        ],
+      });
+      vi.mocked(generateObject).mockResolvedValue({
+        object: { records: [{ Name: 'Existing', Qty: 1 }] },
+      } as any);
+
+      const ctx = {
+        spaceId: 'space-1',
+        userId: 'user-1',
+        message: 'Génère des données',
+        modelKey: 'test-model',
+        targetType: 'mock_data' as const,
+        pageContext: { tableId: 'tbl-1' },
+      };
+      const events = [];
+      for await (const event of service.chat(ctx)) events.push(event);
+
+      expect(events.some((e) => e.type === 'error')).toBe(false);
+      expect(events.filter((e) => e.type === 'proposal')).toHaveLength(0);
     });
   });
 

@@ -27,7 +27,7 @@ describe('WorkspaceStateService', () => {
     service = new WorkspaceStateService(mockPrismaService as any);
   });
 
-  it('Test 1: getSnapshot calls prisma.base.findMany with where: { spaceId, deletedTime: null } and nested include for tables+fields', async () => {
+  it('Test 1: getSnapshot calls prisma.base.findMany with where: { spaceId, deletedTime: null } and nested select for tables+fields', async () => {
     mockPrismaService.base.findMany.mockResolvedValue([]);
     mockPrismaService.oAuthIntegration.findMany.mockResolvedValue([]);
     mockPrismaService.agent.findMany.mockResolvedValue([]);
@@ -39,9 +39,9 @@ describe('WorkspaceStateService', () => {
     expect(mockPrismaService.base.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { spaceId: 'space-1', deletedTime: null },
-        include: expect.objectContaining({
+        select: expect.objectContaining({
           tables: expect.objectContaining({
-            include: expect.objectContaining({
+            select: expect.objectContaining({
               fields: expect.objectContaining({
                 select: expect.objectContaining({ id: true, name: true, type: true }),
               }),
@@ -89,7 +89,11 @@ describe('WorkspaceStateService', () => {
     expect(Array.isArray(result.plugins)).toBe(true);
     expect(result.bases[0]).toMatchObject({ id: 'base-1', name: 'My Base' });
     expect(result.bases[0].tables[0]).toMatchObject({ id: 'table-1', name: 'My Table' });
-    expect(result.bases[0].tables[0].fields[0]).toMatchObject({ id: 'field-1', name: 'Name', type: 'text' });
+    expect(result.bases[0].tables[0].fields[0]).toMatchObject({
+      id: 'field-1',
+      name: 'Name',
+      type: 'text',
+    });
   });
 
   it('Test 3: getSnapshot calls prisma.oAuthIntegration.findMany with where: { spaceId } and select: { provider, isActive }', async () => {
@@ -137,9 +141,7 @@ describe('WorkspaceStateService', () => {
     const result = await service.getSnapshot('space-1');
 
     expect(mockPrismaService.agentTrigger.findMany).toHaveBeenCalled();
-    expect(result.agentTriggers).toEqual([
-      { id: 'trigger-1', name: 'trigger-1', type: 'cron' },
-    ]);
+    expect(result.agentTriggers).toEqual([{ id: 'trigger-1', name: 'trigger-1', type: 'cron' }]);
   });
 
   it('Test 6: getSnapshot queries plugins (PluginInstall) via bases in the space', async () => {
