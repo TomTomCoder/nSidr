@@ -265,17 +265,38 @@ export class AppBlueprintService {
     model: Parameters<typeof generateObject>[0]['model']
   ) {
     const brandHint = await this.buildBrandPromptHint();
-    // Relations from the blueprint — used to generate 'relation-table' navigation modules.
-    // A relation-table module lets users drill from a parent record into its linked children
-    // without switching tables manually (e.g. Client detail → Commandes panel on the right).
-    const relations = blueprint.entities.flatMap((entity) =>
-      entity.fields
-        .filter((f) => f.type === 'link')
-        .map((f) => `"${entity.name}" est lié à "${f.foreignTableName}" via le champ "${f.name}"`)
-    );
+    // Read link fields from the REAL tables rather than from the blueprint: by the time
+    // generateInterfaceProposal is called (inside runSubgenerators, after 'tables' acceptance),
+    // the tables actually exist in the DB with their real link fields. The blueprint schema
+    // intentionally excludes 'link' from blueprintFieldSchema because link_tables is a
+    // separate tool called after tables are created — so we can't rely on blueprint data here.
+    const entityNames = blueprint.entities.map((e) => e.name);
+    const realTables = await this.prismaService.tableMeta.findMany({
+      where: { baseId: ctx.baseId, name: { in: entityNames }, deletedTime: null },
+      select: { id: true, name: true },
+    });
+    const tableIdToName = new Map(realTables.map((t) => [t.id, t.name]));
+    const linkFields =
+      realTables.length > 0
+        ? await this.prismaService.field.findMany({
+            where: {
+              tableId: { in: realTables.map((t) => t.id) },
+              type: 'link',
+              deletedTime: null,
+            },
+            select: { name: true, tableId: true, options: true },
+          })
+        : [];
+    const relations = linkFields.flatMap((f) => {
+      const ownerName = tableIdToName.get(f.tableId);
+      const opts = f.options as { foreignTableId?: string } | null;
+      const targetName = opts?.foreignTableId ? tableIdToName.get(opts.foreignTableId) : null;
+      if (!ownerName || !targetName) return [];
+      return [`"${ownerName}" est lié à "${targetName}" via le champ "${f.name}"`];
+    });
     const relationsHint =
       relations.length > 0
-        ? `\n\nRelations : ${relations.join('; ')}. Pour les relations 1:N, propose un module "relation-table" qui affiche les enregistrements liés (linkFieldName = nom du champ link côté N).`
+        ? `\n\nRelations (tables réelles) : ${relations.join('; ')}. Pour les relations 1:N, propose un module "relation-table" qui affiche les enregistrements liés (linkFieldName = nom du champ link côté N).`
         : '';
     const { object } = await generateObject({
       model,

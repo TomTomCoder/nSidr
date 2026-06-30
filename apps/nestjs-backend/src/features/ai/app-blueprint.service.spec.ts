@@ -280,6 +280,52 @@ describe('AppBlueprintService', () => {
       expect(events.at(-2)).toMatchObject({ type: 'awaiting_acceptance', stage: 'subgenerators' });
     });
 
+    it('stage "tables" all accepted, real link fields in DB → relationsHint injected in interface-generation prompt (bug fix: blueprint never carries link type)', async () => {
+      // blueprintFieldSchema intentionally excludes 'link' — the old blueprint-based
+      // relations.filter(f => f.type === 'link') always returned []. This test verifies
+      // that generateInterfaceProposal reads link fields from the real DB instead.
+      mockPrismaService.workspaceConversationMessage.findFirst.mockResolvedValue({
+        id: 'msg-run',
+        metadata: runState,
+      });
+      mockPrismaService.workspaceConversationMessage.findMany.mockResolvedValue([
+        { metadata: { accepted: true } },
+        { metadata: { accepted: true } },
+      ]);
+      mockPrismaService.tableMeta.findMany.mockResolvedValue([
+        { id: 'tbl-clients', name: 'Clients' },
+        { id: 'tbl-commandes', name: 'Commandes' },
+      ]);
+      mockPrismaService.field.findMany.mockResolvedValue([
+        // link field on Commandes pointing to Clients
+        {
+          name: 'Client',
+          tableId: 'tbl-commandes',
+          type: 'link',
+          options: { foreignTableId: 'tbl-clients' },
+        },
+      ]);
+
+      let capturedPrompt = '';
+      vi.mocked(generateObject).mockImplementation(async ({ prompt }: any) => {
+        if (typeof prompt === 'string' && prompt.includes('Propose une interface')) {
+          capturedPrompt = prompt;
+          return { object: { title: 'App', modules: [] } } as any;
+        }
+        return { object: { name: 'Auto', description: 'desc' } } as any;
+      });
+
+      for await (const _ of service.continueFullApp('conv-1')) {
+        // drain
+      }
+
+      // The interface-generation prompt must mention the real DB relation
+      expect(capturedPrompt).toContain('"Commandes"');
+      expect(capturedPrompt).toContain('"Clients"');
+      expect(capturedPrompt).toContain('"Client"');
+      expect(capturedPrompt).toContain('relation-table');
+    });
+
     it('one sub-generator failing surfaces a scoped error but still advances the run', async () => {
       mockPrismaService.workspaceConversationMessage.findFirst.mockResolvedValue({
         id: 'msg-run',
