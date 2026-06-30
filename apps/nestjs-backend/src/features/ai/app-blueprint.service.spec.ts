@@ -20,6 +20,10 @@ const mockRecordService = {
   getRecords: vi.fn(),
 };
 
+const mockSettingService = {
+  getSetting: vi.fn(),
+};
+
 const mockPrismaService = {
   workspaceConversationMessage: {
     findFirst: vi.fn(),
@@ -29,6 +33,7 @@ const mockPrismaService = {
   },
   tableMeta: {
     findMany: vi.fn(),
+    findFirst: vi.fn(),
   },
   field: {
     findMany: vi.fn(),
@@ -46,8 +51,10 @@ describe('AppBlueprintService', () => {
     mockPrismaService.workspaceConversationMessage.create.mockResolvedValue({ id: 'msg-run' });
     mockPrismaService.workspaceConversationMessage.update.mockResolvedValue(undefined);
     mockPrismaService.tableMeta.findMany.mockResolvedValue([]);
+    mockPrismaService.tableMeta.findFirst.mockResolvedValue(null);
     mockPrismaService.field.findMany.mockResolvedValue([]);
     mockRecordService.getRecords.mockResolvedValue({ records: [] });
+    mockSettingService.getSetting.mockResolvedValue({ brandDesignSystem: null });
     mockActionProposalService.createProposal.mockImplementation(async (input: any) => ({
       proposalId: `prop-${input.args.name ?? input.args.tableId}`,
       action: input.action,
@@ -58,6 +65,7 @@ describe('AppBlueprintService', () => {
       mockPrismaService as any,
       mockActionProposalService as any,
       mockRecordService as any,
+      mockSettingService as any,
       mockAiService as any
     );
   });
@@ -220,6 +228,58 @@ describe('AppBlueprintService', () => {
       expect(events.at(-2)).toMatchObject({ type: 'awaiting_acceptance', stage: 'subgenerators' });
     });
 
+    it('stage "tables" all accepted, an empty table exists → mock data is proposed alongside interface/automation, not after agents', async () => {
+      mockPrismaService.workspaceConversationMessage.findFirst.mockResolvedValue({
+        id: 'msg-run',
+        metadata: runState,
+      });
+      mockPrismaService.workspaceConversationMessage.findMany.mockResolvedValue([
+        { metadata: { accepted: true } },
+        { metadata: { accepted: true } },
+      ]);
+      mockPrismaService.tableMeta.findMany.mockResolvedValue([{ id: 'tbl1', name: 'Produits' }]);
+      mockPrismaService.field.findMany.mockResolvedValue([{ name: 'Nom', type: 'singleLineText' }]);
+      mockRecordService.getRecords.mockResolvedValue({
+        records: [{ id: 'rec1', fields: { Nom: null } }],
+      });
+      vi.mocked(generateObject).mockImplementation(async ({ prompt }: any) => {
+        if (prompt.includes('Propose une interface')) {
+          return { object: { title: 'Suivi stock', modules: [] } } as any;
+        }
+        if (prompt.includes('Propose UNE automatisation')) {
+          return { object: { name: 'Alerte', description: 'desc' } } as any;
+        }
+        return { object: { records: [{ Nom: 'Produit Test' }] } } as any;
+      });
+
+      const events = [];
+      for await (const event of service.continueFullApp('conv-1')) events.push(event);
+
+      const proposalEvents = events.filter((e) => e.type === 'proposal');
+      expect(proposalEvents).toHaveLength(3);
+      expect(mockActionProposalService.createProposal).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'update_record',
+          args: { tableId: 'tbl1', recordId: 'rec1', fields: { Nom: 'Produit Test' } },
+        })
+      );
+      // Mock data is gated alongside interface/automation in the SAME 'subgenerators' stage —
+      // never a separate post-agents stage for a new run (see continueFullApp's stage==='agents'
+      // legacy-compat branch, which only triggers when mockDataProposalIds is still undefined).
+      expect(mockPrismaService.workspaceConversationMessage.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            metadata: expect.objectContaining({
+              stage: 'subgenerators',
+              mockDataProposalIds: expect.arrayContaining([expect.any(String)]),
+            }),
+          }),
+        })
+      );
+      expect(events.find((e) => e.type === 'report')).toBeUndefined();
+      expect(events.at(-2)).toMatchObject({ type: 'awaiting_acceptance', stage: 'subgenerators' });
+    });
+
     it('one sub-generator failing surfaces a scoped error but still advances the run', async () => {
       mockPrismaService.workspaceConversationMessage.findFirst.mockResolvedValue({
         id: 'msg-run',
@@ -229,9 +289,15 @@ describe('AppBlueprintService', () => {
         { metadata: { accepted: true } },
         { metadata: { accepted: true } },
       ]);
-      vi.mocked(generateObject)
-        .mockRejectedValueOnce(new Error('interface generation failed'))
-        .mockResolvedValueOnce({ object: { name: 'Alerte', description: 'desc' } } as any);
+      // Keyed on prompt content rather than call order — interface/automation/mock_data now
+      // run concurrently (Promise.allSettled), so which one's generateObject call actually
+      // resolves first is a microtask-scheduling detail, not something a test should assume.
+      vi.mocked(generateObject).mockImplementation(async ({ prompt }: any) => {
+        if (prompt.includes('Propose une interface')) {
+          throw new Error('interface generation failed');
+        }
+        return { object: { name: 'Alerte', description: 'desc' } } as any;
+      });
 
       const events = [];
       for await (const event of service.continueFullApp('conv-1')) events.push(event);
@@ -386,6 +452,71 @@ describe('AppBlueprintService', () => {
       const reportEvent = events.find((e) => e.type === 'report');
       expect(reportEvent?.data).toMatchObject({ mockRecordsFilled: 1 });
       expect(events.at(-1)).toEqual({ type: 'done' });
+    });
+
+    it('stage "mock_data" accepted, two tables share a name in the base → report warns about the duplicate', async () => {
+      mockPrismaService.workspaceConversationMessage.findFirst.mockResolvedValue({
+        id: 'msg-run',
+        metadata: {
+          ...runState,
+          stage: 'mock_data',
+          interfaceProposalId: 'prop-iface',
+          automationProposalId: 'prop-auto',
+          agentProposalIds: ['prop-agent'],
+          mockDataProposalIds: [],
+        },
+      });
+      mockPrismaService.workspaceConversationMessage.findMany.mockResolvedValue([
+        { metadata: { accepted: true } },
+      ]);
+      mockPrismaService.tableMeta.findMany.mockResolvedValue([
+        { id: 'tbl1', name: 'Clients' },
+        { id: 'tbl2', name: 'Clients' },
+      ]);
+      mockPrismaService.field.findMany.mockResolvedValue([]);
+
+      const events = [];
+      for await (const event of service.continueFullApp('conv-1')) events.push(event);
+
+      const reportEvent = events.find((e) => e.type === 'report');
+      expect((reportEvent?.data as { warnings: string[] }).warnings).toEqual([
+        expect.stringContaining('"Clients"'),
+      ]);
+    });
+
+    it('stage "mock_data" accepted, a link field points to a deleted table → report warns about the dangling relation', async () => {
+      mockPrismaService.workspaceConversationMessage.findFirst.mockResolvedValue({
+        id: 'msg-run',
+        metadata: {
+          ...runState,
+          stage: 'mock_data',
+          interfaceProposalId: 'prop-iface',
+          automationProposalId: 'prop-auto',
+          agentProposalIds: ['prop-agent'],
+          mockDataProposalIds: [],
+        },
+      });
+      mockPrismaService.workspaceConversationMessage.findMany.mockResolvedValue([
+        { metadata: { accepted: true } },
+      ]);
+      mockPrismaService.tableMeta.findMany.mockResolvedValue([{ id: 'tbl1', name: 'Commandes' }]);
+      mockPrismaService.tableMeta.findFirst.mockResolvedValue(null);
+      mockPrismaService.field.findMany.mockResolvedValue([
+        {
+          name: 'Client',
+          tableId: 'tbl1',
+          type: 'link',
+          options: { foreignTableId: 'tbl-deleted' },
+        },
+      ]);
+
+      const events = [];
+      for await (const event of service.continueFullApp('conv-1')) events.push(event);
+
+      const reportEvent = events.find((e) => e.type === 'report');
+      expect((reportEvent?.data as { warnings: string[] }).warnings).toEqual([
+        expect.stringContaining('Client'),
+      ]);
     });
 
     it('stage "done" → error, no further work', async () => {

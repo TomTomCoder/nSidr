@@ -1,8 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '@teable/db-main-prisma';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { FieldKeyType } from '@teable/core';
-import { RecordOpenApiService } from '../record/open-api/record-open-api.service';
+import { PrismaService } from '@teable/db-main-prisma';
 import { MailSenderService } from '../mail-sender/mail-sender.service';
+import { RecordOpenApiService } from '../record/open-api/record-open-api.service';
 import { WorkflowAiService } from './workflow-ai.service';
 
 export interface IStepResult {
@@ -25,7 +26,8 @@ export class WorkflowExecutorService {
     private readonly prismaService: PrismaService,
     private readonly recordOpenApiService: RecordOpenApiService,
     private readonly mailSenderService: MailSenderService,
-    private readonly workflowAiService: WorkflowAiService
+    private readonly workflowAiService: WorkflowAiService,
+    private readonly eventEmitter: EventEmitter2
   ) {}
 
   async executeSteps(
@@ -75,6 +77,8 @@ export class WorkflowExecutorService {
           return await this.executeUpdateRecordStep(step.config, triggerData, dryRun);
         case 'get_records':
           return await this.executeGetRecordsStep(step.config, triggerData, dryRun);
+        case 'agent_run':
+          return this.executeAgentRunStep(step.config, triggerData, dryRun);
         case 'record_action': {
           const action = step.config.action as string | undefined;
           if (action === 'create')
@@ -518,6 +522,40 @@ export class WorkflowExecutorService {
     });
 
     return { type: 'send_email', status: 'success', note: `Email envoyé à ${to}` };
+  }
+
+  /**
+   * Triggers an AI agent from an automation step. Fire-and-forget — emits 'agent.run.requested'
+   * and returns immediately, same as every other cross-feature trigger in this codebase
+   * (mention/DM go through the same event + AgentTriggerService pattern). Not a direct call to
+   * AgentExecutionService: that service has ~25 constructor dependencies of its own, and
+   * AgentModule already imports WorkflowModule — calling back in directly would be a circular
+   * module dependency for comparatively little benefit, since the step has no way to usefully
+   * block on or stream the agent's full run anyway.
+   */
+  private executeAgentRunStep(
+    config: Record<string, unknown>,
+    triggerData: Record<string, unknown>,
+    dryRun: boolean
+  ): IStepResult {
+    const agentId = config.agentId as string | undefined;
+    const prompt = config.prompt
+      ? this.interpolate(config.prompt as string, triggerData)
+      : undefined;
+
+    if (!agentId) return { type: 'agent_run', status: 'error', note: 'agentId manquant' };
+    if (!prompt) return { type: 'agent_run', status: 'error', note: 'prompt manquant' };
+
+    if (dryRun) {
+      return {
+        type: 'agent_run',
+        status: 'success',
+        note: `[DRY-RUN] Déclencherait l'agent ${agentId} avec : "${prompt}"`,
+      };
+    }
+
+    this.eventEmitter.emit('agent.run.requested', { agentId, prompt, triggerData });
+    return { type: 'agent_run', status: 'success', note: `Agent ${agentId} déclenché` };
   }
 
   private async executeHttpStep(

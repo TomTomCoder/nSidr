@@ -6,6 +6,7 @@ import { generateObject } from 'ai';
 import { z } from 'zod';
 import { AI_SERVICE } from '../../shared/tokens/ai.token';
 import { RecordService } from '../record/record.service';
+import { SettingService } from '../setting/setting.service';
 import { ActionProposalService } from './action-proposal.service';
 import { AGENT_TOOL_NAMES } from './unified-ai.service';
 
@@ -156,8 +157,41 @@ export class AppBlueprintService {
     private readonly prismaService: PrismaService,
     private readonly actionProposalService: ActionProposalService,
     private readonly recordService: RecordService,
+    private readonly settingService: SettingService,
     @Inject(AI_SERVICE) private readonly aiService: IAiService
   ) {}
+
+  /**
+   * Plain-text brand summary injected into the interface-generation prompt so the AI-designed
+   * modules at least describe colors/typography consistent with the admin-configured Brand
+   * Design System, instead of generating an interface with no awareness of it.
+   */
+  private async buildBrandPromptHint(): Promise<string> {
+    const { brandDesignSystem } = await this.settingService.getSetting(['brandDesignSystem']);
+    if (!brandDesignSystem) return '';
+    const bds = brandDesignSystem as {
+      colors?: { name: string; hex: string }[];
+      typography?: { fontFamily?: string };
+      componentLibrary?: { buttonStyle?: string; formStyle?: string };
+    };
+    const parts: string[] = [];
+    if (bds.colors?.length) {
+      parts.push(
+        `Couleurs de marque : ${bds.colors.map((c) => `${c.name} (${c.hex})`).join(', ')}.`
+      );
+    }
+    if (bds.typography?.fontFamily) {
+      parts.push(`Police : ${bds.typography.fontFamily}.`);
+    }
+    if (bds.componentLibrary?.buttonStyle || bds.componentLibrary?.formStyle) {
+      parts.push(
+        `Style de composants : boutons ${bds.componentLibrary.buttonStyle ?? 'défaut'}, formulaires ${bds.componentLibrary.formStyle ?? 'défaut'}.`
+      );
+    }
+    return parts.length > 0
+      ? `\n\nDesign system de la marque à respecter : ${parts.join(' ')}`
+      : '';
+  }
 
   private async resolveModelInstance(ctx: FullAppContext): Promise<unknown> {
     const aiConfig = await this.aiService.getAIConfig(ctx.baseId);
@@ -219,12 +253,13 @@ export class AppBlueprintService {
     blueprint: IAppBlueprint,
     model: Parameters<typeof generateObject>[0]['model']
   ) {
+    const brandHint = await this.buildBrandPromptHint();
     const { object } = await generateObject({
       model,
       schema: interfaceProposalSchema,
       prompt:
         `Propose une interface CRUD pour cette application, avec un module par table : ` +
-        `${blueprint.entities.map((e) => e.name).join(', ')}.`,
+        `${blueprint.entities.map((e) => e.name).join(', ')}.${brandHint}`,
     });
     return this.actionProposalService.createProposal({
       action: 'create_app_interface',
@@ -282,13 +317,15 @@ export class AppBlueprintService {
   }
 
   /**
-   * Phase 6.2 — interfaces + automations run in parallel after the table proposals (Phase
-   * 6.1), each independently failable: one generator failing surfaces an 'error' event but
-   * never blocks the other, and never aborts the overall stream (Promise.allSettled, not
-   * Promise.all). Mock-data generation is NOT included here — Phase 4's generator operates on
-   * real existing records in an already-created table, which cannot exist yet for tables that
-   * are themselves still pending proposals at this point; wiring it in requires waiting for
-   * table-acceptance first, which is a different orchestration this phase doesn't attempt.
+   * Phase 6.2 — interfaces + automations + mock-data run in parallel after the table proposals
+   * (Phase 6.1) are accepted, each independently failable: one generator failing surfaces an
+   * 'error' event but never blocks the others, and never aborts the overall stream
+   * (Promise.allSettled, not Promise.all). Mock-data CAN run here (unlike the original
+   * Phase 6.2 comment claimed) because `runSubgenerators` is only ever reached after
+   * `continueFullApp` has confirmed every 'tables' proposal is accepted — the tables are real
+   * rows in `tableMeta` by this point, not pending proposals. It only depends on tables, never
+   * on the interface/automation/agent proposals, so there's no reason to make the user wait
+   * for agents before getting mock data.
    */
   private async *runSubgenerators(
     ctx: FullAppContext,
@@ -299,12 +336,13 @@ export class AppBlueprintService {
 
     const generators: Array<
       [
-        'interface' | 'automation',
-        Promise<{ proposalId: string; action: string; preview: unknown }>,
+        'interface' | 'automation' | 'mock_data',
+        Promise<Array<{ proposalId: string; action: string; preview: unknown }>>,
       ]
     > = [
-      ['interface', this.generateInterfaceProposal(ctx, blueprint, model)],
-      ['automation', this.generateAutomationProposal(ctx, blueprint, model)],
+      ['interface', this.generateInterfaceProposal(ctx, blueprint, model).then((p) => [p])],
+      ['automation', this.generateAutomationProposal(ctx, blueprint, model).then((p) => [p])],
+      ['mock_data', this.generateMockDataProposals(ctx, blueprint, model)],
     ];
     const results = await Promise.allSettled(generators.map(([, p]) => p));
 
@@ -312,15 +350,16 @@ export class AppBlueprintService {
       const [name] = generators[i];
       const result = results[i];
       if (result.status === 'fulfilled') {
-        const proposal = result.value;
-        yield {
-          type: 'proposal',
-          proposal: {
-            proposalId: proposal.proposalId,
-            action: proposal.action,
-            preview: proposal.preview,
-          },
-        };
+        for (const proposal of result.value) {
+          yield {
+            type: 'proposal',
+            proposal: {
+              proposalId: proposal.proposalId,
+              action: proposal.action,
+              preview: proposal.preview,
+            },
+          };
+        }
       } else {
         yield {
           type: 'error',
@@ -442,7 +481,15 @@ export class AppBlueprintService {
       return;
     }
     if (state.stage === 'agents') {
-      yield* this.advanceToMockData(ctx, state, model);
+      // Current flow: mock data already ran during 'subgenerators' (mockDataProposalIds is at
+      // least an empty array by now) — go straight to the report. Legacy flow: a run created
+      // before this change reached 'agents' with mockDataProposalIds still `undefined` — run
+      // the old post-agents mock-data step for backward compatibility (see advanceToMockData).
+      if (state.mockDataProposalIds === undefined) {
+        yield* this.advanceToMockData(ctx, state, model);
+      } else {
+        yield* this.advanceToReport(ctx, state);
+      }
       return;
     }
     // state.stage === 'mock_data'
@@ -453,9 +500,11 @@ export class AppBlueprintService {
   private pendingProposalIdsForStage(state: IFullAppRunState): string[] {
     if (state.stage === 'tables') return state.tableProposalIds;
     if (state.stage === 'subgenerators') {
-      return [state.interfaceProposalId, state.automationProposalId].filter((id): id is string =>
-        Boolean(id)
-      );
+      return [
+        state.interfaceProposalId,
+        state.automationProposalId,
+        ...(state.mockDataProposalIds ?? []),
+      ].filter((id): id is string => Boolean(id));
     }
     if (state.stage === 'agents') return state.agentProposalIds ?? [];
     return state.mockDataProposalIds ?? [];
@@ -468,6 +517,7 @@ export class AppBlueprintService {
   ): AsyncGenerator<FullAppEvent> {
     let interfaceProposalId: string | undefined;
     let automationProposalId: string | undefined;
+    const mockDataProposalIds: string[] = [];
     for await (const event of this.runSubgenerators(ctx, state.blueprint, model)) {
       yield event;
       if (event.type === 'proposal' && event.proposal?.action === 'create_app_interface') {
@@ -476,12 +526,16 @@ export class AppBlueprintService {
       if (event.type === 'proposal' && event.proposal?.action === 'create_automation') {
         automationProposalId = event.proposal.proposalId;
       }
+      if (event.type === 'proposal' && event.proposal?.action === 'update_record') {
+        mockDataProposalIds.push(event.proposal.proposalId);
+      }
     }
     await this.saveRunState(ctx.conversationId, {
       ...state,
       stage: 'subgenerators',
       interfaceProposalId,
       automationProposalId,
+      mockDataProposalIds,
     });
     yield { type: 'awaiting_acceptance', stage: 'subgenerators' };
     yield { type: 'done' };
@@ -536,20 +590,24 @@ export class AppBlueprintService {
    * table saga are a less common need than getting a non-empty table to look at immediately,
    * and the existing per-table chat flow remains available for anyone who wants linked data.
    */
-  private async *advanceToMockData(
+  /**
+   * Generates one `update_record` proposal per still-empty row, across every real table from
+   * this run's blueprint. Returns the flat list of proposals instead of yielding — called from
+   * `runSubgenerators` (current flow, parallel with interface/automation) and from
+   * `advanceToMockData` (legacy compatibility path, see its own doc comment).
+   */
+  private async generateMockDataProposals(
     ctx: FullAppContext,
-    state: IFullAppRunState,
+    blueprint: IAppBlueprint,
     model: Parameters<typeof generateObject>[0]['model']
-  ): AsyncGenerator<FullAppEvent> {
-    yield { type: 'phase', phase: 'mock_data', status: 'start' };
-
-    const entityNames = state.blueprint.entities.map((e) => e.name);
+  ): Promise<Array<{ proposalId: string; action: string; preview: unknown }>> {
+    const entityNames = blueprint.entities.map((e) => e.name);
     const tables = await this.prismaService.tableMeta.findMany({
-      where: { baseId: state.baseId, name: { in: entityNames }, deletedTime: null },
+      where: { baseId: ctx.baseId, name: { in: entityNames }, deletedTime: null },
       select: { id: true, name: true },
     });
 
-    const mockDataProposalIds: string[] = [];
+    const proposals: Array<{ proposalId: string; action: string; preview: unknown }> = [];
     for (const table of tables) {
       const fieldMetas = await this.prismaService.field.findMany({
         where: { tableId: table.id, deletedTime: null, type: { not: 'link' } },
@@ -582,7 +640,7 @@ export class AppBlueprintService {
           prompt:
             `Table "${table.name}" — champs: ${fieldMetas.map((f) => `${f.name} (${f.type})`).join(', ')}.\n` +
             `Génère exactement ${emptyRecords.length} enregistrement(s) fictif(s) réaliste(s) et cohérent(s) entre eux, ` +
-            `dans le contexte de l'application : "${state.prompt}".`,
+            `dans le contexte de l'application : "${ctx.prompt}".`,
         }));
       } catch {
         // One table's generation failing (e.g. odd field combination) shouldn't block the
@@ -598,19 +656,39 @@ export class AppBlueprintService {
           conversationId: ctx.conversationId,
           preview: { tableName: table.name, fields: object.records[i] },
         });
-        mockDataProposalIds.push(proposal.proposalId);
-        yield {
-          type: 'proposal',
-          proposal: {
-            proposalId: proposal.proposalId,
-            action: proposal.action,
-            preview: proposal.preview,
-          },
-        };
+        proposals.push(proposal);
       }
+    }
+    return proposals;
+  }
+
+  /**
+   * Legacy compatibility path only: drives a conversation that reached stage 'agents' BEFORE
+   * mock-data generation moved into `runSubgenerators` (i.e. its saved state has no
+   * `mockDataProposalIds` yet, because that stage didn't exist when it was created). New runs
+   * never call this — `continueFullApp` only reaches here when `state.mockDataProposalIds` is
+   * `undefined`. See AI-GENERATION-ROADMAP.md for the migration note.
+   */
+  private async *advanceToMockData(
+    ctx: FullAppContext,
+    state: IFullAppRunState,
+    model: Parameters<typeof generateObject>[0]['model']
+  ): AsyncGenerator<FullAppEvent> {
+    yield { type: 'phase', phase: 'mock_data', status: 'start' };
+    const proposals = await this.generateMockDataProposals(ctx, state.blueprint, model);
+    for (const proposal of proposals) {
+      yield {
+        type: 'proposal',
+        proposal: {
+          proposalId: proposal.proposalId,
+          action: proposal.action,
+          preview: proposal.preview,
+        },
+      };
     }
     yield { type: 'phase', phase: 'mock_data', status: 'done' };
 
+    const mockDataProposalIds = proposals.map((p) => p.proposalId);
     const newState: IFullAppRunState = { ...state, stage: 'mock_data', mockDataProposalIds };
     await this.saveRunState(ctx.conversationId, newState);
 
@@ -625,23 +703,113 @@ export class AppBlueprintService {
     yield { type: 'done' };
   }
 
+  /** Counts occurrences in `items` keyed by `keyOf`, returning only keys seen more than once. */
+  private findDuplicates<T>(items: T[], keyOf: (item: T) => string): Map<string, number> {
+    const counts = new Map<string, number>();
+    for (const item of items) {
+      const key = keyOf(item);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    for (const [key, count] of counts) {
+      if (count <= 1) counts.delete(key);
+    }
+    return counts;
+  }
+
+  private duplicateTableNameWarnings(tables: Array<{ name: string }>): string[] {
+    const duplicates = this.findDuplicates(tables, (t) => t.name);
+    return [...duplicates].map(
+      ([name, count]) =>
+        `${count} tables sont nommées "${name}" — vérifiez qu'il n'y a pas de doublon involontaire.`
+    );
+  }
+
+  private duplicateFieldNameWarnings(
+    tables: Array<{ id: string; name: string }>,
+    fields: Array<{ name: string; tableId: string }>
+  ): string[] {
+    const fieldsByTable = new Map<string, typeof fields>();
+    for (const f of fields) {
+      fieldsByTable.set(f.tableId, [...(fieldsByTable.get(f.tableId) ?? []), f]);
+    }
+    const warnings: string[] = [];
+    for (const table of tables) {
+      const duplicates = this.findDuplicates(fieldsByTable.get(table.id) ?? [], (f) => f.name);
+      for (const [name, count] of duplicates) {
+        warnings.push(`Table "${table.name}" : ${count} champs sont nommés "${name}".`);
+      }
+    }
+    return warnings;
+  }
+
+  /** A link field's `options.foreignTableId` may point at a table deleted after the link was
+   * created — the relation silently goes nowhere from then on. */
+  private async danglingLinkWarnings(
+    tables: Array<{ id: string; name: string }>,
+    fields: Array<{ name: string; tableId: string; type: string; options: unknown }>
+  ): Promise<string[]> {
+    const tableIdSet = new Set(tables.map((t) => t.id));
+    const warnings: string[] = [];
+    for (const f of fields) {
+      if (f.type !== 'link') continue;
+      const foreignTableId = (f.options as { foreignTableId?: string } | null)?.foreignTableId;
+      if (!foreignTableId || tableIdSet.has(foreignTableId)) continue;
+      const stillExists = await this.prismaService.tableMeta.findFirst({
+        where: { id: foreignTableId, deletedTime: null },
+        select: { id: true },
+      });
+      if (stillExists) continue;
+      const ownerTable = tables.find((t) => t.id === f.tableId);
+      warnings.push(
+        `Champ de relation "${f.name}"${ownerTable ? ` (table "${ownerTable.name}")` : ''} pointe vers une table qui n'existe plus.`
+      );
+    }
+    return warnings;
+  }
+
   /**
-   * Phase 6.4 — delivery report only. Deliberately NOT an extra generateObject call for
-   * dedup/harmonization (the roadmap's "relecture globale") — that needs real created-resource
-   * names to compare, which means re-fetching everything from the DB; the counts/names already
-   * known to the run state are an honest, cheap report. Richer harmonization is a follow-up.
+   * Phase 4 validation pass — non-blocking, read-only. Checks the whole base (not just this
+   * run's tables) because the real risk is a name colliding with something that pre-dates the
+   * saga, not just within the blueprint itself: duplicate table names, duplicate field names
+   * within the same table, and link fields whose foreignTableId no longer resolves. Returns
+   * warnings only — never throws, never blocks delivery, matching the same failure tolerance as
+   * the sub-generators above.
+   */
+  private async runValidationPass(baseId: string): Promise<string[]> {
+    const tables = await this.prismaService.tableMeta.findMany({
+      where: { baseId, deletedTime: null },
+      select: { id: true, name: true },
+    });
+    const fields = await this.prismaService.field.findMany({
+      where: { tableId: { in: tables.map((t) => t.id) }, deletedTime: null },
+      select: { name: true, tableId: true, type: true, options: true },
+    });
+
+    return [
+      ...this.duplicateTableNameWarnings(tables),
+      ...this.duplicateFieldNameWarnings(tables, fields),
+      ...(await this.danglingLinkWarnings(tables, fields)),
+    ];
+  }
+
+  /**
+   * Phase 6.4 — delivery report. The counts come from the run state (cheap, already known);
+   * `warnings` comes from `runValidationPass`'s fresh DB read (Phase 4) — non-blocking, the
+   * saga always reaches "done" even if it finds something to flag.
    */
   private async *advanceToReport(
     ctx: FullAppContext,
     state: IFullAppRunState
   ): AsyncGenerator<FullAppEvent> {
     yield { type: 'phase', phase: 'report', status: 'start' };
+    const warnings = await this.runValidationPass(state.baseId);
     const report = {
       tablesCreated: state.tableProposalIds.length,
       interfaceCreated: Boolean(state.interfaceProposalId),
       automationCreated: Boolean(state.automationProposalId),
       agentsCreated: (state.agentProposalIds ?? []).length,
       mockRecordsFilled: (state.mockDataProposalIds ?? []).length,
+      warnings,
     };
     yield { type: 'report', data: report };
     yield { type: 'phase', phase: 'report', status: 'done' };

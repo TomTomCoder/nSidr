@@ -5,6 +5,7 @@ import { BaseNodeModule } from '../base-node/base-node.module';
 import { FieldOpenApiModule } from '../field/open-api/field-open-api.module';
 import { RecordOpenApiModule } from '../record/open-api/record-open-api.module';
 import { RecordModule } from '../record/record.module';
+import { SettingModule } from '../setting/setting.module';
 import { ViewOpenApiModule } from '../view/open-api/view-open-api.module';
 import { WorkflowModule } from '../workflow/workflow.module';
 import { ActionProposalService } from './action-proposal.service';
@@ -22,6 +23,7 @@ import { WorkspaceStateService } from './workspace-state.service';
     RecordOpenApiModule,
     RecordModule,
     FieldOpenApiModule,
+    SettingModule,
     ViewOpenApiModule,
     WorkflowModule,
     forwardRef(() => AgentModule),

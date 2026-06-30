@@ -12,4 +12,7 @@ export class CreateAgentDto {
   reflectionEnabled?: boolean;
   maxReflections?: number;
   maxIterations?: number;
+  respondToMentions?: boolean;
+  allowDirectMessage?: boolean;
+  memoryEnabled?: boolean;
 }

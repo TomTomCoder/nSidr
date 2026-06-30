@@ -1262,6 +1262,12 @@ model Agent {
   planningEnabled   Boolean  @default(true) @map("planning_enabled")
   reflectionEnabled Boolean  @default(true) @map("reflection_enabled")
   maxReflections    Int      @default(2) @map("max_reflections")
+  // Capability toggles — AgentProfilePanel previously hard-coded mentions/DM as always-on
+  // (`checked disabled`) and memory as informational-only; these make them real per-agent
+  // settings. web_search and MCP servers already had real toggles via AgentTool/AgentMcpServer.
+  respondToMentions  Boolean @default(true) @map("respond_to_mentions")
+  allowDirectMessage Boolean @default(true) @map("allow_direct_message")
+  memoryEnabled      Boolean @default(true) @map("memory_enabled")
   createdBy        String    @map("created_by")
   createdTime      DateTime  @default(now()) @map("created_time")
   lastModifiedTime DateTime? @updatedAt @map("last_modified_time")

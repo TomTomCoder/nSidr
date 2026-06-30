@@ -114,4 +114,25 @@ describe('AgentTriggerService', () => {
       );
     });
   });
+
+  describe('handleWorkflowRun', () => {
+    it('invokes executionService.run with trigger=workflow, no userId (no human actor), and the prompt folded into triggerPayload.task', async () => {
+      await service.handleWorkflowRun('agt3', {
+        prompt: 'Summarize new orders',
+        triggerData: { tableId: 'tbl1' },
+      });
+
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(executionService.run).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agentId: 'agt3',
+          trigger: 'workflow',
+          triggerPayload: { task: 'Summarize new orders', tableId: 'tbl1' },
+        })
+      );
+      const ctx = vi.mocked(executionService.run).mock.calls[0][0];
+      expect(ctx.userId).toBeUndefined();
+    });
+  });
 });

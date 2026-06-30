@@ -10,6 +10,7 @@ describe('AgentEventListener', () => {
     triggerService = {
       handleDm: vi.fn().mockResolvedValue(undefined),
       handleMention: vi.fn().mockResolvedValue(undefined),
+      handleWorkflowRun: vi.fn().mockResolvedValue(undefined),
     } as unknown as AgentTriggerService;
 
     listener = new AgentEventListener(triggerService);
@@ -63,6 +64,23 @@ describe('AgentEventListener', () => {
         recordId: 'rec1',
         tableId: 'tbl1',
         mentionedBy: 'usr3',
+      });
+    });
+  });
+
+  describe('handleAgentRunRequested', () => {
+    it('dispatches agent.run.requested payload to triggerService.handleWorkflowRun', async () => {
+      const payload = {
+        agentId: 'agt4',
+        prompt: 'Summarize new orders',
+        triggerData: { tableId: 'tbl1' },
+      };
+
+      await listener.handleAgentRunRequested(payload);
+
+      expect(triggerService.handleWorkflowRun).toHaveBeenCalledWith('agt4', {
+        prompt: 'Summarize new orders',
+        triggerData: { tableId: 'tbl1' },
       });
     });
   });

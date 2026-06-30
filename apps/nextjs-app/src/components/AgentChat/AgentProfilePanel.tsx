@@ -386,6 +386,9 @@ interface AgentProfilePanelProps {
     isPublic?: boolean;
     isActive?: boolean;
     instructions?: string;
+    respondToMentions?: boolean;
+    allowDirectMessage?: boolean;
+    memoryEnabled?: boolean;
     [key: string]: unknown;
   };
   onUpdated: (a: unknown) => void;
@@ -410,6 +413,9 @@ export function AgentProfilePanel({
   const [toolsExpanded, setToolsExpanded] = useState(false);
   const [workspaceEnabled, setWorkspaceEnabled] = useState(true);
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [respondToMentions, setRespondToMentions] = useState(agent.respondToMentions ?? true);
+  const [allowDirectMessage, setAllowDirectMessage] = useState(agent.allowDirectMessage ?? true);
+  const [memoryEnabled, setMemoryEnabled] = useState(agent.memoryEnabled ?? true);
   const [mcpServers, setMcpServers] = useState<
     { id: string; name: string; url: string; transport: string; enabled: boolean }[]
   >([]);
@@ -513,6 +519,44 @@ export function AgentProfilePanel({
       body: JSON.stringify({ isEnabled: next }),
     });
     toast.success(next ? 'Recherche Web activée' : 'Recherche Web désactivée');
+  };
+
+  // Shared by the Mention/Message privé/Mémoire toggles below — each is a single boolean
+  // column on Agent (respondToMentions/allowDirectMessage/memoryEnabled), all PATCHed the
+  // same way as the other agent-level fields (see saveInstructions further down).
+  const patchAgentField = async (field: string, value: boolean, successLabel: string) => {
+    await fetch(`/api/agent/${agent.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [field]: value }),
+    });
+    toast.success(successLabel);
+  };
+
+  const toggleRespondToMentions = async () => {
+    const next = !respondToMentions;
+    setRespondToMentions(next);
+    await patchAgentField(
+      'respondToMentions',
+      next,
+      next ? 'Réponse aux mentions activée' : 'Réponse aux mentions désactivée'
+    );
+  };
+
+  const toggleAllowDirectMessage = async () => {
+    const next = !allowDirectMessage;
+    setAllowDirectMessage(next);
+    await patchAgentField(
+      'allowDirectMessage',
+      next,
+      next ? 'Messages privés activés' : 'Messages privés désactivés'
+    );
+  };
+
+  const toggleMemoryEnabled = async () => {
+    const next = !memoryEnabled;
+    setMemoryEnabled(next);
+    await patchAgentField('memoryEnabled', next, next ? 'Mémoire activée' : 'Mémoire désactivée');
   };
 
   const scrollTo = (id: SectionId) => {
@@ -789,15 +833,15 @@ export function AgentProfilePanel({
             icon={<AtSign className="size-4" />}
             title="Mention"
             description="Lorsque tu es mentionné sur un enregistrement, l'agent analyse et répond."
-            checked
-            disabled
+            checked={respondToMentions}
+            onToggle={() => void toggleRespondToMentions()}
           />
           <Row
             icon={<MessageSquare className="size-4" />}
             title="Message privé"
             description="Transforme le texte que l'utilisateur envoie en plan structuré."
-            checked
-            disabled
+            checked={allowDirectMessage}
+            onToggle={() => void toggleAllowDirectMessage()}
           />
 
           <p className="mb-1.5 mt-3 text-xs font-semibold text-muted-foreground">Planifié</p>
@@ -983,15 +1027,15 @@ export function AgentProfilePanel({
               icon={<Globe className="size-4" />}
               title="Récent"
               description="Mémoire privée à court terme de votre travail récent."
-              checked
-              disabled
+              checked={memoryEnabled}
+              onToggle={() => void toggleMemoryEnabled()}
             />
             <Row
               icon={<ThumbsUp className="size-4" />}
               title="Préférences"
               description="S'améliore lorsque les humains donnent des directives."
-              checked
-              disabled
+              checked={memoryEnabled}
+              onToggle={() => void toggleMemoryEnabled()}
             />
             <Row
               icon={<FileText className="size-4" />}

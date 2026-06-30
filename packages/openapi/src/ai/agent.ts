@@ -7,6 +7,9 @@ export const CreateAgentSchema = z.object({
   instructions: z.string().optional(),
   modelKey: z.string().optional(),
   isPublic: z.boolean().optional().default(false),
+  respondToMentions: z.boolean().optional(),
+  allowDirectMessage: z.boolean().optional(),
+  memoryEnabled: z.boolean().optional(),
 });
 
 export type ICreateAgent = z.infer<typeof CreateAgentSchema>;
@@ -25,6 +28,9 @@ export const AgentSchema = z.object({
   isPublic: z.boolean(),
   isActive: z.boolean(),
   maxIterations: z.number(),
+  respondToMentions: z.boolean(),
+  allowDirectMessage: z.boolean(),
+  memoryEnabled: z.boolean(),
   createdBy: z.string(),
   createdTime: z.string(),
 });

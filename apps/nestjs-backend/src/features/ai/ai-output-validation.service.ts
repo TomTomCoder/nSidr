@@ -125,14 +125,18 @@ export class AiOutputValidationService {
     }
   }
 
-  private stripFences(text: string): string {
+  /** Public — reused by other generateText-fallback call sites (e.g. WorkflowAiService) that
+   * need the same "model wrapped its JSON in a markdown fence" tolerance without going through
+   * the FieldType-specific `coerce`/`validateAndRepair` pipeline above. */
+  stripFences(text: string): string {
     // Match optional ```json (or ```) ... ``` wrapper and strip the wrapper.
     const fence = /^```(?:json|JSON)?\s*\n?([\s\S]*?)\n?```$/m;
     const m = text.trim().match(fence);
     return m ? m[1] : text;
   }
 
-  private tryJsonParse(text: string): unknown {
+  /** Public for the same reason as stripFences above. */
+  tryJsonParse(text: string): unknown {
     try {
       return JSON.parse(text);
     } catch {

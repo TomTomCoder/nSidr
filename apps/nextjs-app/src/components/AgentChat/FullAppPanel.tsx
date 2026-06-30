@@ -9,15 +9,19 @@ import { useUnifiedChatStore } from '@/features/app/stores/useUnifiedChatStore';
 import type { FullAppStage } from '@/types/agent';
 import { ProposalCard } from './ProposalCard';
 
+// 'mock_data' now runs in parallel with the interface/automation generators (see
+// app-blueprint.service.ts's runSubgenerators) instead of as a separate post-agent stage, so
+// new runs never set `stage` to it — it's kept here only so a legacy in-flight run (created
+// before this change) still renders correctly in StageProgress.
 const STAGE_LABELS: Record<FullAppStage, string> = {
   tables: 'Tables',
-  subgenerators: 'Interface & automatisation',
+  subgenerators: 'Interface, automatisation & données fictives',
   agents: 'Agent IA',
   mock_data: 'Données fictives',
   done: 'Terminé',
 };
 
-const STAGE_ORDER: FullAppStage[] = ['tables', 'subgenerators', 'agents', 'mock_data', 'done'];
+const STAGE_ORDER: FullAppStage[] = ['tables', 'subgenerators', 'agents', 'done'];
 
 function StageProgress({ stage }: { stage: FullAppStage | 'idle' }) {
   if (stage === 'idle') return null;
@@ -140,6 +144,20 @@ export function FullAppPanel({ spaceId, baseId }: FullAppPanelProps) {
                     Lignes remplies (données fictives) : {String(report.mockRecordsFilled ?? 0)}
                   </div>
                 </dl>
+              </div>
+            )}
+
+            {Array.isArray(report?.warnings) && report.warnings.length > 0 && (
+              <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-400">
+                <p className="mb-1 flex items-center gap-1.5 font-medium">
+                  <AlertCircle className="size-3.5" />
+                  Points à vérifier
+                </p>
+                <ul className="list-inside list-disc space-y-0.5">
+                  {(report.warnings as string[]).map((w, i) => (
+                    <li key={i}>{w}</li>
+                  ))}
+                </ul>
               </div>
             )}
 

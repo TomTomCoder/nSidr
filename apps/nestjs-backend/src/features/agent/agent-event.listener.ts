@@ -16,6 +16,12 @@ export interface AgentMentionPayload {
   mentionedBy: string;
 }
 
+export interface AgentRunRequestedPayload {
+  agentId: string;
+  prompt: string;
+  triggerData?: Record<string, unknown>;
+}
+
 @Injectable()
 export class AgentEventListener {
   private readonly logger = new Logger(AgentEventListener.name);
@@ -42,6 +48,18 @@ export class AgentEventListener {
       recordId: payload.recordId,
       tableId: payload.tableId,
       mentionedBy: payload.mentionedBy,
+    });
+  }
+
+  // Emitted by WorkflowExecutorService's `agent_run` step — decouples WorkflowModule from
+  // AgentExecutionService's full dependency graph (and avoids a circular module import: Agent
+  // already imports Workflow, so Workflow importing Agent back would be a cycle).
+  @OnEvent('agent.run.requested')
+  async handleAgentRunRequested(payload: AgentRunRequestedPayload): Promise<void> {
+    this.logger.log(`agent.run.requested received — agentId=${payload.agentId}`);
+    await this.triggerService.handleWorkflowRun(payload.agentId, {
+      prompt: payload.prompt,
+      triggerData: payload.triggerData,
     });
   }
 }

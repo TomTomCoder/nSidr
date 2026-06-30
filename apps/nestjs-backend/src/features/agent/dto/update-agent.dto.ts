@@ -11,4 +11,7 @@ export class UpdateAgentDto {
   modelKey?: string;
   isPublic?: boolean;
   knowledgeSources?: KnowledgeSources | null;
+  respondToMentions?: boolean;
+  allowDirectMessage?: boolean;
+  memoryEnabled?: boolean;
 }

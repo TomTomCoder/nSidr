@@ -25,6 +25,9 @@ export class AgentService {
         reflectionEnabled: dto.reflectionEnabled,
         maxReflections: dto.maxReflections,
         maxIterations: dto.maxIterations,
+        respondToMentions: dto.respondToMentions,
+        allowDirectMessage: dto.allowDirectMessage,
+        memoryEnabled: dto.memoryEnabled,
         createdBy,
       },
     });
@@ -61,6 +64,9 @@ export class AgentService {
     if (dto.modelKey !== undefined) data.modelKey = dto.modelKey;
     if (dto.isPublic !== undefined) data.isPublic = dto.isPublic;
     if ('knowledgeSources' in dto) data.knowledgeSources = dto.knowledgeSources ?? null;
+    if (dto.respondToMentions !== undefined) data.respondToMentions = dto.respondToMentions;
+    if (dto.allowDirectMessage !== undefined) data.allowDirectMessage = dto.allowDirectMessage;
+    if (dto.memoryEnabled !== undefined) data.memoryEnabled = dto.memoryEnabled;
 
     const agent = await this.prismaService.agent.update({
       where: { id: agentId },

@@ -612,6 +612,12 @@ export class AgentExecutionService {
       return `You were mentioned. Context: ${JSON.stringify(ctx.triggerPayload)}`;
     if (ctx.trigger === 'dm')
       return `You received a direct message. Content: ${JSON.stringify(ctx.triggerPayload)}`;
+    if (ctx.trigger === 'workflow') {
+      const task = (ctx.triggerPayload as { task?: string })?.task;
+      return task
+        ? String(task)
+        : 'Execute the task requested by the automation that triggered you.';
+    }
     return 'Execute your task.';
   }
 

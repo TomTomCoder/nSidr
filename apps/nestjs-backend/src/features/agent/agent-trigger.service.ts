@@ -91,6 +91,22 @@ export class AgentTriggerService {
     void this.collectAndPostOutput(ctx);
   }
 
+  // Called when a workflow's `agent_run` step fires — same fire-and-forget pattern as
+  // mention/DM (no human to stream output back to), no userId (matches the 'cron' trigger,
+  // which also has no human actor).
+  async handleWorkflowRun(
+    agentId: string,
+    payload: { prompt: string; triggerData?: Record<string, unknown> }
+  ): Promise<void> {
+    this.logger.log(`Agent ${agentId} triggered by workflow step`);
+    const ctx: AgentRunContext = {
+      agentId,
+      trigger: 'workflow',
+      triggerPayload: { task: payload.prompt, ...payload.triggerData },
+    };
+    void this.collectAndPostOutput(ctx);
+  }
+
   // Collect all run events and log them (controller streams them directly for interactive runs)
   private async collectAndPostOutput(ctx: AgentRunContext): Promise<void> {
     try {

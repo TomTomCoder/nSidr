@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@teable/db-main-prisma';
 import { generateObject, generateText } from 'ai';
 import { z } from 'zod';
+import { AiOutputValidationService } from '../ai/ai-output-validation.service';
 import { AiService } from '../ai/ai.service';
 
 export const WorkflowTriggerSchema = z.object({
@@ -39,6 +40,7 @@ export const WorkflowStepSchema: z.ZodType<IWorkflowStep> = z.lazy(() =>
       'update_record',
       'get_records',
       'execute_script',
+      'agent_run',
     ]),
     name: z.string().optional(),
     config: z.record(z.string(), z.unknown()).default({}),
@@ -79,6 +81,9 @@ Step types available:
 - update_record: config needs { tableId: "tbl...", recordId: "rec... or omit to use trigger record", fields: { fieldId: "value" } }
 - get_records: config needs { tableId: "tbl...", take: 20 }
 - execute_script: config needs { script: "JavaScript code; set result = <value>" } — runs sandboxed JS with data = triggerData
+- agent_run: config needs { agentId: "real id from the 'Real agents in this base' list below", prompt: "task for the agent, supports {{fieldName}} interpolation" } — fire-and-forget, does not wait for or return the agent's output
+
+Only use an agentId that appears in the "Real agents in this base" list given below — same rule as tableId: never invent one or use an agent's name as if it were its id.
 
 Template variables available in any config string:
 - {{record.fields.fieldId}} — field value from the trigger event record
@@ -100,7 +105,8 @@ export class WorkflowAiService {
 
   constructor(
     private readonly aiService: AiService,
-    private readonly prismaService: PrismaService
+    private readonly prismaService: PrismaService,
+    private readonly aiOutputValidationService: AiOutputValidationService
   ) {}
 
   async generateWorkflowFromPrompt(
@@ -127,7 +133,19 @@ export class WorkflowAiService {
       tables.length > 0
         ? `\n\nReal tables in this base:\n${tables.map((t) => `- ${t.name}: ${t.id}`).join('\n')}`
         : '';
-    const system = SYSTEM_PROMPT + tableContext;
+
+    // Same reasoning as tableContext above, for agent_run steps — read directly via Prisma
+    // rather than injecting AgentService, since AgentModule already imports WorkflowModule and
+    // the reverse import would be a circular module dependency for a single read-only query.
+    const agents = await this.prismaService.agent.findMany({
+      where: { baseId, isActive: true },
+      select: { id: true, name: true },
+    });
+    const agentContext =
+      agents.length > 0
+        ? `\n\nReal agents in this base:\n${agents.map((a) => `- ${a.name}: ${a.id}`).join('\n')}`
+        : '';
+    const system = SYSTEM_PROMPT + tableContext + agentContext;
 
     // Each attempt gets its own bounded timeout (same AbortController pattern as the
     // http_request step below) — without this, a slow/hanging generateObject call (seen
@@ -169,10 +187,17 @@ export class WorkflowAiService {
       })
     );
 
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    // Reuses AiOutputValidationService's fence-stripping/JSON-parse tolerance instead of a
+    // second, ad-hoc implementation — same "model wrapped its JSON in prose or a markdown
+    // fence" problem this generateText fallback always had.
+    const stripped = this.aiOutputValidationService.stripFences(text).trim();
+    const jsonMatch = stripped.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error('AI did not return a valid JSON workflow config');
 
-    const parsed: unknown = JSON.parse(jsonMatch[0]);
+    const parsed = this.aiOutputValidationService.tryJsonParse(jsonMatch[0]);
+    if (typeof parsed !== 'object' || parsed === null) {
+      throw new Error('AI did not return a valid JSON workflow config');
+    }
     return WorkflowConfigSchema.parse(parsed);
   }
 

@@ -1,9 +1,7 @@
 'use client';
 
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
-import { markdown } from '@codemirror/lang-markdown';
 import { EditorState } from '@codemirror/state';
-import { oneDark } from '@codemirror/theme-one-dark';
 import { EditorView, keymap, drawSelection, dropCursor } from '@codemirror/view';
 import { useTheme } from '@teable/next-themes';
 import type { IDocFolder } from '@teable/openapi';
@@ -121,11 +119,10 @@ export function DocEditorArea({ spaceId }: IDocEditorAreaProps) {
   const onChangeRef = useRef(handleChange);
   onChangeRef.current = handleChange;
 
-  // ponytail: the markdown() syntax-highlighting extension can throw synchronously
-  // ("tags is not iterable", a @lezer/highlight bug on certain content) from both
-  // EditorView construction and dispatch() — not just from async plugin updates, so
-  // EditorView.exceptionSink alone doesn't cover it. This fallback extension set drops
-  // markdown()/oneDark (the highlighting layer) so editing still works without crashing.
+  // ponytail: markdown() syntax highlighting is dropped entirely — its @lezer/highlight
+  // dependency throws "tags is not iterable" on certain content from multiple, not
+  // reliably catchable call sites (construction, dispatch, async measure passes). Plain
+  // text editing has no highlighter to crash.
   const baseExtensions = [
     history(),
     EditorView.lineWrapping,
@@ -146,27 +143,12 @@ export function DocEditorArea({ spaceId }: IDocEditorAreaProps) {
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const extensions = [
-      ...baseExtensions,
-      drawSelection(),
-      dropCursor(),
-      markdown(),
-      ...(theme === 'dark' ? [oneDark] : []),
-    ];
+    const extensions = [...baseExtensions, drawSelection(), dropCursor()];
 
-    let view: EditorView;
-    try {
-      view = new EditorView({
-        state: EditorState.create({ doc: localContent, extensions }),
-        parent: containerRef.current,
-      });
-    } catch (err) {
-      console.error('[DocEditorArea] Highlighting crashed on mount, falling back to plain text', err);
-      view = new EditorView({
-        state: EditorState.create({ doc: localContent, extensions: baseExtensions }),
-        parent: containerRef.current,
-      });
-    }
+    const view = new EditorView({
+      state: EditorState.create({ doc: localContent, extensions }),
+      parent: containerRef.current,
+    });
     viewRef.current = view;
 
     return () => {
