@@ -192,9 +192,10 @@ export class ActionProposalService {
         const baseIdForFields = args.baseId as string;
         // G-03 FIX: AI sometimes sends string fields ["Nom", "Email"] instead of objects.
         // Simple field types that can be created without extra options.
-        // 'formula'/'rollup'/'conditionalRollup' downgrade to singleLineText — interpolating
-        // {{fldXXX}} field IDs across sibling fields created in the same call is not yet
-        // supported (Phase 3 deferred, see AI-GENERATION-ROADMAP.md).
+        // Formula fields are handled bi-phasedly: non-formula fields first (Phase A, synchronous
+        // batch), then formula fields (Phase B, after table exists so real fieldIds are known).
+        // {{FieldName}} placeholders in formula expressions are resolved to {{fldXXX}} ids
+        // via a post-creation DB read — this is the reason formula was previously excluded.
         // ponytail: url/email/phoneNumber aren't real FieldType values (core's
         // FieldType enum has no entry for them) — keep only types FieldSupplementService
         // actually accepts, everything else downgrades to singleLineText.
@@ -218,6 +219,8 @@ export class ActionProposalService {
           choices?: string[];
           foreignTableName?: string;
           relationship?: string;
+          // formula fields only
+          expression?: string;
         }
         const relMap: Record<string, Relationship> = {
           manyOne: Relationship.ManyOne,
@@ -285,10 +288,22 @@ export class ActionProposalService {
           };
         };
         const rawFields = args.fields as Array<IRawField | string> | undefined;
-        const fields =
+        const rawFieldsArr =
           rawFields && rawFields.length > 0
-            ? await Promise.all(rawFields.map(buildField))
-            : [{ name: 'Name', type: 'singleLineText' }];
+            ? rawFields
+            : ([{ name: 'Name', type: 'singleLineText' }] as IRawField[]);
+
+        // Phase A: non-formula fields (created synchronously in the table's initial batch).
+        const nonFormulaRaw = rawFieldsArr.filter(
+          (f) => typeof f === 'string' || (f as IRawField).type !== 'formula'
+        );
+        // Phase B: formula fields (created after table + real fieldIds are known).
+        const formulaRaw = rawFieldsArr.filter(
+          (f) => typeof f !== 'string' && (f as IRawField).type === 'formula'
+        ) as IRawField[];
+
+        const fields = await Promise.all(nonFormulaRaw.map(buildField));
+
         // G-03 FIX: default table name when AI omits it
         const tableName = (args.name as string | undefined)?.trim() || 'New Table';
         // Use baseNodeService.create so a baseNode entry is created alongside the table
@@ -309,6 +324,33 @@ export class ActionProposalService {
             .move(args.baseId as string, tableNodeVo.id, { parentId: tablesFolderId })
             .catch(() => {});
         }
+
+        // Phase B: formula fields — resolve {{FieldName}} → {{fldXXX}} using real created IDs.
+        if (formulaRaw.length > 0) {
+          const createdFields = await this.prismaService.field.findMany({
+            where: { tableId: tableNodeVo.id, deletedTime: null },
+            select: { id: true, name: true },
+          });
+          const nameToId = new Map(createdFields.map((f) => [f.name, f.id]));
+          for (const ff of formulaRaw) {
+            if (!ff.expression) continue;
+            const resolvedExpr = ff.expression.replace(
+              /\{\{([^}]+)\}\}/g,
+              (_, fieldName: string) => {
+                const fid = nameToId.get(fieldName.trim());
+                return fid ? `{{${fid}}}` : `{{${fieldName}}}`;
+              }
+            );
+            await this.fieldOpenApiService
+              .createField(tableNodeVo.id, {
+                name: ff.name,
+                type: 'formula',
+                options: { expression: resolvedExpr },
+              } as Parameters<typeof this.fieldOpenApiService.createField>[1])
+              .catch(() => {}); // one failing formula shouldn't abort the whole table creation
+          }
+        }
+
         return tableNodeVo;
       }
 
@@ -359,12 +401,30 @@ export class ActionProposalService {
                 where: { name: m.tableName, baseId: args.baseId as string, deletedTime: null },
                 select: { id: true },
               });
+              // For relation-table modules, resolve the link field name to its real id so the
+              // AppBuilderPage renderer can filter linked records without a name-lookup at runtime.
+              let linkFieldId: string | null = null;
+              if (m.type === 'relation-table' && m.linkFieldName && table?.id) {
+                const linkField = await this.prismaService.field.findFirst({
+                  where: {
+                    tableId: table.id,
+                    name: m.linkFieldName,
+                    type: 'link',
+                    deletedTime: null,
+                  },
+                  select: { id: true },
+                });
+                linkFieldId = linkField?.id ?? null;
+              }
               return {
                 type: m.type,
                 tableId: table?.id ?? null,
                 tableName: m.tableName,
                 title: m.title,
                 fieldNames: m.fieldNames,
+                ...(m.type === 'relation-table'
+                  ? { linkFieldName: m.linkFieldName, linkFieldId }
+                  : {}),
               };
             })
           );
@@ -511,6 +571,9 @@ export class ActionProposalService {
             reflectionEnabled: args.reflectionEnabled as boolean | undefined,
             maxReflections: args.maxReflections as number | undefined,
             maxIterations: args.maxIterations as number | undefined,
+            respondToMentions: args.respondToMentions as boolean | undefined,
+            allowDirectMessage: args.allowDirectMessage as boolean | undefined,
+            memoryEnabled: args.memoryEnabled as boolean | undefined,
           },
           _userId
         );
@@ -524,6 +587,28 @@ export class ActionProposalService {
                 where: { agentId_toolName: { agentId: agent.id, toolName } },
                 update: { isEnabled: true },
                 create: { agentId: agent.id, toolName, isEnabled: true },
+              })
+            )
+          );
+        }
+
+        // MCP servers — create AgentMcpServer rows if the user explicitly named any.
+        const mcpServerUrls = args.mcpServerUrls as
+          | Array<{ name: string; url: string }>
+          | undefined;
+        if (mcpServerUrls?.length) {
+          await Promise.all(
+            mcpServerUrls.map((srv) =>
+              this.prismaService.agentMcpServer.upsert({
+                where: { agentId_url: { agentId: agent.id, url: srv.url } },
+                update: { name: srv.name, enabled: true },
+                create: {
+                  agentId: agent.id,
+                  name: srv.name,
+                  url: srv.url,
+                  transport: 'streamable-http',
+                  enabled: true,
+                },
               })
             )
           );

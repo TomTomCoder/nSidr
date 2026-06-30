@@ -107,14 +107,21 @@ export type IAppBlueprint = z.infer<typeof blueprintSchema>;
 // Mirrors create_app_interface's declarative `modules` shape (Phase 5) — tableName resolved
 // to a real tableId only at proposal-accept time, so this is safe to generate even though the
 // blueprint's tables are themselves still pending proposals at this point.
+// 'relation-table' is a cross-table navigation module: it renders the records of `tableName`
+// that are linked to the selected record in another table via `linkFieldName` (the name of a
+// `link` field on `tableName`). This enables parent→children navigation (e.g. Client → Commandes)
+// without any extra DB column — the link field is already part of the blueprint schema.
 const interfaceProposalSchema = z.object({
   title: z.string(),
   modules: z
     .array(
       z.object({
-        type: z.enum(['data-table', 'form', 'detail-view']),
+        type: z.enum(['data-table', 'form', 'detail-view', 'relation-table']),
         tableName: z.string(),
         title: z.string().optional(),
+        // Required when type='relation-table': the name of the link field on tableName that
+        // establishes the relation (e.g. 'Client' on the Commandes table).
+        linkFieldName: z.string().optional(),
       })
     )
     .min(1),
@@ -129,13 +136,17 @@ const automationProposalSchema = z.object({
   description: z.string().describe('One clear sentence describing trigger + action'),
 });
 
-// Mirrors create_agent's real schema (Phase 2) — tools restricted to the real, executable
-// tool-name enum, never an invented one.
+// Mirrors create_agent's real schema — tools restricted to the real, executable
+// tool-name enum, never an invented one. Capability flags mirror the Phase 2 toggles
+// added to CreateAgentDto/AgentService (respondToMentions/allowDirectMessage/memoryEnabled).
 const agentProposalSchema = z.object({
   name: z.string(),
   description: z.string().optional(),
   instructions: z.string(),
   tools: z.array(z.enum(AGENT_TOOL_NAMES)).optional(),
+  respondToMentions: z.boolean().optional(),
+  allowDirectMessage: z.boolean().optional(),
+  memoryEnabled: z.boolean().optional(),
 });
 
 /**
@@ -254,12 +265,24 @@ export class AppBlueprintService {
     model: Parameters<typeof generateObject>[0]['model']
   ) {
     const brandHint = await this.buildBrandPromptHint();
+    // Relations from the blueprint — used to generate 'relation-table' navigation modules.
+    // A relation-table module lets users drill from a parent record into its linked children
+    // without switching tables manually (e.g. Client detail → Commandes panel on the right).
+    const relations = blueprint.entities.flatMap((entity) =>
+      entity.fields
+        .filter((f) => f.type === 'link')
+        .map((f) => `"${entity.name}" est lié à "${f.foreignTableName}" via le champ "${f.name}"`)
+    );
+    const relationsHint =
+      relations.length > 0
+        ? `\n\nRelations : ${relations.join('; ')}. Pour les relations 1:N, propose un module "relation-table" qui affiche les enregistrements liés (linkFieldName = nom du champ link côté N).`
+        : '';
     const { object } = await generateObject({
       model,
       schema: interfaceProposalSchema,
       prompt:
         `Propose une interface CRUD pour cette application, avec un module par table : ` +
-        `${blueprint.entities.map((e) => e.name).join(', ')}.${brandHint}`,
+        `${blueprint.entities.map((e) => e.name).join(', ')}.${relationsHint}${brandHint}`,
     });
     return this.actionProposalService.createProposal({
       action: 'create_app_interface',
@@ -310,6 +333,9 @@ export class AppBlueprintService {
         description: object.description,
         instructions: object.instructions,
         tools: object.tools,
+        respondToMentions: object.respondToMentions,
+        allowDirectMessage: object.allowDirectMessage,
+        memoryEnabled: object.memoryEnabled,
       },
       conversationId: ctx.conversationId,
       preview: { name: object.name, description: object.description, tools: object.tools },

@@ -392,9 +392,10 @@ export class UnifiedAiService {
                     'attachment',
                     'rating',
                     'link',
+                    'formula',
                   ])
                   .describe(
-                    'Field type. Use "link" for a relation to another existing table (requires foreignTableName + relationship).'
+                    'Field type. Use "link" for a relation to another existing table (requires foreignTableName + relationship). Use "formula" for a calculated field (requires expression).'
                   ),
                 required: z.boolean().optional().describe('Field cannot be left empty'),
                 unique: z.boolean().optional().describe('Values must be unique across records'),
@@ -414,6 +415,12 @@ export class UnifiedAiService {
                   .enum(['oneOne', 'oneMany', 'manyOne', 'manyMany'])
                   .optional()
                   .describe('Required when type is "link"'),
+                expression: z
+                  .string()
+                  .optional()
+                  .describe(
+                    'Required when type is "formula". Use {{FieldName}} to reference other fields in this table (names, not IDs — they are resolved automatically). Example: "{{Price}} * {{Quantity}}"'
+                  ),
               })
             )
             .optional()
@@ -577,6 +584,22 @@ export class UnifiedAiService {
           reflectionEnabled: z.boolean().optional().describe('Default true'),
           maxReflections: z.number().int().min(0).max(10).optional(),
           maxIterations: z.number().int().min(1).max(50).optional(),
+          respondToMentions: z
+            .boolean()
+            .optional()
+            .describe(
+              'Whether the agent responds when @mentioned on a record. Default true — set false to disable.'
+            ),
+          allowDirectMessage: z
+            .boolean()
+            .optional()
+            .describe('Whether the agent responds to direct messages. Default true.'),
+          memoryEnabled: z
+            .boolean()
+            .optional()
+            .describe(
+              'Whether the agent retains memory across conversations (recent context + preferences). Default true.'
+            ),
           isPublic: z
             .boolean()
             .optional()
@@ -585,6 +608,17 @@ export class UnifiedAiService {
             .object({ cron: z.string().describe('Cron expression, e.g. "0 9 * * 1"') })
             .optional()
             .describe('Only set this for agents meant to run automatically on a schedule'),
+          mcpServerUrls: z
+            .array(
+              z.object({
+                name: z.string().describe('Short label for the MCP server'),
+                url: z.string().url().describe('Full URL of the MCP server (streamable-http)'),
+              })
+            )
+            .optional()
+            .describe(
+              'MCP servers to connect at creation time. Only add servers the user explicitly named.'
+            ),
           baseId: z.string().optional().describe('The base (database) ID — preferred if known'),
           baseName: z
             .string()

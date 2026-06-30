@@ -588,6 +588,103 @@ describe('ActionProposalService', () => {
       expect(mockAgentTool.upsert).not.toHaveBeenCalled();
       expect(mockAgentTrigger.create).not.toHaveBeenCalled();
     });
+
+    it('respondToMentions/allowDirectMessage/memoryEnabled are forwarded to agentService.create', async () => {
+      const mockAgent = { create: vi.fn().mockResolvedValue({ id: 'agent3', name: 'Quiet Bot' }) };
+      const mockBaseNode = {
+        create: vi.fn().mockResolvedValue({ id: 'node3' }),
+        move: vi.fn().mockResolvedValue(undefined),
+      };
+      const prisma = {
+        ...mockPrismaService,
+        baseNodeFolder: { findFirst: vi.fn().mockResolvedValue(null) },
+        agentTool: { upsert: vi.fn() },
+        agentTrigger: { create: vi.fn() },
+      };
+      const svc = new ActionProposalService(
+        prisma as any,
+        mockBaseNode as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        mockAgent as any
+      );
+
+      await (svc as any).executeAction(
+        'create_agent',
+        {
+          baseId: 'base-1',
+          name: 'Quiet Bot',
+          instructions: 'Never respond to mentions.',
+          respondToMentions: false,
+          allowDirectMessage: false,
+          memoryEnabled: false,
+        },
+        'user-1'
+      );
+
+      expect(mockAgent.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          respondToMentions: false,
+          allowDirectMessage: false,
+          memoryEnabled: false,
+        }),
+        'user-1'
+      );
+    });
+
+    it('mcpServerUrls → AgentMcpServer rows created via upsert', async () => {
+      const mockAgent = { create: vi.fn().mockResolvedValue({ id: 'agent4', name: 'MCP Bot' }) };
+      const mockBaseNode = {
+        create: vi.fn().mockResolvedValue({ id: 'node4' }),
+        move: vi.fn().mockResolvedValue(undefined),
+      };
+      const mockAgentMcpServer = { upsert: vi.fn().mockResolvedValue(undefined) };
+      const prisma = {
+        ...mockPrismaService,
+        baseNodeFolder: { findFirst: vi.fn().mockResolvedValue(null) },
+        agentTool: { upsert: vi.fn() },
+        agentTrigger: { create: vi.fn() },
+        agentMcpServer: mockAgentMcpServer,
+      };
+      const svc = new ActionProposalService(
+        prisma as any,
+        mockBaseNode as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        mockAgent as any
+      );
+
+      await (svc as any).executeAction(
+        'create_agent',
+        {
+          baseId: 'base-1',
+          name: 'MCP Bot',
+          instructions: 'Use MCP.',
+          mcpServerUrls: [{ name: 'Mon serveur', url: 'https://mcp.exemple.com' }],
+        },
+        'user-1'
+      );
+
+      expect(mockAgentMcpServer.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            agentId: 'agent4',
+            url: 'https://mcp.exemple.com',
+            name: 'Mon serveur',
+            transport: 'streamable-http',
+            enabled: true,
+          }),
+        })
+      );
+    });
   });
 
   describe('create_table (Phase 3 — per-field options)', () => {
@@ -822,6 +919,71 @@ describe('ActionProposalService', () => {
       );
 
       expect(result).toMatchObject({ shouldStream: true, appId: 'app2' });
+    });
+  });
+
+  describe('create_table (formula field — Phase 4)', () => {
+    it('formula field is created after non-formula fields, with {{FieldName}} resolved to real fldXXX IDs', async () => {
+      const mockCreateField = vi.fn().mockResolvedValue({});
+      const mockBaseNode = {
+        create: vi.fn().mockResolvedValue({ id: 'tbl-formula' }),
+        move: vi.fn().mockResolvedValue(undefined),
+      };
+      const prisma = {
+        ...mockPrismaService,
+        baseNodeFolder: { findFirst: vi.fn().mockResolvedValue(null) },
+        field: {
+          findMany: vi.fn().mockResolvedValue([
+            { id: 'fldABC', name: 'Prix HT' },
+            { id: 'fldDEF', name: 'TVA' },
+          ]),
+        },
+      };
+      const svc = new ActionProposalService(
+        prisma as any,
+        mockBaseNode as any,
+        {} as any, // recordOpenApiService
+        {} as any, // viewOpenApiService
+        {} as any, // aiService
+        { createField: mockCreateField } as any, // fieldOpenApiService (pos 5)
+        {} as any, // workflowAiService
+        {} as any, // workflowService
+        {} as any // agentService
+      );
+
+      await (svc as any).executeAction(
+        'create_table',
+        {
+          baseId: 'base-1',
+          name: 'Produits',
+          fields: [
+            { name: 'Prix HT', type: 'number' },
+            { name: 'TVA', type: 'number' },
+            { name: 'Prix TTC', type: 'formula', expression: '{{Prix HT}} * (1 + {{TVA}} / 100)' },
+          ],
+        },
+        'user-1'
+      );
+
+      // Non-formula fields go into the initial table creation batch
+      const batchedFields = mockBaseNode.create.mock.calls[0][1].fields as Array<{
+        name: string;
+        type: string;
+      }>;
+      expect(batchedFields.map((f) => f.name)).toEqual(expect.arrayContaining(['Prix HT', 'TVA']));
+      expect(batchedFields.map((f) => f.name)).not.toContain('Prix TTC');
+
+      // Formula field is created after, with real IDs substituted
+      expect(mockCreateField).toHaveBeenCalledWith(
+        'tbl-formula',
+        expect.objectContaining({
+          name: 'Prix TTC',
+          type: 'formula',
+          options: expect.objectContaining({
+            expression: '{{fldABC}} * (1 + {{fldDEF}} / 100)',
+          }),
+        })
+      );
     });
   });
 });

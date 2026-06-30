@@ -18,11 +18,14 @@ import { useAppBuilderStore } from '../stores/useAppBuilderStore';
 import { CodeEditor } from './CodeEditor';
 
 interface IDeclarativeModule {
-  type: 'data-table' | 'form' | 'detail-view';
+  type: 'data-table' | 'form' | 'detail-view' | 'relation-table';
   tableId: string | null;
   tableName: string;
   title?: string;
   fieldNames?: string[];
+  // relation-table only: resolved at proposal-accept time in action-proposal.service.ts
+  linkFieldName?: string;
+  linkFieldId?: string | null;
 }
 
 interface IAppContent {
@@ -35,12 +38,14 @@ const MODULE_TYPE_LABELS: Record<IDeclarativeModule['type'], string> = {
   'data-table': 'Tableau de données',
   form: 'Formulaire',
   'detail-view': 'Vue détaillée',
+  'relation-table': 'Enregistrements liés',
 };
 
 // Phase 5: declarative interfaces embed the existing, already-tested native table view via
-// iframe (same pattern as window.TeableView used inside generated app code) instead of a new
-// parallel renderer. 'form'/'detail-view' render the same grid for now — ponytail: distinguishing
-// them (auto-provisioning a Form view, opening expand-record) is a follow-up, not built blind here.
+// iframe. 'form'/'detail-view' render the same grid for now — ponytail: distinguishing them
+// (auto-provisioning a Form view, opening expand-record) is a follow-up, not built blind here.
+// 'relation-table' appends filterByLinkField to scope the iframe to linked records only;
+// without a selected parent record the filter is a no-op and shows all records.
 function DeclarativeAppView({
   baseId,
   modules,
@@ -50,27 +55,35 @@ function DeclarativeAppView({
 }) {
   return (
     <div className="flex h-full flex-col gap-4 overflow-y-auto p-4">
-      {modules.map((m, i) => (
-        <div key={i} className="flex flex-col gap-2 rounded-lg border">
-          <div className="border-b px-3 py-2">
-            <p className="text-sm font-medium">{m.title ?? m.tableName}</p>
-            <p className="text-xs text-muted-foreground">
-              {MODULE_TYPE_LABELS[m.type]} — {m.tableName}
-            </p>
+      {modules.map((m, i) => {
+        const iframeSrc = m.tableId
+          ? m.type === 'relation-table' && m.linkFieldId
+            ? `/base/${baseId}/table/${m.tableId}?embed=1&filterByLinkField=${m.linkFieldId}`
+            : `/base/${baseId}/table/${m.tableId}?embed=1`
+          : null;
+        return (
+          <div key={i} className="flex flex-col gap-2 rounded-lg border">
+            <div className="border-b px-3 py-2">
+              <p className="text-sm font-medium">{m.title ?? m.tableName}</p>
+              <p className="text-xs text-muted-foreground">
+                {MODULE_TYPE_LABELS[m.type]} — {m.tableName}
+                {m.type === 'relation-table' && m.linkFieldName ? ` (via ${m.linkFieldName})` : ''}
+              </p>
+            </div>
+            {iframeSrc ? (
+              <iframe
+                className="h-[500px] w-full border-0"
+                src={iframeSrc}
+                title={m.title ?? m.tableName}
+              />
+            ) : (
+              <p className="px-3 py-6 text-center text-xs text-muted-foreground">
+                Table « {m.tableName} » introuvable.
+              </p>
+            )}
           </div>
-          {m.tableId ? (
-            <iframe
-              className="h-[500px] w-full border-0"
-              src={`/base/${baseId}/table/${m.tableId}?embed=1`}
-              title={m.title ?? m.tableName}
-            />
-          ) : (
-            <p className="px-3 py-6 text-center text-xs text-muted-foreground">
-              Table « {m.tableName} » introuvable.
-            </p>
-          )}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
