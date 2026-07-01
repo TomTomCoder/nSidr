@@ -19,6 +19,10 @@ const testFiles = ['**/test/**/*.{e2e-test,e2e-spec}.{js,ts}'];
 
 export default defineConfig({
   resolve: {
+    // Dedupe NestJS DI-critical singletons: pnpm can hoist two @nestjs/core copies,
+    // producing two ClsService tokens so MetaPrismaService fails to resolve ClsService
+    // and the whole app fails to boot under vitest. Force a single copy.
+    dedupe: ['@nestjs/core', '@nestjs/common', 'nestjs-cls', 'reflect-metadata'],
     conditions: ['node', '@teable/source'],
   },
   ssr: {
