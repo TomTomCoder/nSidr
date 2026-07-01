@@ -172,6 +172,22 @@ export function AIConfigFormWizard({
     [form, onSubmit]
   );
 
+  // P0-3: persist default audio/video model selection.
+  const updateAudioModel = useCallback(
+    (value: string) => {
+      form.setValue('audioModel', value || null);
+      onSubmit(form.getValues());
+    },
+    [form, onSubmit]
+  );
+  const updateVideoModel = useCallback(
+    (value: string) => {
+      form.setValue('videoModel', value || null);
+      onSubmit(form.getValues());
+    },
+    [form, onSubmit]
+  );
+
   const onSaveTestResult = useCallback(
     (
       modelKey: string,
@@ -349,6 +365,10 @@ export function AIConfigFormWizard({
                 models={availableModels}
                 onChange={updateChatModel}
                 disabled={!isStep2Complete}
+                audioModel={form.watch('audioModel') ?? undefined}
+                videoModel={form.watch('videoModel') ?? undefined}
+                onAudioModelChange={updateAudioModel}
+                onVideoModelChange={updateVideoModel}
               />
             </SetupStepCard>
           </div>

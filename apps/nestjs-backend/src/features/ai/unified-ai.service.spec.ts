@@ -780,4 +780,42 @@ describe('UnifiedAiService', () => {
       expect(call('Prénom', undefined, 0)).toBe(call('Prénom', undefined, 0));
     });
   });
+
+  // P0-1: actionable error messages
+  describe('actionable error messages (P0-1)', () => {
+    it('provider absent → error event carries an actionable FR message (no stack/undefined)', async () => {
+      // No AI model configured — resolveModelInstance throws this exact message.
+      mockAiService.getAIConfig.mockResolvedValue({ llmProviders: [], chatModel: undefined });
+      const ctx = {
+        spaceId: 'space-1',
+        userId: 'user-1',
+        message: 'Hi',
+        modelKey: '', // no explicit model → falls back to chatModel.lg which is undefined
+      };
+      const events = [];
+      for await (const event of service.chat(ctx)) {
+        events.push(event);
+      }
+      const errorEvents = events.filter((e) => e.type === 'error');
+      expect(errorEvents.length).toBeGreaterThan(0);
+      const msg = errorEvents[0].content ?? '';
+      expect(msg).toContain('Aucun modèle IA configuré');
+      expect(msg).toContain('Paramètres');
+      expect(msg).not.toContain('undefined');
+      expect(msg.toLowerCase()).not.toContain('at ('); // no stack trace leaked
+    });
+
+    it('toActionableMessage maps known cases and never leaks raw text by default', () => {
+      const map = UnifiedAiService.toActionableMessage.bind(UnifiedAiService);
+      expect(map(new Error('No AI model configured'))).toContain('Aucun modèle IA configuré');
+      expect(map({ status: 401, message: 'x' })).toContain('Clé API');
+      expect(map({ status: 429, message: 'x' })).toContain('Quota');
+      expect(map({ status: 404, message: 'x' })).toContain('introuvable');
+      expect(map(new Error('model does not support this'))).toContain('ne prend pas en charge');
+      // Unknown → generic fallback, raw text not surfaced
+      const generic = map(new Error('ECONNRESET secret-token-xyz'));
+      expect(generic).not.toContain('secret-token-xyz');
+      expect(generic).toContain('Une erreur est survenue');
+    });
+  });
 });
