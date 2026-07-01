@@ -441,6 +441,135 @@ describe('UnifiedAiService', () => {
       expect(seenTools.create_agent).toBeDefined();
       expect(seenTools.create_app_interface).toBeDefined();
     });
+
+    // Exhaustive per-target coverage: for EACH targetType, assert the model is offered
+    // EXACTLY the expected write tools and none of the other targets' tools. These map 1:1
+    // to TARGET_TYPE_TOOLS in unified-ai.service.ts. 'mock_data' is deliberately excluded —
+    // it bypasses the generic tool-calling loop entirely (deterministic branch).
+    const ALL_WRITE_TARGET_TOOLS = [
+      'create_table',
+      'create_view',
+      'link_tables',
+      'create_record',
+      'create_app_interface',
+      'generate_app_code',
+      'create_automation',
+      'create_agent',
+    ];
+    const CASES: Array<{
+      target: 'table' | 'interface' | 'automation' | 'agent' | 'app';
+      expected: string[];
+    }> = [
+      {
+        target: 'table',
+        expected: ['create_table', 'create_view', 'link_tables', 'create_record'],
+      },
+      { target: 'interface', expected: ['create_app_interface'] },
+      { target: 'automation', expected: ['create_automation'] },
+      { target: 'agent', expected: ['create_agent'] },
+      { target: 'app', expected: ['create_app_interface', 'generate_app_code'] },
+    ];
+
+    it.each(CASES)(
+      'targetType "$target" exposes exactly its own write tools',
+      async ({ target, expected }) => {
+        let seenTools: Record<string, unknown> = {};
+        vi.mocked(generateText).mockImplementation(async (opts: any) => {
+          seenTools = opts.tools;
+          return { text: 'ok', steps: [{ text: 'ok', toolCalls: [], toolResults: [] }] } as any;
+        });
+
+        const ctx = {
+          spaceId: 'space-1',
+          userId: 'user-1',
+          message: `Génère pour la cible ${target}`,
+          modelKey: 'test-model',
+          targetType: target,
+        };
+        for await (const _event of service.chat(ctx)) {
+          // drain
+        }
+
+        for (const name of expected) {
+          expect(seenTools[name], `${target} should expose ${name}`).toBeDefined();
+        }
+        for (const name of ALL_WRITE_TARGET_TOOLS.filter((n) => !expected.includes(n))) {
+          expect(seenTools[name], `${target} must NOT expose ${name}`).toBeUndefined();
+        }
+        // Read tools are always available regardless of targetType.
+        expect(seenTools.get_workspace_state).toBeDefined();
+        expect(seenTools.query_records).toBeDefined();
+      }
+    );
+
+    it('mock_data bypasses the tool loop entirely (generateText never called)', async () => {
+      mockWorkspaceStateService.getSnapshot.mockResolvedValue({
+        bases: [
+          {
+            id: 'base-1',
+            name: 'Base',
+            tables: [
+              { id: 'tbl-1', name: 'Items', fields: [{ name: 'Name', type: 'singleLineText' }] },
+            ],
+          },
+        ],
+        integrations: [],
+        agentTriggers: [],
+        plugins: [],
+      });
+      mockRecordService.getRecords.mockResolvedValue({
+        records: [{ id: 'r1', fields: { Name: null } }],
+      });
+      vi.mocked(generateObject).mockResolvedValue({ object: { records: [{ Name: 'X' }] } } as any);
+      mockActionProposalService.createProposal.mockResolvedValue({
+        proposalId: 'p1',
+        action: 'update_record',
+        preview: {},
+      });
+
+      const ctx = {
+        spaceId: 'space-1',
+        userId: 'user-1',
+        message: 'Génère des données',
+        modelKey: 'test-model',
+        targetType: 'mock_data' as const,
+        pageContext: { tableId: 'tbl-1' },
+      };
+      for await (const _event of service.chat(ctx)) {
+        // drain
+      }
+
+      expect(vi.mocked(generateText)).not.toHaveBeenCalled();
+      expect(vi.mocked(generateObject)).toHaveBeenCalled();
+    });
+  });
+
+  describe('never-silent turn — targetType with no tool call and no text still replies', () => {
+    it('emits a fallback text_chunk when the model produces neither proposal nor text', async () => {
+      vi.mocked(generateText).mockResolvedValue({
+        text: '',
+        steps: [{ text: '', toolCalls: [], toolResults: [] }],
+      } as any);
+
+      const ctx = {
+        spaceId: 'space-1',
+        userId: 'user-1',
+        message: 'Crée une interface',
+        modelKey: 'test-model',
+        targetType: 'interface' as const,
+      };
+      const events = [];
+      for await (const event of service.chat(ctx)) events.push(event);
+
+      const textChunks = events.filter((e) => e.type === 'text_chunk');
+      expect(textChunks.length).toBeGreaterThan(0);
+      expect(textChunks[textChunks.length - 1].content).toMatch(/interface|préciser|reformuler/i);
+      // The saved assistant message must not be empty.
+      const assistantCall = mockPrismaService.workspaceConversationMessage.create.mock.calls.find(
+        (c: any[]) => c[0].data.role === 'assistant'
+      );
+      expect(assistantCall?.[0].data.content).not.toBe('');
+    });
   });
 
   describe('create_agent tool schema (Phase 2) — only real tool names accepted', () => {

@@ -105,7 +105,10 @@ export const AGENT_TOOL_NAMES = [
 ] as const;
 
 const TARGET_TYPE_TOOLS: Record<NonNullable<UnifiedChatContext['targetType']>, string[]> = {
-  table: ['create_table', 'create_field', 'create_view', 'link_tables', 'create_record'],
+  // NB: no standalone 'create_field' tool exists — create_table takes all fields inline —
+  // so it is intentionally not listed here (listing it was a dead no-op that never matched
+  // a registered tool and confused the target/tool contract).
+  table: ['create_table', 'create_view', 'link_tables', 'create_record'],
   interface: ['create_app_interface'],
   automation: ['create_automation'],
   agent: ['create_agent'],
@@ -838,6 +841,24 @@ export class UnifiedAiService {
     if (!fullText && result.text) {
       fullText = result.text;
       yield { type: 'text_chunk', content: result.text };
+    }
+
+    // Guaranteed non-empty turn: when a targetType restricts the model to a handful of
+    // write tools and it calls none of them AND emits no text, the user would otherwise
+    // see nothing at all (just `done`) — the reported "rien ne se passe" symptom of the
+    // target-type buttons. Emit an actionable prompt so the turn is never silent.
+    const producedProposal = result.steps.some((s) =>
+      (s.toolResults ?? []).some(
+        (tr) => (tr as unknown as { output?: { __type?: string } }).output?.__type === 'proposal'
+      )
+    );
+    if (!fullText && !producedProposal) {
+      const fallback = ctx.targetType
+        ? `Je n'ai pas pu générer de proposition pour la cible « ${ctx.targetType} ». ` +
+          `Peux-tu préciser ta demande (par ex. le nom et les champs souhaités) ?`
+        : "Je n'ai pas généré de réponse. Peux-tu reformuler ou préciser ta demande ?";
+      fullText = fallback;
+      yield { type: 'text_chunk', content: fallback };
     }
 
     // Step 9: Save assistant message

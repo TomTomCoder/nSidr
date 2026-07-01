@@ -1020,6 +1020,7 @@ export function UnifiedChatContainer({
                       spaceId={spaceId}
                       conversationId={conversationId ?? ''}
                       activeBaseId={activeBaseId}
+                      isStreaming={isStreaming && gi === messageGroups.length - 1}
                     />
                   );
                 const expanded = expandedGroups.has(group.groupIndex);
