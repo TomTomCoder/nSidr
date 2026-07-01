@@ -6,8 +6,6 @@ import { gfm } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
-import { nord } from '@milkdown/theme-nord';
-import '@milkdown/theme-nord/style.css';
 import { useRef } from 'react';
 
 interface IMilkdownEditorProps {
@@ -36,7 +34,6 @@ function MilkdownInner({ defaultValue, onChange }: IMilkdownEditorProps) {
           if (markdown !== prevMarkdown) onChangeRef.current(markdown);
         });
       })
-      .config(nord)
       .use(commonmark)
       .use(gfm)
       .use(history)
