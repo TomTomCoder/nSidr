@@ -124,6 +124,68 @@ export class UnifiedAiService {
   ) {}
 
   /**
+   * Map a known exception to an actionable French user message ("what + how to fix").
+   * Unknown errors fall back to a generic message — the raw exception text is never
+   * surfaced to the user (the caller logs it server-side). See P0-1.
+   * ponytail: heuristic string/status matching; no provider-specific error taxonomy yet.
+   */
+  static toActionableMessage(err: unknown): string {
+    const raw = err instanceof Error ? err.message : typeof err === 'string' ? err : '';
+    const lower = raw.toLowerCase();
+    const status =
+      (err as { status?: number; statusCode?: number } | undefined)?.status ??
+      (err as { statusCode?: number } | undefined)?.statusCode;
+
+    // No LLM provider / model configured
+    if (
+      lower.includes('no ai model configured') ||
+      lower.includes('no bases found') ||
+      lower.includes('no embedding provider') ||
+      (lower.includes('provider') &&
+        (lower.includes('not configured') || lower.includes('missing')))
+    ) {
+      return 'Aucun modèle IA configuré pour cette base — configurez un fournisseur dans Paramètres ▸ IA.';
+    }
+
+    // Invalid API key (provider 401)
+    if (
+      status === 401 ||
+      lower.includes('invalid api key') ||
+      lower.includes('unauthorized') ||
+      lower.includes('authentication')
+    ) {
+      return 'Clé API du fournisseur IA invalide ou manquante — vérifiez-la dans Paramètres ▸ IA.';
+    }
+
+    // Quota / rate limit (429)
+    if (
+      status === 429 ||
+      lower.includes('rate limit') ||
+      lower.includes('quota') ||
+      lower.includes('too many requests')
+    ) {
+      return 'Quota IA atteint ou trop de requêtes — réessayez dans un instant ou vérifiez votre quota dans Paramètres ▸ IA.';
+    }
+
+    // Table / base not found
+    if (status === 404 || lower.includes('not found') || lower.includes('does not exist')) {
+      return 'La table ou la base demandée est introuvable — elle a peut-être été supprimée ou renommée.';
+    }
+
+    // Model missing requested capability
+    if (
+      lower.includes('capability') ||
+      lower.includes('does not support') ||
+      lower.includes('not support')
+    ) {
+      return 'Le modèle IA sélectionné ne prend pas en charge cette action — choisissez un modèle compatible dans Paramètres ▸ IA.';
+    }
+
+    // Generic fallback — no raw text leaked
+    return 'Une erreur est survenue lors du traitement de votre demande. Réessayez ; si le problème persiste, vérifiez la configuration IA dans Paramètres ▸ IA.';
+  }
+
+  /**
    * Public entry point — wraps chatInner() so any uncaught exception (Prisma, the model
    * provider, RecordService, ...) yields a clean `error` event and a saved assistant
    * message instead of an unhandled rejection the controller can only forward raw.
@@ -133,7 +195,11 @@ export class UnifiedAiService {
     try {
       yield* this.chatInner(ctx, state);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unexpected error';
+      // ponytail: FR strings inlined; i18n of AI error keys is a follow-up (P0-1)
+      // Log the full error server-side; never leak raw exception text to the user by default.
+      // eslint-disable-next-line no-console
+      console.error('[UnifiedAiService] chat failed', err);
+      const message = UnifiedAiService.toActionableMessage(err);
       if (state.conversationId) {
         await this.prismaService.workspaceConversationMessage
           .create({

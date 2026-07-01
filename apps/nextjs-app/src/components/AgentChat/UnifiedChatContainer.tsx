@@ -519,6 +519,7 @@ export function UnifiedChatContainer({
       readerRef.current = reader;
       const decoder = new TextDecoder();
       let buffer = '';
+      let sawParseError = false;
       // eslint-disable-next-line no-constant-condition
       while (true) {
         const { done, value } = await reader.read();
@@ -535,9 +536,18 @@ export function UnifiedChatContainer({
             appendMessage(ev);
             if (ev.type === 'done' && ev.conversationId) setConversationId(ev.conversationId);
           } catch {
-            /* ignore */
+            // ponytail: surface a single one-liner instead of silently swallowing SSE parse
+            // failures (P0-1). i18n as a follow-up.
+            sawParseError = true;
           }
         }
+      }
+      if (sawParseError) {
+        appendMessage({
+          type: 'error',
+          content:
+            'Réponse partielle interrompue — une partie de la réponse IA n’a pas pu être affichée.',
+        } as UnifiedChatEvent);
       }
     } catch (err) {
       if (err instanceof Error && err.name !== 'AbortError')

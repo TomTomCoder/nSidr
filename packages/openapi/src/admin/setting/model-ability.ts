@@ -17,6 +17,8 @@ export const modelAbilitySchema = z.object({
   toolCall: z.boolean().optional(), // tool/function calling
   reasoning: z.boolean().optional(), // extended thinking/reasoning
   imageGeneration: z.boolean().optional(), // can generate images
+  audioGeneration: z.boolean().optional(), // can generate audio (P0-2)
+  videoGeneration: z.boolean().optional(), // can generate video (P0-2)
 });
 
 export type IModelAbility = z.infer<typeof modelAbilitySchema>;
@@ -47,6 +49,57 @@ export const getImageModelTagsFromAbility = (
     nextTags.push(VISION_TAG);
   }
 
+  return nextTags.length ? nextTags : undefined;
+};
+
+// P0-2: media generation capabilities a model may declare, mapped to gateway tags.
+const AUDIO_GENERATION_TAG: GatewayModelTag = 'audio-generation';
+const VIDEO_GENERATION_TAG: GatewayModelTag = 'video-generation';
+
+export type MediaGenerationCapability = 'imageGeneration' | 'audioGeneration' | 'videoGeneration';
+
+const MEDIA_CAPABILITY_TAGS: Record<MediaGenerationCapability, GatewayModelTag> = {
+  imageGeneration: IMAGE_GENERATION_TAG,
+  audioGeneration: AUDIO_GENERATION_TAG,
+  videoGeneration: VIDEO_GENERATION_TAG,
+};
+
+const MEDIA_CAPABILITY_LABEL_FR: Record<MediaGenerationCapability, string> = {
+  imageGeneration: "génération d'image",
+  audioGeneration: "génération d'audio",
+  videoGeneration: 'génération de vidéo',
+};
+
+// Reusable check: does model ability Y declare capability X? (P0-2)
+export const modelDeclaresCapability = (
+  ability: IModelAbility | undefined,
+  capability: MediaGenerationCapability
+): boolean => Boolean(ability?.[capability]);
+
+/**
+ * P0-2: guard to run before a media generation. Returns null when the model declares the
+ * capability, otherwise a P0-1-style actionable FR error message.
+ * ponytail: returns a string rather than throwing, so callers pick their own error channel.
+ */
+export const assertModelCapability = (
+  ability: IModelAbility | undefined,
+  capability: MediaGenerationCapability
+): string | null => {
+  if (modelDeclaresCapability(ability, capability)) return null;
+  return `Le modèle IA sélectionné ne prend pas en charge la ${MEDIA_CAPABILITY_LABEL_FR[capability]} — choisissez un modèle compatible dans Paramètres ▸ IA.`;
+};
+
+// Map declared media capabilities → gateway tags (mirrors getImageModelTagsFromAbility).
+export const getMediaModelTagsFromAbility = (
+  ability: IModelAbility | undefined,
+  currentTags: readonly GatewayModelTag[] | undefined
+): GatewayModelTag[] | undefined => {
+  if (!ability) return currentTags ? [...currentTags] : undefined;
+  const managed = new Set<GatewayModelTag>(Object.values(MEDIA_CAPABILITY_TAGS));
+  const nextTags = (currentTags ?? []).filter((tag) => !managed.has(tag));
+  (Object.keys(MEDIA_CAPABILITY_TAGS) as MediaGenerationCapability[]).forEach((cap) => {
+    if (ability[cap]) nextTags.push(MEDIA_CAPABILITY_TAGS[cap]);
+  });
   return nextTags.length ? nextTags : undefined;
 };
 

@@ -182,6 +182,10 @@ export const aiConfigSchema = z.object({
     .optional(),
   translationModel: z.string().optional(),
   chatModel: chatModelSchema.nullable().optional(),
+  // P0-3: default model per media format — optional, backward-compatible. Each is a modelKey
+  // filtered in the UI to models declaring the matching P0-2 capability (audio/videoGeneration).
+  audioModel: z.string().nullable().optional(),
+  videoModel: z.string().nullable().optional(),
   // AI Gateway models (admin-maintained, recommended for Cloud)
   gatewayModels: z.array(gatewayModelSchema).optional(),
   capabilities: z

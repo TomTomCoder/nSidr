@@ -29,6 +29,11 @@ interface IDefaultModelsStepProps {
   models: IModelOption[];
   onChange: (chatModel: IChatModel) => void;
   disabled?: boolean;
+  // P0-3: default model per media format (optional, backward-compatible).
+  audioModel?: string;
+  videoModel?: string;
+  onAudioModelChange?: (value: string) => void;
+  onVideoModelChange?: (value: string) => void;
 }
 
 export function DefaultModelsStep({
@@ -36,6 +41,10 @@ export function DefaultModelsStep({
   models,
   onChange,
   disabled,
+  audioModel,
+  videoModel,
+  onAudioModelChange,
+  onVideoModelChange,
 }: IDefaultModelsStepProps) {
   const { t } = useTranslation('common');
   const [tiersOpen, setTiersOpen] = useState(
@@ -53,6 +62,16 @@ export function DefaultModelsStep({
 
   // Filter to only text models (not image models)
   const textModels = models.filter((m) => !m.isImageModel);
+
+  // P0-3: media models filtered to those declaring the P0-2 capability tag.
+  const audioModels = useMemo(
+    () => models.filter((m) => m.tags?.includes('audio-generation')),
+    [models]
+  );
+  const videoModels = useMemo(
+    () => models.filter((m) => m.tags?.includes('video-generation')),
+    [models]
+  );
 
   // Find a recommended default (first gateway model, or first model)
   const recommendedDefault = textModels.find((m) => m.isGateway) || textModels[0];
@@ -230,6 +249,45 @@ export function DefaultModelsStep({
           </Collapsible>
         )}
       </div>
+
+      {/* P0-3: Audio / Vidéo default model sections. ponytail: FR strings inlined; i18n follow-up. */}
+      {onAudioModelChange && (
+        <div className="space-y-2">
+          <div className="text-sm font-medium text-muted-foreground">Audio</div>
+          {audioModels.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Aucun modèle ne déclare la génération audio — activez la capacité sur un modèle dans
+              Paramètres ▸ IA.
+            </p>
+          ) : (
+            <AIModelSelect
+              value={audioModel || ''}
+              onValueChange={onAudioModelChange}
+              options={audioModels}
+              className="w-full"
+            />
+          )}
+        </div>
+      )}
+
+      {onVideoModelChange && (
+        <div className="space-y-2">
+          <div className="text-sm font-medium text-muted-foreground">Vidéo</div>
+          {videoModels.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Aucun modèle ne déclare la génération vidéo — activez la capacité sur un modèle dans
+              Paramètres ▸ IA.
+            </p>
+          ) : (
+            <AIModelSelect
+              value={videoModel || ''}
+              onValueChange={onVideoModelChange}
+              options={videoModels}
+              className="w-full"
+            />
+          )}
+        </div>
+      )}
 
       {/* Status */}
       {chatModel?.lg && (
