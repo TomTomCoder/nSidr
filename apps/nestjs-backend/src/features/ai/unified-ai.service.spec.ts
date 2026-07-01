@@ -66,6 +66,7 @@ const createService = () =>
     mockWorkspaceStateService as any,
     mockActionProposalService as any,
     mockRecordService as any,
+    { hybridSearch: vi.fn().mockResolvedValue([]) } as any,
     mockAiService as any
   );
 

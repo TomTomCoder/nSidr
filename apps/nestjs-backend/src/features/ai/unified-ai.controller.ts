@@ -56,7 +56,7 @@ export class UnifiedAiController {
       baseId?: string;
       activeBaseId?: string;
       attachments?: { url: string; name: string; mimetype: string }[];
-      targetType?: 'table' | 'interface' | 'automation' | 'agent' | 'app' | 'mock_data';
+      targetType?: 'table' | 'interface' | 'automation' | 'agent' | 'app' | 'mock_data' | 'docs';
       pageContext?: { tableId?: string; tableName?: string };
     },
     @Res() res: Response,

@@ -71,6 +71,9 @@ const ACTION_LABELS: Record<string, string> = {
   create_record: 'Créer un enregistrement',
   update_record: "Modifier l'enregistrement",
   delete_record: "Supprimer l'enregistrement",
+  create_knowledge_doc: 'Créer un document',
+  update_knowledge_doc: 'Modifier le document',
+  link_docs: 'Lier deux documents',
 };
 
 /**
