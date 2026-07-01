@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { ModuleRef } from '@nestjs/core';
 import {
   Injectable,
   ConflictException,
@@ -73,8 +74,7 @@ export class ActionProposalService {
     private readonly workflowService: WorkflowService,
     @Inject(forwardRef(() => AgentService))
     private readonly agentService: AgentService,
-    private readonly knowledgeDocService: KnowledgeDocService,
-    private readonly docLinkService: DocLinkService
+    @Inject(ModuleRef) private readonly moduleRef: ModuleRef
   ) {}
 
   /**
@@ -882,7 +882,7 @@ export class ActionProposalService {
         if (!spaceId) {
           return { status: 'skipped', reason: 'Could not resolve the space for this doc' };
         }
-        return this.knowledgeDocService.createDoc({
+        return this.moduleRef.get(KnowledgeDocService, { strict: false }).createDoc({
           spaceId,
           title: (args.title as string | undefined)?.trim() || 'Untitled',
           rawContent: args.rawContent as string,
@@ -896,7 +896,7 @@ export class ActionProposalService {
         if (!spaceId) {
           return { status: 'skipped', reason: 'Could not resolve the space for this doc' };
         }
-        return this.knowledgeDocService.updateDoc({
+        return this.moduleRef.get(KnowledgeDocService, { strict: false }).updateDoc({
           docId: args.docId as string,
           rawContent: args.rawContent as string,
           callerSpaceId: spaceId,
@@ -909,7 +909,7 @@ export class ActionProposalService {
         if (!spaceId) {
           return { status: 'skipped', reason: 'Could not resolve the space for these docs' };
         }
-        return this.docLinkService.linkDocs({
+        return this.moduleRef.get(DocLinkService, { strict: false }).linkDocs({
           fromDocId: args.fromDocId as string,
           toDocId: args.toDocId as string,
           label: args.label as string | undefined,

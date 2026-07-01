@@ -1,5 +1,6 @@
 import { fakerFR as faker } from '@faker-js/faker';
 import { Inject, Injectable } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
 import { FieldKeyType, HttpErrorCode } from '@teable/core';
 import { PrismaService } from '@teable/db-main-prisma';
 import type { LLMProvider } from '@teable/openapi';
@@ -126,7 +127,7 @@ export class UnifiedAiService {
     private readonly workspaceStateService: WorkspaceStateService,
     private readonly actionProposalService: ActionProposalService,
     private readonly recordService: RecordService,
-    private readonly docSearchService: DocSearchService,
+    @Inject(ModuleRef) private readonly moduleRef: ModuleRef,
     @Inject(AI_SERVICE) private readonly aiService: IAiService
   ) {}
 
@@ -319,7 +320,7 @@ export class UnifiedAiService {
         }),
         execute: async (args: { query: string; limit?: number }) => {
           try {
-            const results = await this.docSearchService.hybridSearch(
+            const results = await this.moduleRef.get(DocSearchService, { strict: false }).hybridSearch(
               ctx.spaceId,
               args.query,
               args.limit ?? 5

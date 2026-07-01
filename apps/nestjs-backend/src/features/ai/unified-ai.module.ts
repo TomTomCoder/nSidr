@@ -2,7 +2,6 @@ import { Module, forwardRef } from '@nestjs/common';
 import { PrismaModule } from '@teable/db-main-prisma';
 import { AgentModule } from '../agent/agent.module';
 import { BaseNodeModule } from '../base-node/base-node.module';
-import { DocSearchModule } from '../doc-search/doc-search.module';
 import { FieldOpenApiModule } from '../field/open-api/field-open-api.module';
 import { RecordOpenApiModule } from '../record/open-api/record-open-api.module';
 import { RecordModule } from '../record/record.module';
@@ -28,7 +27,6 @@ import { WorkspaceStateService } from './workspace-state.service';
     ViewOpenApiModule,
     WorkflowModule,
     forwardRef(() => AgentModule),
-    forwardRef(() => DocSearchModule),
   ],
   controllers: [UnifiedAiController],
   providers: [WorkspaceStateService, ActionProposalService, UnifiedAiService, AppBlueprintService],
