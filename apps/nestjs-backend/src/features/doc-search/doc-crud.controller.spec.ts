@@ -9,7 +9,12 @@ const mockPrisma = {
   importedDoc: {
     create: vi.fn(),
     update: vi.fn(),
+    findFirstOrThrow: vi.fn(),
   },
+};
+
+const mockUnifiedAi = {
+  reformatDocument: vi.fn(),
 };
 
 const mockReq = { user: { id: 'user-1' } };
@@ -19,7 +24,11 @@ describe('DocCrudController', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    controller = new DocCrudController(mockQueue as never, mockPrisma as never);
+    controller = new DocCrudController(
+      mockQueue as never,
+      mockPrisma as never,
+      mockUnifiedAi as never
+    );
   });
 
   describe('POST createDoc', () => {
@@ -116,6 +125,37 @@ describe('DocCrudController', () => {
           data: { order: 5 },
         })
       );
+    });
+  });
+
+  describe('POST reformatDoc (P1-11)', () => {
+    it('reformats raw content passed inline (does NOT read the DB, does NOT persist)', async () => {
+      const result = { reformatted: '# Title', originalLength: 10, reformattedLength: 7, possibleLoss: false };
+      mockUnifiedAi.reformatDocument.mockResolvedValue(result);
+
+      const out = await controller.reformatDoc('space-1', { content: 'raw markdown' });
+
+      expect(mockUnifiedAi.reformatDocument).toHaveBeenCalledWith('space-1', 'raw markdown');
+      expect(mockPrisma.importedDoc.findFirstOrThrow).not.toHaveBeenCalled();
+      expect(mockPrisma.importedDoc.update).not.toHaveBeenCalled();
+      expect(out).toBe(result);
+    });
+
+    it('reads rawContent from the DB when only a docId is given', async () => {
+      mockPrisma.importedDoc.findFirstOrThrow.mockResolvedValue({ rawContent: 'stored md' });
+      mockUnifiedAi.reformatDocument.mockResolvedValue({
+        reformatted: '# x',
+        originalLength: 9,
+        reformattedLength: 3,
+        possibleLoss: true,
+      });
+
+      await controller.reformatDoc('space-1', { docId: 'doc-9' });
+
+      expect(mockPrisma.importedDoc.findFirstOrThrow).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'doc-9', spaceId: 'space-1' } })
+      );
+      expect(mockUnifiedAi.reformatDocument).toHaveBeenCalledWith('space-1', 'stored md');
     });
   });
 });

@@ -874,6 +874,76 @@ export class UnifiedAiService {
     }
   }
 
+  /**
+   * P1-11 — "Mise en page IA". Restructure a document's markdown (headings, sections,
+   * lists, tables) WITHOUT summarizing. The prompt is constrained to preserve 100% of the
+   * information: reformat only, drop nothing. Does NOT persist — the caller shows a
+   * before/after and the user accepts (propose→accept, AI-SYSTEM §3).
+   *
+   * Completeness guard: if the model output is shorter than LOSS_RATIO_CEILING × the input
+   * (char length), flag `possibleLoss` so the UI warns instead of silently applying. The
+   * ceiling is a coarse heuristic — legitimate reformatting can drop a little whitespace,
+   * but a big drop almost always means the model summarized. 0.6 = "kept most of it".
+   */
+  async reformatDocument(
+    spaceId: string,
+    rawContent: string
+  ): Promise<{
+    reformatted: string;
+    originalLength: number;
+    reformattedLength: number;
+    possibleLoss: boolean;
+  }> {
+    // ponytail: coarse completeness ceiling — output under 60% of input char length => flag.
+    const LOSS_RATIO_CEILING = 0.6;
+
+    const base = await this.prismaService.base.findFirst({
+      where: { spaceId },
+      select: { id: true },
+    });
+    if (!base) {
+      throw new CustomHttpException(
+        'No base found for this space — cannot resolve an AI model.',
+        HttpErrorCode.VALIDATION_ERROR
+      );
+    }
+    const aiConfig = await this.aiService.getAIConfig(base.id);
+    const modelKey = aiConfig.chatModel?.lg ?? aiConfig.chatModel?.sm;
+    if (!modelKey) {
+      throw new CustomHttpException(
+        'No chat model configured in AI settings.',
+        HttpErrorCode.VALIDATION_ERROR
+      );
+    }
+    const modelInstance = await this.aiService.getModelInstance(modelKey, aiConfig.llmProviders);
+
+    const prompt =
+      'You are a document formatter. Restructure the markdown document below into a clean, ' +
+      'well-organised layout: add/normalise headings and sections, turn run-on prose into ' +
+      'lists where appropriate, and use tables for tabular data.\n\n' +
+      'ABSOLUTE RULE — PRESERVE 100% OF THE INFORMATION. You are REFORMATTING, NOT ' +
+      'summarizing. Do NOT drop, shorten, merge away, or paraphrase any fact, number, name, ' +
+      'date, quote, link, or detail. Every piece of information in the input MUST still be ' +
+      'present in the output. Keep the original language of the document. If unsure whether ' +
+      'something is important, KEEP IT.\n\n' +
+      'Output ONLY the restructured markdown — no preamble, no explanation, no code fences.\n\n' +
+      '--- DOCUMENT ---\n' +
+      rawContent;
+
+    const { text } = await generateText({
+      model: modelInstance as Parameters<typeof generateText>[0]['model'],
+      prompt,
+    });
+
+    const reformatted = text.trim();
+    const originalLength = rawContent.length;
+    const reformattedLength = reformatted.length;
+    const possibleLoss =
+      originalLength > 0 && reformattedLength < originalLength * LOSS_RATIO_CEILING;
+
+    return { reformatted, originalLength, reformattedLength, possibleLoss };
+  }
+
   private buildPreview(toolName: string, args: Record<string, unknown>): Record<string, unknown> {
     switch (toolName) {
       case 'create_table': {

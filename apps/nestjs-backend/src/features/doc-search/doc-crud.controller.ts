@@ -4,6 +4,7 @@ import { Queue } from 'bullmq';
 import { PrismaService } from '@teable/db-main-prisma';
 import type { ICreateDoc, IUpdateDoc } from '@teable/openapi';
 import { DOC_INGEST_QUEUE, DocIngestJobData } from './doc-ingest.processor';
+import { UnifiedAiService } from '../ai/unified-ai.service';
 
 const REINDEX_JOB_OPTS = {
   attempts: 2,
@@ -27,7 +28,8 @@ function reindexJobId(docId: string) {
 export class DocCrudController {
   constructor(
     @InjectQueue(DOC_INGEST_QUEUE) private readonly queue: Queue,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
+    private readonly unifiedAiService: UnifiedAiService
   ) {}
 
   /**
@@ -93,6 +95,28 @@ export class DocCrudController {
     });
     await this.enqueueReindex(docId, spaceId);
     return { queued: true, docId };
+  }
+
+  /**
+   * P1-11 — "Mise en page IA". Reformat a document's markdown (restructure, preserve 100%
+   * of the information). Accepts either a docId (reads its rawContent) or raw `content`.
+   * Does NOT persist — returns the restructured markdown plus a `possibleLoss` flag so the
+   * frontend can show a before/after and let the user accept via the normal save path.
+   */
+  @Post('reformat')
+  async reformatDoc(
+    @Param('spaceId') spaceId: string,
+    @Body() body: { docId?: string; content?: string }
+  ) {
+    let rawContent = body.content ?? '';
+    if (!rawContent && body.docId) {
+      const doc = await this.prisma.importedDoc.findFirstOrThrow({
+        where: { id: body.docId, spaceId },
+        select: { rawContent: true },
+      });
+      rawContent = doc.rawContent ?? '';
+    }
+    return this.unifiedAiService.reformatDocument(spaceId, rawContent);
   }
 
   @Patch(':docId')
