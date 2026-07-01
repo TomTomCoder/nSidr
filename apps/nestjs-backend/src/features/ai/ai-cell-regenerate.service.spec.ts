@@ -30,7 +30,7 @@ const mockCreateFieldInstanceByVo = vi.spyOn(factoryModule, 'createFieldInstance
 
 const buildService = (overrides: {
   fieldVo?: Record<string, unknown>;
-  fieldInstance?: { id: string; type: FieldType; aiConfig?: unknown };
+  fieldInstance?: { id: string; type: FieldType; aiConfig?: unknown; options?: unknown };
   tableMeta?: { baseId: string } | null;
   recordFields?: Record<string, unknown>;
   generateForFieldResult?: IRegenerateAiCellVo & { value: unknown };
@@ -44,7 +44,8 @@ const buildService = (overrides: {
     (overrides.fieldInstance ?? {
       id: 'fld1',
       type: FieldType.Ai,
-      aiConfig: { type: 'summary', sourceFieldId: 'fldSrc', modelKey: 'm' },
+      // Real FieldType.Ai fields carry config in `options`, NOT `aiConfig`.
+      options: { prompt: 'Summarize {fldSrc}', sourceFieldIds: ['fldSrc'] },
     }) as never
   );
 
@@ -147,5 +148,94 @@ describe('AiCellRegenerateService.regenerateAiCell (Phase 16-03)', () => {
 
   it('URL parity: REGENERATE_AI_CELL openapi constant matches expected controller route shape', () => {
     expect(REGENERATE_AI_CELL).toBe('/table/{tableId}/record/{recordId}/{fieldId}/regenerate');
+  });
+
+  // --- P0-4: real FieldType.Ai fields configure via `options`, not `aiConfig` ---
+
+  it('text AI field (options.prompt): {fldXXX} placeholders resolved from the row', async () => {
+    const { service, generateForField } = buildService({
+      fieldInstance: {
+        id: 'fld1',
+        type: FieldType.Ai,
+        options: { prompt: 'Summarize {fldSrc}', sourceFieldIds: ['fldSrc'] },
+      },
+      recordFields: { fldSrc: 'hello world' },
+    });
+
+    await service.regenerateAiCell('tbl1', 'rec1', 'fld1');
+
+    expect(generateForField).toHaveBeenCalledTimes(1);
+    // args: (baseId, field, prompt)
+    const prompt = generateForField.mock.calls[0][2] as string;
+    expect(prompt).toContain('Summarize hello world');
+    expect(prompt).not.toContain('{fldSrc}');
+  });
+
+  it('AI field with sourceFieldIds but no prompt: generic instruction with the source value', async () => {
+    const { service, generateForField } = buildService({
+      fieldInstance: {
+        id: 'fld1',
+        type: FieldType.Ai,
+        options: { sourceFieldIds: ['fldSrc'] },
+      },
+      recordFields: { fldSrc: 'raw content' },
+    });
+
+    await service.regenerateAiCell('tbl1', 'rec1', 'fld1');
+
+    const prompt = generateForField.mock.calls[0][2] as string;
+    expect(prompt).toContain('Process the following content:');
+    expect(prompt).toContain('raw content');
+  });
+
+  it('AI field prompt with unreferenced sourceFieldIds appends them as Context', async () => {
+    const { service, generateForField } = buildService({
+      fieldInstance: {
+        id: 'fld1',
+        type: FieldType.Ai,
+        options: { prompt: 'Write a tagline', sourceFieldIds: ['fldA', 'fldB'] },
+      },
+      recordFields: { fldA: 'Acme', fldB: 'widgets' },
+    });
+
+    await service.regenerateAiCell('tbl1', 'rec1', 'fld1');
+
+    const prompt = generateForField.mock.calls[0][2] as string;
+    expect(prompt).toContain('Write a tagline');
+    expect(prompt).toContain('Context:');
+    expect(prompt).toContain('Acme');
+    expect(prompt).toContain('widgets');
+  });
+
+  it('legacy aiConfig path (typed field + AI helper): summary prompt built from sourceFieldId', async () => {
+    const { service, generateForField } = buildService({
+      fieldInstance: {
+        id: 'fld1',
+        type: FieldType.Ai,
+        aiConfig: { type: 'summary', sourceFieldId: 'fldSrc', modelKey: 'm' },
+      },
+      recordFields: { fldSrc: 'a long text' },
+    });
+
+    await service.regenerateAiCell('tbl1', 'rec1', 'fld1');
+
+    const prompt = generateForField.mock.calls[0][2] as string;
+    expect(prompt).toContain('Summarize the following content:');
+    expect(prompt).toContain('a long text');
+  });
+
+  it('does NOT throw "has no aiConfig" for a real AI field (regression: P0-4)', async () => {
+    const { service, updateRecord } = buildService({
+      fieldInstance: {
+        id: 'fld1',
+        type: FieldType.Ai,
+        options: { prompt: 'Do a thing', sourceFieldIds: [] },
+      },
+    });
+
+    await expect(service.regenerateAiCell('tbl1', 'rec1', 'fld1')).resolves.toMatchObject({
+      validated: true,
+    });
+    expect(updateRecord).toHaveBeenCalledTimes(1);
   });
 });

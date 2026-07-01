@@ -17,7 +17,11 @@
 
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { FieldAIActionType, FieldKeyType, FieldType, HttpErrorCode } from '@teable/core';
-import type { ITextFieldCustomizeAIConfig, ITextFieldSummarizeAIConfig } from '@teable/core';
+import type {
+  IAiFieldOptions,
+  ITextFieldCustomizeAIConfig,
+  ITextFieldSummarizeAIConfig,
+} from '@teable/core';
 import { PrismaService } from '@teable/db-main-prisma';
 import type { IRegenerateAiCellVo } from '@teable/openapi';
 import { CustomHttpException } from '../../custom.exception';
@@ -119,10 +123,6 @@ export class AiCellRegenerateService {
     field: IFieldInstance
   ): Promise<string> {
     const aiConfig = field.aiConfig;
-    if (!aiConfig) {
-      throw new BadRequestException(`Field ${field.id} has no aiConfig`);
-    }
-    const actionType = (aiConfig as { type?: FieldAIActionType }).type;
 
     const record = await this.recordService.getRecord(
       tableId,
@@ -133,6 +133,45 @@ export class AiCellRegenerateService {
     );
     const rowFields = record.fields as Record<string, unknown>;
 
+    // Primary path: FieldType.Ai fields store their config in `options`
+    // ({ prompt, sourceFieldIds }) — NOT in `aiConfig` (which is only attached to
+    // regular typed fields with an AI helper, and is explicitly excluded for
+    // FieldType.Ai on the frontend). Historically this method only read aiConfig,
+    // so every regenerate on a real AI field threw "has no aiConfig" (400).
+    if (!aiConfig) {
+      const options = (field.options ?? {}) as IAiFieldOptions;
+      const tmpl = options.prompt?.trim();
+      const sourceFieldIds = options.sourceFieldIds ?? [];
+
+      if (tmpl) {
+        // Substitute {fldXXX} placeholders with the row's source-field values.
+        const referencedIds = extractFieldReferences(tmpl);
+        let resolved = tmpl;
+        for (const refId of referencedIds) {
+          resolved = resolved.replaceAll(`{${refId}}`, this.reprValue(rowFields[refId]));
+        }
+        // Append any configured source columns not already referenced inline, as context.
+        const extra = sourceFieldIds.filter((id) => !referencedIds.includes(id));
+        if (extra.length > 0) {
+          const context = extra
+            .map((id) => this.reprValue(rowFields[id]))
+            .filter((v) => v !== '')
+            .join('\n');
+          if (context) resolved = `${resolved}\n\nContext:\n${context}`;
+        }
+        return resolved;
+      }
+
+      // No prompt template → build a generic instruction from the source columns.
+      const context = sourceFieldIds
+        .map((id) => this.reprValue(rowFields[id]))
+        .filter((v) => v !== '')
+        .join('\n');
+      return `Process the following content:\n\n${context}`;
+    }
+
+    const actionType = (aiConfig as { type?: FieldAIActionType }).type;
+
     if (
       actionType === FieldAIActionType.Customization ||
       actionType === FieldAIActionType.ImageCustomization
@@ -141,22 +180,13 @@ export class AiCellRegenerateService {
       const referencedIds = extractFieldReferences(tmpl);
       let resolved = tmpl;
       for (const refId of referencedIds) {
-        const v = rowFields[refId];
-        const repr =
-          v === undefined || v === null ? '' : typeof v === 'string' ? v : JSON.stringify(v);
-        resolved = resolved.replaceAll(`{${refId}}`, repr);
+        resolved = resolved.replaceAll(`{${refId}}`, this.reprValue(rowFields[refId]));
       }
       return resolved;
     }
 
     const sourceFieldId = (aiConfig as ITextFieldSummarizeAIConfig).sourceFieldId;
-    const sourceValue = sourceFieldId ? rowFields[sourceFieldId] : undefined;
-    const sourceRepr =
-      sourceValue === undefined || sourceValue === null
-        ? ''
-        : typeof sourceValue === 'string'
-          ? sourceValue
-          : JSON.stringify(sourceValue);
+    const sourceRepr = this.reprValue(sourceFieldId ? rowFields[sourceFieldId] : undefined);
 
     const verbByType: Partial<Record<FieldAIActionType, string>> = {
       [FieldAIActionType.Summary]: 'Summarize the following content:',
@@ -175,5 +205,11 @@ export class AiCellRegenerateService {
       ? verbByType[actionType] ?? 'Process the following content:'
       : 'Process the following content:';
     return `${verb}\n\n${sourceRepr}`;
+  }
+
+  /** Stringify a cell value for prompt substitution (null/undefined → ''). */
+  private reprValue(v: unknown): string {
+    if (v === undefined || v === null) return '';
+    return typeof v === 'string' ? v : JSON.stringify(v);
   }
 }

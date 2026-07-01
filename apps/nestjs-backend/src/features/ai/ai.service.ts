@@ -68,6 +68,19 @@ export type ILanguageModelV2 = Exclude<LanguageModel, string>;
 // In-memory cache for Gateway models (TTL: 10 minutes)
 const gatewayModelsCacheTtl = 10 * 60 * 1000;
 
+/**
+ * P0-5: guidance for the app-code generator on how to render `type: "ai"` fields.
+ * The workspace/base schema already exposes the field type, but without this hint the
+ * generator either ignores AI fields or treats them as editable text. AI-field cells are
+ * model-generated (see AiCellRegenerateService), so they must be read-only with an explicit
+ * regenerate affordance rather than a free-text input.
+ */
+const AI_FIELD_RENDER_HINT =
+  '\n\nCHAMPS IA (type "ai"): ce sont des valeurs générées par le modèle, PAS des saisies ' +
+  "utilisateur. Rends-les en LECTURE SEULE (jamais d'input éditable). Ajoute un bouton " +
+  '« Régénérer » qui appelle POST /api/table/{tableId}/record/{recordId}/{fieldId}/regenerate ' +
+  'puis rafraîchit la cellule. Affiche un état de chargement pendant la régénération.';
+
 interface IGatewayModelsCache {
   data: IGatewayApiModel[];
   expiresAt: number;
@@ -1335,6 +1348,7 @@ export class AiService {
         system:
           appGeneratePrompt +
           `\n\nSCHÉMA DE LA BASE (utilise ces IDs exacts):\n${schemaJson}` +
+          AI_FIELD_RENDER_HINT +
           brandPrompt,
         prompt,
       });
