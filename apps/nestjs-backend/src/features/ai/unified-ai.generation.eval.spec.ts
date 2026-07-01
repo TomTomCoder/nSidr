@@ -46,12 +46,15 @@ import { generateText } from 'ai';
 /** The set of valid FieldType enum string values (ground truth from @teable/core). */
 const VALID_FIELD_TYPES = new Set(Object.values(FieldType) as string[]);
 
+const mockDocSearchService = { hybridSearch: vi.fn().mockResolvedValue([]) };
+
 const createService = () =>
   new UnifiedAiService(
     mockPrismaService as any,
     mockWorkspaceStateService as any,
     mockActionProposalService as any,
     mockRecordService as any,
+    mockDocSearchService as any,
     mockAiService as any
   );
 
