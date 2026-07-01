@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Prefer Homebrew Postgres tools over any Docker wrappers in ~/.local/bin
+export PATH="/opt/homebrew/opt/postgresql@16/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 # launch-local.sh — one-command, stable local launch for Teable.
 #
 # Handles every failure mode hit in practice on this machine:
@@ -97,6 +99,14 @@ green "  Postgres + Redis OK"
 info "[2/6] Selecting a node binary matching native modules..."
 BCRYPT_BIN=$(ls "$ROOT"/node_modules/.pnpm/bcrypt@*/node_modules/bcrypt/lib/binding/napi-v3/bcrypt_lib.node 2>/dev/null | head -1 || true)
 NODE_BIN="$(command -v node)"
+# ponytail: node >=24 removed SlowBuffer, breaking buffer-equal-constant-time (jsonwebtoken
+# dep) at boot. Prefer node@22 (project engines: >=22) which still has it; v24 also breaks.
+_NODE_MAJOR=$(NO_COLOR=1 FORCE_COLOR=0 "$NODE_BIN" -p "process.versions.node.split('.')[0]" 2>/dev/null | tr -dc '0-9' || echo 0)
+if [[ "$_NODE_MAJOR" -ge 24 && -x /opt/homebrew/opt/node@22/bin/node ]]; then
+  NODE_BIN=/opt/homebrew/opt/node@22/bin/node
+elif [[ "$_NODE_MAJOR" -ge 26 && -x /usr/local/bin/node ]]; then
+  NODE_BIN=/usr/local/bin/node
+fi
 if [[ -n "$BCRYPT_BIN" ]]; then
   BCRYPT_ARCH=$(file "$BCRYPT_BIN" | grep -o 'arm64\|x86_64' | head -1)
   NODE_ARCH=$("$NODE_BIN" -p "process.arch" | sed 's/x64/x86_64/')
@@ -119,6 +129,7 @@ if [[ -n "$BCRYPT_BIN" ]]; then
   fi
 fi
 green "  Using node: $NODE_BIN ($("$NODE_BIN" -p 'process.arch + " " + process.version'))"
+export PATH="$(dirname "$NODE_BIN"):$PATH"  # ponytail: frontend (pnpm) inherits the same node
 
 # ---------------------------------------------------------------- build
 info "[3/6] Checking backend build freshness..."
