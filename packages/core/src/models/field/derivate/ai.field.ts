@@ -4,9 +4,13 @@ import { CellValueType } from '../constant';
 import type { IFieldVisitor } from '../field-visitor.interface';
 import { FieldCore } from '../field';
 
+export const AI_OUTPUT_MODES = ['text', 'image', 'audio', 'video'] as const;
+export type IAiOutputMode = (typeof AI_OUTPUT_MODES)[number];
+
 export const aiFieldOptionsSchema = z.object({
   prompt: z.string().optional(),
   sourceFieldIds: z.array(z.string()).optional(),
+  outputMode: z.enum(AI_OUTPUT_MODES).optional(),
 });
 
 export type IAiFieldOptions = z.infer<typeof aiFieldOptionsSchema>;

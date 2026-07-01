@@ -1,8 +1,8 @@
 'use client';
 
-import type { IAiFieldOptions } from '@teable/core';
+import type { IAiFieldOptions, IAiOutputMode } from '@teable/core';
 import { Badge, Label, RadioGroup, RadioGroupItem, Textarea } from '@teable/ui-lib/shadcn';
-import { Bot, Eye } from 'lucide-react';
+import { Bot, Eye, FileAudio, FileVideo, ImageIcon, Type } from 'lucide-react';
 import { AIModelSelect } from './AiModelSelect';
 import type { IModelOption } from './AiModelSelect';
 
@@ -12,14 +12,16 @@ export interface ISourceField {
   name: string;
 }
 
-/** Output typology options */
-export type AiOutputTypology = 'freeText' | 'enum' | 'number' | 'jsonShape';
-
-const OUTPUT_TYPOLOGY_OPTIONS: { value: AiOutputTypology; label: string; description: string }[] = [
-  { value: 'freeText', label: 'Free text', description: 'Open-ended AI response' },
-  { value: 'enum', label: 'Enum', description: 'One of a predefined list of values' },
-  { value: 'number', label: 'Number', description: 'Numeric output (integer or decimal)' },
-  { value: 'jsonShape', label: 'JSON shape', description: 'Structured JSON output' },
+const OUTPUT_MODE_OPTIONS: {
+  value: IAiOutputMode;
+  label: string;
+  description: string;
+  icon: React.ElementType;
+}[] = [
+  { value: 'text', label: 'Texte', description: 'Réponse textuelle libre', icon: Type },
+  { value: 'image', label: 'Image', description: "Génération d'image IA", icon: ImageIcon },
+  { value: 'audio', label: 'Audio', description: 'Synthèse vocale / audio', icon: FileAudio },
+  { value: 'video', label: 'Vidéo', description: 'Génération de vidéo IA', icon: FileVideo },
 ];
 
 export interface ICompactAiFieldConfigProps {
@@ -31,10 +33,6 @@ export interface ICompactAiFieldConfigProps {
   availableFields?: ISourceField[];
   /** Model options for the model picker */
   modelOptions?: IModelOption[];
-  /** Currently selected output typology */
-  outputTypology?: AiOutputTypology;
-  /** Called when output typology changes */
-  onOutputTypologyChange?: (typology: AiOutputTypology) => void;
   /** Currently selected model key */
   modelValue?: string;
   /** Called when model changes */
@@ -56,12 +54,11 @@ export function CompactAiFieldConfig({
   onChange,
   availableFields = [],
   modelOptions = [],
-  outputTypology = 'freeText',
-  onOutputTypologyChange,
   modelValue = '',
   onModelChange,
 }: ICompactAiFieldConfigProps) {
   const selectedSourceIds = options.sourceFieldIds ?? [];
+  const outputMode = options.outputMode ?? 'text';
 
   const toggleSourceField = (fieldId: string) => {
     const next = selectedSourceIds.includes(fieldId)
@@ -75,28 +72,80 @@ export function CompactAiFieldConfig({
       {/* Header */}
       <div className="flex items-center gap-2 text-sm font-semibold">
         <Bot className="text-primary size-4" />
-        AI Field Configuration
+        Configuration du champ IA
       </div>
 
-      {/* Section 1: Prompt */}
+      {/* Section 1: Output mode */}
+      <div className="space-y-2">
+        <Label className="text-xs font-medium">Type de sortie</Label>
+        <RadioGroup
+          value={outputMode}
+          onValueChange={(v) => onChange({ ...options, outputMode: v as IAiOutputMode })}
+          className="grid grid-cols-2 gap-2"
+        >
+          {OUTPUT_MODE_OPTIONS.map((opt) => {
+            const Icon = opt.icon;
+            return (
+              <label
+                key={opt.value}
+                htmlFor={`output-mode-${opt.value}`}
+                className="hover:bg-accent has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5 flex cursor-pointer items-start gap-2 rounded-md border p-2.5 transition-colors"
+              >
+                <RadioGroupItem
+                  id={`output-mode-${opt.value}`}
+                  value={opt.value}
+                  className="mt-0.5"
+                />
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-center gap-1 text-xs font-medium">
+                    <Icon className="size-3" />
+                    {opt.label}
+                  </div>
+                  <div className="text-muted-foreground text-[10px]">{opt.description}</div>
+                </div>
+              </label>
+            );
+          })}
+        </RadioGroup>
+        {outputMode !== 'text' && (
+          <p className="text-muted-foreground text-[10px]">
+            {outputMode === 'image' &&
+              "Le modèle IA doit prendre en charge la génération d'image. Le résultat sera une URL d'image."}
+            {outputMode === 'audio' &&
+              'Le modèle IA doit prendre en charge la synthèse vocale. Le résultat sera une URL audio.'}
+            {outputMode === 'video' &&
+              'Le modèle IA doit prendre en charge la génération de vidéo. Le résultat sera une URL vidéo.'}
+          </p>
+        )}
+      </div>
+
+      {/* Section 2: Prompt */}
       <div className="space-y-1.5">
         <Label className="text-xs font-medium">Prompt</Label>
         <Textarea
           value={options.prompt ?? ''}
           onChange={(e) => onChange({ ...options, prompt: e.target.value })}
-          placeholder="e.g. Summarize this record in one sentence. Extract key tags as comma-separated values."
+          placeholder={
+            outputMode === 'image'
+              ? "ex. Génère une illustration représentant {fieldId}."
+              : outputMode === 'audio'
+                ? 'ex. Lis le texte suivant à voix haute : {fieldId}.'
+                : outputMode === 'video'
+                  ? 'ex. Crée une courte animation illustrant {fieldId}.'
+                  : 'ex. Résume ce contenu en une phrase. Extrais les mots-clés séparés par des virgules.'
+          }
           className="min-h-[96px] text-xs"
         />
         <p className="text-muted-foreground text-[10px]">
-          Use field values from Source columns in your prompt via placeholders.
+          Utilisez {'{fieldId}'} pour référencer les valeurs des colonnes source dans votre prompt.
         </p>
       </div>
 
-      {/* Section 2: Source columns */}
+      {/* Section 3: Source columns */}
       <div className="space-y-1.5">
-        <Label className="text-xs font-medium">Source columns</Label>
+        <Label className="text-xs font-medium">Colonnes source</Label>
         {availableFields.length === 0 ? (
-          <p className="text-muted-foreground text-xs">No fields available to select.</p>
+          <p className="text-muted-foreground text-xs">Aucun champ disponible.</p>
         ) : (
           <div className="flex flex-wrap gap-1.5">
             {availableFields.map((field) => {
@@ -120,13 +169,13 @@ export function CompactAiFieldConfig({
           </div>
         )}
         <p className="text-muted-foreground text-[10px]">
-          Selected columns are passed to the AI prompt as context.
+          Les colonnes sélectionnées sont transmises à l&apos;IA comme contexte.
         </p>
       </div>
 
-      {/* Section 3: Model */}
+      {/* Section 4: Model */}
       <div className="space-y-1.5">
-        <Label className="text-xs font-medium">Model</Label>
+        <Label className="text-xs font-medium">Modèle</Label>
         <AIModelSelect
           value={modelValue}
           onValueChange={onModelChange ?? (() => undefined)}
@@ -136,41 +185,17 @@ export function CompactAiFieldConfig({
         />
       </div>
 
-      {/* Section 4: Output typology */}
-      <div className="space-y-2">
-        <Label className="text-xs font-medium">Output typology</Label>
-        <RadioGroup
-          value={outputTypology}
-          onValueChange={(v) => onOutputTypologyChange?.(v as AiOutputTypology)}
-          className="grid grid-cols-2 gap-2"
-        >
-          {OUTPUT_TYPOLOGY_OPTIONS.map((opt) => (
-            <label
-              key={opt.value}
-              htmlFor={`typology-${opt.value}`}
-              className="hover:bg-accent has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-primary/5 flex cursor-pointer items-start gap-2 rounded-md border p-2.5 transition-colors"
-            >
-              <RadioGroupItem id={`typology-${opt.value}`} value={opt.value} className="mt-0.5" />
-              <div>
-                <div className="text-xs font-medium">{opt.label}</div>
-                <div className="text-muted-foreground text-[10px]">{opt.description}</div>
-              </div>
-            </label>
-          ))}
-        </RadioGroup>
-      </div>
-
       {/* Section 5: Live preview (placeholder — deferred) */}
       <div className="space-y-1.5">
         <Label className="flex items-center gap-1 text-xs font-medium">
           <Eye className="size-3" />
-          Live preview
+          Aperçu en direct
           <Badge variant="secondary" className="text-[10px]">
-            DEFERRED
+            DIFFÉRÉ
           </Badge>
         </Label>
         <div className="bg-muted/30 text-muted-foreground flex min-h-[60px] items-center justify-center rounded-md border border-dashed px-4 py-3 text-xs">
-          Run field to see preview — live generation requires a running AI model connection.
+          Exécutez le champ pour voir un aperçu — nécessite une connexion au modèle IA.
         </div>
       </div>
     </div>

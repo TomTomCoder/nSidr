@@ -2,6 +2,7 @@
 import type { OpenAIProvider } from '@ai-sdk/openai';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Inject, Injectable, Logger, forwardRef } from '@nestjs/common';
+import type { IAiFieldOptions } from '@teable/core';
 import { FieldType, HttpErrorCode, Relationship, getAiOutputSchema } from '@teable/core';
 import { PrismaService } from '@teable/db-main-prisma';
 import {
@@ -28,6 +29,7 @@ import type { ImageModel, LanguageModel } from 'ai';
 import {
   createGateway,
   embedMany,
+  generateImage,
   generateObject,
   generateText,
   jsonSchema,
@@ -67,19 +69,6 @@ export type ILanguageModelV2 = Exclude<LanguageModel, string>;
 
 // In-memory cache for Gateway models (TTL: 10 minutes)
 const gatewayModelsCacheTtl = 10 * 60 * 1000;
-
-/**
- * P0-5: guidance for the app-code generator on how to render `type: "ai"` fields.
- * The workspace/base schema already exposes the field type, but without this hint the
- * generator either ignores AI fields or treats them as editable text. AI-field cells are
- * model-generated (see AiCellRegenerateService), so they must be read-only with an explicit
- * regenerate affordance rather than a free-text input.
- */
-const AI_FIELD_RENDER_HINT =
-  '\n\nCHAMPS IA (type "ai"): ce sont des valeurs générées par le modèle, PAS des saisies ' +
-  "utilisateur. Rends-les en LECTURE SEULE (jamais d'input éditable). Ajoute un bouton " +
-  '« Régénérer » qui appelle POST /api/table/{tableId}/record/{recordId}/{fieldId}/regenerate ' +
-  'puis rafraîchit la cellule. Affiche un état de chargement pendant la régénération.';
 
 interface IGatewayModelsCache {
   data: IGatewayApiModel[];
@@ -737,6 +726,15 @@ export class AiService {
     field: IFieldInstance,
     prompt: string
   ): Promise<{ value: unknown; validated: boolean; attempts: 1 | 2; error?: string }> {
+    const outputMode = (field.type === FieldType.Ai ? (field.options as IAiFieldOptions)?.outputMode : undefined) ?? 'text';
+
+    if (outputMode === 'image') {
+      return this.generateImageForAiField(baseId, field, prompt);
+    }
+    if (outputMode === 'audio' || outputMode === 'video') {
+      return { value: null, validated: false, attempts: 1, error: `La génération de ${outputMode} n'est pas encore supportée — configurez un modèle compatible dans Paramètres ▸ IA.` };
+    }
+
     const modelInstance = await this.getGenerationModelInstance(baseId, { prompt });
 
     if (this.isStructuredOutputProvider(modelInstance)) {
@@ -789,6 +787,33 @@ export class AiService {
       `generateForField validation failed (attempt 2) for field ${field.id}: ${r2.error}`
     );
     return { value: null, validated: false, attempts: 2, error: r2.error };
+  }
+
+  /**
+   * Image generation for AI fields with outputMode='image'.
+   * Calls generateImage and returns the base64 data-URL as the cell string value.
+   */
+  private async generateImageForAiField(
+    baseId: string,
+    field: IFieldInstance,
+    prompt: string
+  ): Promise<{ value: unknown; validated: boolean; attempts: 1 | 2; error?: string }> {
+    try {
+      const config = await this.getAIConfig(baseId);
+      const modelKey = getTaskModelKey(config, Task.Coding);
+      if (!modelKey) throw new Error('Model key is not set');
+      const imageModel = await this.getModelInstance(modelKey, config.llmProviders, true);
+      const { images } = await generateImage({ model: imageModel, prompt, n: 1 });
+      if (!images?.length) {
+        return { value: null, validated: false, attempts: 1, error: 'No image returned by model' };
+      }
+      const img = images[0];
+      const dataUrl = img.base64 ? `data:image/png;base64,${img.base64}` : (img.url ?? null);
+      return { value: dataUrl, validated: true, attempts: 1 };
+    } catch (err) {
+      this.logger.error(`generateImageForAiField failed for field ${field.id}: ${(err as Error).message}`);
+      return { value: null, validated: false, attempts: 1, error: (err as Error).message };
+    }
   }
 
   /**
@@ -1348,7 +1373,6 @@ export class AiService {
         system:
           appGeneratePrompt +
           `\n\nSCHÉMA DE LA BASE (utilise ces IDs exacts):\n${schemaJson}` +
-          AI_FIELD_RENDER_HINT +
           brandPrompt,
         prompt,
       });
