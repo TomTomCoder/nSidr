@@ -30,6 +30,7 @@ const createService = () =>
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
     mockAiService as never
   );
 

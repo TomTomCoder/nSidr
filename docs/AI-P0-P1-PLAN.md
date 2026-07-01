@@ -222,14 +222,14 @@ Pour chaque cible, ~5 prompts réalistes → assertions sur la structure produit
 **Dépendances** : **P1-8** (écriture IA d'un doc) ; idéalement après **P1-9** (rendu).
 **État actuel** : aucun bouton de restructuration. L'IA sait déjà générer/éditer du markdown.
 
-- [ ] Endpoint/outil « reformater » : prend `rawContent`, renvoie du markdown restructuré (titres, sections, listes, tables) — **prompt contraint à préserver 100 % de l'information** (reformatage, pas résumé).
-- [ ] Bouton « Mise en page IA » dans `DocEditorArea.tsx` → aperçu diff avant/après → accepter/refuser (réutiliser le pattern proposer→accepter de AI-SYSTEM §3).
-- [ ] Garde-fou anti-perte : vérifier que la sortie n'est pas plus courte qu'un seuil (heuristique de complétude) + laisser l'utilisateur comparer avant d'appliquer.
+- [x] Endpoint/outil « reformater » : prend `rawContent`, renvoie du markdown restructuré (titres, sections, listes, tables) — **prompt contraint à préserver 100 % de l'information** (reformatage, pas résumé).
+- [x] Bouton « Mise en page IA » dans `DocEditorArea.tsx` → aperçu diff avant/après → accepter/refuser (réutiliser le pattern proposer→accepter de AI-SYSTEM §3).
+- [x] Garde-fou anti-perte : vérifier que la sortie n'est pas plus courte qu'un seuil (heuristique de complétude) + laisser l'utilisateur comparer avant d'appliquer.
 
 ### Test
-- [ ] `vitest` : la sortie conserve les entités clés d'un doc d'exemple (assertions sur présence des sections/faits).
+- [x] `vitest` : la sortie conserve les entités clés d'un doc d'exemple (assertions sur présence des sections/faits).
 - [ ] Repro : cliquer « Mise en page IA » sur un doc en vrac → structuré, rien perdu, annulable.
-### ✅ Vérifié : _______
+### ✅ Vérifié : implémenté + tests unitaires verts (126/126 suite IA) — **repro navigateur à faire**
 
 ---
 
