@@ -28,6 +28,8 @@ describe('ActionProposalService', () => {
       {} as any,
       {} as any,
       {} as any,
+      {} as any,
+      {} as any,
       {} as any
     );
   });
@@ -75,6 +77,8 @@ describe('ActionProposalService', () => {
       {} as any,
       mockView as any,
       mockAi as any,
+      {} as any,
+      {} as any,
       {} as any,
       {} as any,
       {} as any,
@@ -185,6 +189,8 @@ describe('ActionProposalService', () => {
       {} as any,
       {} as any,
       {} as any,
+      {} as any,
+      {} as any,
       {} as any
     );
 
@@ -270,6 +276,8 @@ describe('ActionProposalService', () => {
         {} as any,
         {} as any,
         {} as any,
+        {} as any,
+        {} as any,
         {} as any
       );
       const promptAdvertisedTypes = [
@@ -318,6 +326,8 @@ describe('ActionProposalService', () => {
         mockField as any,
         {} as any,
         {} as any,
+        {} as any,
+        {} as any,
         {} as any
       );
 
@@ -361,7 +371,9 @@ describe('ActionProposalService', () => {
         {} as any,
         {} as any,
         {} as any,
-        mockAgent as any
+        mockAgent as any,
+        {} as any,
+        {} as any
       );
 
       const result = await (svc as any).executeAction(
@@ -395,6 +407,8 @@ describe('ActionProposalService', () => {
         {} as any,
         (workflowAi ?? {}) as any,
         (workflow ?? {}) as any,
+        {} as any,
+        {} as any,
         {} as any
       );
     };
@@ -521,7 +535,9 @@ describe('ActionProposalService', () => {
         {} as any,
         {} as any,
         {} as any,
-        mockAgent as any
+        mockAgent as any,
+        {} as any,
+        {} as any
       );
 
       const result = await (svc as any).executeAction(
@@ -576,7 +592,9 @@ describe('ActionProposalService', () => {
         {} as any,
         {} as any,
         {} as any,
-        mockAgent as any
+        mockAgent as any,
+        {} as any,
+        {} as any
       );
 
       await (svc as any).executeAction(
@@ -610,7 +628,9 @@ describe('ActionProposalService', () => {
         {} as any,
         {} as any,
         {} as any,
-        mockAgent as any
+        mockAgent as any,
+        {} as any,
+        {} as any
       );
 
       await (svc as any).executeAction(
@@ -659,7 +679,9 @@ describe('ActionProposalService', () => {
         {} as any,
         {} as any,
         {} as any,
-        mockAgent as any
+        mockAgent as any,
+        {} as any,
+        {} as any
       );
 
       await (svc as any).executeAction(
@@ -700,6 +722,8 @@ describe('ActionProposalService', () => {
       const svc = new ActionProposalService(
         prisma as any,
         mockBaseNode as any,
+        {} as any,
+        {} as any,
         {} as any,
         {} as any,
         {} as any,
@@ -756,6 +780,8 @@ describe('ActionProposalService', () => {
         {} as any,
         {} as any,
         {} as any,
+        {} as any,
+        {} as any,
         {} as any
       );
 
@@ -799,6 +825,8 @@ describe('ActionProposalService', () => {
       const svc = new ActionProposalService(
         prisma as any,
         mockBaseNode as any,
+        {} as any,
+        {} as any,
         {} as any,
         {} as any,
         {} as any,
@@ -849,6 +877,8 @@ describe('ActionProposalService', () => {
       const svc = new ActionProposalService(
         prisma as any,
         mockBaseNode as any,
+        {} as any,
+        {} as any,
         {} as any,
         {} as any,
         {} as any,
@@ -909,6 +939,8 @@ describe('ActionProposalService', () => {
         {} as any,
         {} as any,
         {} as any,
+        {} as any,
+        {} as any,
         {} as any
       );
 
@@ -948,7 +980,9 @@ describe('ActionProposalService', () => {
         { createField: mockCreateField } as any, // fieldOpenApiService (pos 5)
         {} as any, // workflowAiService
         {} as any, // workflowService
-        {} as any // agentService
+        {} as any, // agentService
+        {} as any,
+        {} as any
       );
 
       await (svc as any).executeAction(

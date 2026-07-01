@@ -14,6 +14,7 @@ import {
 import { z } from 'zod';
 import { CustomHttpException } from '../../custom.exception';
 import { AI_SERVICE } from '../../shared/tokens/ai.token';
+import { DocSearchService } from '../doc-search/search.service';
 import { RecordService } from '../record/record.service';
 import { WorkflowTriggerSchema, WorkflowStepSchema } from '../workflow/workflow-ai.service';
 import { ActionProposalService } from './action-proposal.service';
@@ -60,7 +61,7 @@ export interface UnifiedChatContext {
   /** Files attached via the chat "+" button — only sent when the selected model supports them */
   attachments?: { url: string; name: string; mimetype: string }[];
   /** Explicit generation target picked via the chat UI buttons — restricts which write tools the model may call */
-  targetType?: 'table' | 'interface' | 'automation' | 'agent' | 'app' | 'mock_data';
+  targetType?: 'table' | 'interface' | 'automation' | 'agent' | 'app' | 'mock_data' | 'docs';
   /** The table currently displayed in the UI — used by the "Données fictives" target to know which table to fill */
   pageContext?: { tableId?: string; tableName?: string };
 }
@@ -114,6 +115,8 @@ const TARGET_TYPE_TOOLS: Record<NonNullable<UnifiedChatContext['targetType']>, s
   agent: ['create_agent'],
   app: ['create_app_interface', 'generate_app_code'],
   mock_data: [],
+  // P1-8: doc write tools. search_knowledge_base is a READ tool (always available), so it is NOT listed here.
+  docs: ['create_knowledge_doc', 'update_knowledge_doc', 'link_docs'],
 };
 
 @Injectable()
@@ -123,6 +126,7 @@ export class UnifiedAiService {
     private readonly workspaceStateService: WorkspaceStateService,
     private readonly actionProposalService: ActionProposalService,
     private readonly recordService: RecordService,
+    private readonly docSearchService: DocSearchService,
     @Inject(AI_SERVICE) private readonly aiService: IAiService
   ) {}
 
@@ -302,6 +306,45 @@ export class UnifiedAiService {
             // Read tools must never abort the whole turn — an invalid/deleted tableId
             // just yields no results, same as a query that matched nothing.
             return [];
+          }
+        },
+      }),
+      // P1-8: READ tool — semantic search over the space's knowledge docs. Executes immediately.
+      search_knowledge_base: (tool as (def: object) => object)({
+        description:
+          'Semantic search over the ingested knowledge docs of the current space. Returns matching doc excerpts with their docId and title.',
+        parameters: z.object({
+          query: z.string().describe('The search query'),
+          limit: z.number().optional().describe('Maximum number of results (default 5)'),
+        }),
+        execute: async (args: { query: string; limit?: number }) => {
+          try {
+            const results = await this.docSearchService.hybridSearch(
+              ctx.spaceId,
+              args.query,
+              args.limit ?? 5
+            );
+            return {
+              results: results.map((r) => ({
+                docId: r.docId,
+                docTitle: r.docTitle,
+                excerpt: r.chunkContent,
+                score: r.score,
+              })),
+              count: results.length,
+            };
+          } catch (err) {
+            // Actionable FR error when the space has no embedding provider (P1-8, task 3).
+            const msg = (err as Error)?.message ?? '';
+            if (/embedding provider/i.test(msg)) {
+              return {
+                __type: 'clarification',
+                message:
+                  "Aucun fournisseur d'embeddings n'est configuré pour cet espace. " +
+                  'Configurez un fournisseur d\'embeddings dans les paramètres IA pour rechercher dans la base de connaissances.',
+              };
+            }
+            return { results: [], count: 0 };
           }
         },
       }),
@@ -736,6 +779,36 @@ export class UnifiedAiService {
             ),
         })
       ),
+      // P1-8: doc WRITE tools — propose → accept. spaceId is resolved at accept time from baseId.
+      create_knowledge_doc: buildWriteTool(
+        'create_knowledge_doc',
+        'Create a new knowledge doc (markdown) in the current space. The doc is indexed asynchronously; it may not appear in search for a few seconds.',
+        z.object({
+          title: z.string().describe('Doc title (non-empty)'),
+          rawContent: z.string().describe('Markdown / plain text content (non-empty)'),
+          folderId: z.string().optional().describe('Optional folder ID to place the doc in'),
+          baseId: z.string().optional().describe('The base ID — filled automatically'),
+        })
+      ),
+      update_knowledge_doc: buildWriteTool(
+        'update_knowledge_doc',
+        'Replace the markdown content of an existing knowledge doc. Stale chunks are wiped and the doc is re-indexed asynchronously.',
+        z.object({
+          docId: z.string().describe('The ID of the doc to update'),
+          rawContent: z.string().describe('New markdown / plain text content (non-empty)'),
+          baseId: z.string().optional().describe('The base ID — filled automatically'),
+        })
+      ),
+      link_docs: buildWriteTool(
+        'link_docs',
+        'Create a directed doc-doc link (fromDocId → toDocId) with an optional label (e.g. "references", "cites"). Both docs must be in the current space.',
+        z.object({
+          fromDocId: z.string().describe('Source doc ID'),
+          toDocId: z.string().describe('Target doc ID'),
+          label: z.string().optional().describe('Optional label describing the relationship'),
+          baseId: z.string().optional().describe('The base ID — filled automatically'),
+        })
+      ),
     };
 
     // When a targetType was picked in the UI, hard-restrict the model to that target's
@@ -1039,6 +1112,12 @@ export class UnifiedAiService {
           scheduling: args.scheduling,
           isPublic: args.isPublic,
         };
+      case 'create_knowledge_doc':
+        return { title: args.title, folderId: args.folderId };
+      case 'update_knowledge_doc':
+        return { docId: args.docId };
+      case 'link_docs':
+        return { fromDocId: args.fromDocId, toDocId: args.toDocId, label: args.label };
       default:
         return { action: toolName, args };
     }

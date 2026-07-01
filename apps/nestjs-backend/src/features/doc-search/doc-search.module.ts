@@ -1,5 +1,5 @@
 import type { Provider } from '@nestjs/common';
-import { Module, OnModuleInit, Logger } from '@nestjs/common';
+import { Module, OnModuleInit, Logger, forwardRef } from '@nestjs/common';
 import { BullModule, InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from '@teable/db-main-prisma';
@@ -44,7 +44,7 @@ const vectorSyncBullImport = BullModule.registerQueue({ name: VECTOR_SYNC_QUEUE 
     BullModule.registerQueue({ name: DOC_INGEST_QUEUE }),
     // VECTOR_SYNC queue is always registered so the API can enqueue sync jobs.
     vectorSyncBullImport,
-    UnifiedAiModule,
+    forwardRef(() => UnifiedAiModule),
     // Provides ExternalConnectionService so hybridSearch can fuse external Qdrant hits (18-02).
     ExternalConnectionModule,
   ],

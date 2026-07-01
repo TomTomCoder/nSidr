@@ -12,6 +12,8 @@ import { BaseNodeResourceType, type ICreateBaseNodeRo } from '@teable/openapi';
 import { AI_SERVICE } from '../../shared/tokens/ai.token';
 import { AgentService } from '../agent/agent.service';
 import { BaseNodeService } from '../base-node/base-node.service';
+import { DocLinkService } from '../doc-search/doc-link.service';
+import { KnowledgeDocService } from '../doc-search/knowledge-doc.service';
 import { FieldOpenApiService } from '../field/open-api/field-open-api.service';
 import { RecordOpenApiService } from '../record/open-api/record-open-api.service';
 import { ViewOpenApiService } from '../view/open-api/view-open-api.service';
@@ -70,7 +72,9 @@ export class ActionProposalService {
     private readonly workflowAiService: WorkflowAiService,
     private readonly workflowService: WorkflowService,
     @Inject(forwardRef(() => AgentService))
-    private readonly agentService: AgentService
+    private readonly agentService: AgentService,
+    private readonly knowledgeDocService: KnowledgeDocService,
+    private readonly docLinkService: DocLinkService
   ) {}
 
   /**
@@ -872,9 +876,65 @@ export class ActionProposalService {
         return { shouldStream: true, appId, prompt: prompt ?? '', baseId };
       }
 
+      // P1-8: knowledge doc write actions. spaceId is resolved from the (activeBase-derived) baseId.
+      case 'create_knowledge_doc': {
+        const spaceId = await this.resolveSpaceIdFromArgs(args);
+        if (!spaceId) {
+          return { status: 'skipped', reason: 'Could not resolve the space for this doc' };
+        }
+        return this.knowledgeDocService.createDoc({
+          spaceId,
+          title: (args.title as string | undefined)?.trim() || 'Untitled',
+          rawContent: args.rawContent as string,
+          folderId: args.folderId as string | undefined,
+          createdBy: _userId,
+        });
+      }
+
+      case 'update_knowledge_doc': {
+        const spaceId = await this.resolveSpaceIdFromArgs(args);
+        if (!spaceId) {
+          return { status: 'skipped', reason: 'Could not resolve the space for this doc' };
+        }
+        return this.knowledgeDocService.updateDoc({
+          docId: args.docId as string,
+          rawContent: args.rawContent as string,
+          callerSpaceId: spaceId,
+          callerId: _userId,
+        });
+      }
+
+      case 'link_docs': {
+        const spaceId = await this.resolveSpaceIdFromArgs(args);
+        if (!spaceId) {
+          return { status: 'skipped', reason: 'Could not resolve the space for these docs' };
+        }
+        return this.docLinkService.linkDocs({
+          fromDocId: args.fromDocId as string,
+          toDocId: args.toDocId as string,
+          label: args.label as string | undefined,
+          callerSpaceId: spaceId,
+          callerId: _userId,
+        });
+      }
+
       default:
         throw new Error(`Action ${action} is not implemented`);
     }
+  }
+
+  /** Resolve the spaceId for a doc action from its baseId (base → space FK). */
+  private async resolveSpaceIdFromArgs(
+    args: Record<string, unknown>
+  ): Promise<string | undefined> {
+    if (args.spaceId) return args.spaceId as string;
+    const baseId = args.baseId as string | undefined;
+    if (!baseId) return undefined;
+    const base = await this.prismaService.base.findUnique({
+      where: { id: baseId },
+      select: { spaceId: true },
+    });
+    return base?.spaceId;
   }
 
   /**
