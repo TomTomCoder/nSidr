@@ -114,7 +114,17 @@ const TARGET_TYPE_TOOLS: Record<NonNullable<UnifiedChatContext['targetType']>, s
   interface: ['create_app_interface'],
   automation: ['create_automation'],
   agent: ['create_agent'],
-  app: ['create_app_interface', 'generate_app_code'],
+  // App = a COMPLETE app, so it needs the data-layer tools too (tables/relations/records),
+  // not just the UI. The proper path is the /full-app saga (the "Application complète" button
+  // routes there); this broadened set is the safety net when targetType 'app' still hits /chat.
+  app: [
+    'create_table',
+    'create_view',
+    'link_tables',
+    'create_record',
+    'create_app_interface',
+    'generate_app_code',
+  ],
   mock_data: [],
   // P1-8: doc write tools. search_knowledge_base is a READ tool (always available), so it is NOT listed here.
   docs: ['create_knowledge_doc', 'update_knowledge_doc', 'link_docs'],

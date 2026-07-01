@@ -234,6 +234,14 @@ function ChatPanelInner({ spaceId }: { spaceId: string }) {
           suggestionGroups={suggestionGroups}
           pageContext={table ? { tableId: table.id, tableName: table.name } : undefined}
           onSubmit={isAppBuilderMode ? handleGeneratorSubmit : undefined}
+          onFullApp={
+            base?.id
+              ? () => {
+                  resetFullAppGeneration();
+                  setFullAppMode(true);
+                }
+              : undefined
+          }
         />
       )}
 

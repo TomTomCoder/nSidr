@@ -389,6 +389,9 @@ interface UnifiedChatContainerProps {
   pageContext?: { tableId?: string; tableName?: string; viewId?: string; viewName?: string };
   // When provided, intercepts submit — return true to skip normal chat flow
   onSubmit?: (text: string) => boolean | Promise<boolean>;
+  // When provided, clicking the "Application complète" target hands off to the dedicated
+  // full-app saga (FullAppPanel) instead of the weak targetType='app' chat path.
+  onFullApp?: () => void;
 }
 
 function isToolMsg(msg: UnifiedChatEvent) {
@@ -403,6 +406,7 @@ export function UnifiedChatContainer({
   suggestionGroups,
   pageContext,
   onSubmit,
+  onFullApp,
 }: UnifiedChatContainerProps) {
   const {
     messages,
@@ -713,7 +717,13 @@ export function UnifiedChatContainer({
               <button
                 key={key}
                 type="button"
-                onClick={() => setTargetType(active ? null : key)}
+                onClick={() => {
+                  if (key === 'app' && onFullApp) {
+                    onFullApp();
+                    return;
+                  }
+                  setTargetType(active ? null : key);
+                }}
                 className="flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors duration-200"
                 style={
                   active

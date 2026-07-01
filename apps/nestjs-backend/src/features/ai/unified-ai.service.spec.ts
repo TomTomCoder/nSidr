@@ -468,7 +468,17 @@ describe('UnifiedAiService', () => {
       { target: 'interface', expected: ['create_app_interface'] },
       { target: 'automation', expected: ['create_automation'] },
       { target: 'agent', expected: ['create_agent'] },
-      { target: 'app', expected: ['create_app_interface', 'generate_app_code'] },
+      {
+        target: 'app',
+        expected: [
+          'create_table',
+          'create_view',
+          'link_tables',
+          'create_record',
+          'create_app_interface',
+          'generate_app_code',
+        ],
+      },
     ];
 
     it.each(CASES)(
