@@ -330,6 +330,27 @@ const MOCK_DATA_CARDS = [
   },
 ];
 
+const DOCS_CARDS = [
+  {
+    icon: FileIcon,
+    color: '#fbbf24',
+    bg: 'rgba(251,191,36,0.12)',
+    border: 'rgba(251,191,36,0.25)',
+    label: 'Créer un document',
+    desc: 'Rédige un document markdown',
+    prompt: 'Crée un document de synthèse sur…',
+  },
+  {
+    icon: Search,
+    color: '#38bdf8',
+    bg: 'rgba(56,189,248,0.12)',
+    border: 'rgba(56,189,248,0.25)',
+    label: 'Rechercher',
+    desc: 'Cherche dans la base de connaissances',
+    prompt: 'Recherche dans mes documents…',
+  },
+];
+
 const CARDS_BY_TARGET: Record<TargetType, typeof TABLE_CARDS> = {
   table: TABLE_CARDS,
   interface: INTERFACE_CARDS,
@@ -337,6 +358,7 @@ const CARDS_BY_TARGET: Record<TargetType, typeof TABLE_CARDS> = {
   agent: AGENT_CARDS,
   app: APP_CARDS,
   mock_data: MOCK_DATA_CARDS,
+  docs: DOCS_CARDS,
 };
 
 const AGENT_CATEGORIES = [
