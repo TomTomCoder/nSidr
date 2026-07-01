@@ -181,15 +181,15 @@ Pour chaque cible, ~5 prompts réalistes → assertions sur la structure produit
 **Dépendances** : aucune sur les autres, mais **plus gros chantier** (nouvelle dépendance front).
 **État actuel** : `DocEditorArea.tsx` = CodeMirror 6 (markdown brut) + preview `react-markdown`. Toggle édition/preview déjà présent. **Pas de WYSIWYG** (ni tiptap/prosemirror/slate/lexical/milkdown).
 
-- [ ] **Décidé : `milkdown`** (WYSIWYG natif-markdown, source de vérité = MD, pas de conversion → round-trip sûr). Une seule nouvelle dépendance front.
-- [ ] Intégrer l'éditeur WYSIWYG dans `DocEditorArea.tsx`, source de vérité = markdown (`rawContent`), sérialisation à la sauvegarde.
-- [ ] Bouton bascule « Éditer / Aperçu » à la Coda/Notion (WYSIWYG par défaut, accès au markdown brut via toggle — réutiliser le toggle existant).
-- [ ] Ne pas casser l'ingestion : la sauvegarde produit toujours du markdown valide re-chunkable.
+- [x] **Décidé : `milkdown`** (WYSIWYG natif-markdown, source de vérité = MD, pas de conversion → round-trip sûr). Une seule nouvelle dépendance front.
+- [x] Intégrer l'éditeur WYSIWYG dans `DocEditorArea.tsx`, source de vérité = markdown (`rawContent`), sérialisation à la sauvegarde.
+- [x] Bouton bascule « Éditer / Aperçu » à la Coda/Notion (WYSIWYG par défaut, accès au markdown brut via toggle — réutiliser le toggle existant).
+- [x] Ne pas casser l'ingestion : la sauvegarde produit toujours du markdown valide re-chunkable.
 
 ### Test
 - [ ] Aller-retour markdown → WYSIWYG → markdown préserve le contenu (test de round-trip).
 - [ ] Repro : éditer un doc en WYSIWYG, sauver, ré-ouvrir → contenu intact + ré-indexé.
-### ✅ Vérifié : _______
+### ✅ Vérifié : éditeur milkdown intégré (mergé) — **`pnpm install` + repro navigateur à faire** ; test round-trip non automatisé (raisonnement documenté dans MilkdownEditor.tsx)
 
 ---
 
