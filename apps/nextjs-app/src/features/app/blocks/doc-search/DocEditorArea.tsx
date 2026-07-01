@@ -5,13 +5,14 @@ import { EditorState } from '@codemirror/state';
 import { EditorView, keymap, drawSelection, dropCursor } from '@codemirror/view';
 import { useTheme } from '@teable/next-themes';
 import type { IDocFolder } from '@teable/openapi';
-import { Badge, ToggleGroup, ToggleGroupItem } from '@teable/ui-lib/shadcn';
+import { Badge, Button, ToggleGroup, ToggleGroupItem } from '@teable/ui-lib/shadcn';
 import debounce from 'lodash/debounce';
-import { ChevronRight, FolderOpen, Loader2 } from 'lucide-react';
+import { AlertTriangle, ChevronRight, FolderOpen, Loader2, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
-import { useDoc, useDocFolders, useUpdateDoc } from './hooks';
+import { useDoc, useDocFolders, useReformatDoc, useUpdateDoc } from './hooks';
+import type { IReformatDocResult } from './hooks';
 import { LinkedDocsPanel } from './LinkedDocsPanel';
 import { MilkdownEditor } from './MilkdownEditor';
 import { MemoryPanel } from './MemoryPanel';
@@ -30,6 +31,10 @@ export function DocEditorArea({ spaceId }: IDocEditorAreaProps) {
   const { data: doc, isLoading } = useDoc(spaceId, selectedDocId ?? '');
   const { data: folders } = useDocFolders(spaceId);
   const { mutateAsync: updateDoc } = useUpdateDoc(spaceId);
+
+  // P1-11 — "Mise en page IA": propose→accept reformat state
+  const { mutateAsync: reformatDoc, isPending: isReformatting } = useReformatDoc(spaceId);
+  const [reformatResult, setReformatResult] = useState<IReformatDocResult | null>(null);
 
   // Local state for content, title, save indicator
   const [localContent, setLocalContent] = useState('');
@@ -106,6 +111,26 @@ export function DocEditorArea({ spaceId }: IDocEditorAreaProps) {
   const handleChange = (content: string) => {
     setLocalContent(content);
     debouncedSave(content);
+  };
+
+  // -----------------------------------------------------------------------
+  // P1-11 — "Mise en page IA": ask the AI to restructure, show before/after,
+  // accept (writes via the normal save path so ingestion re-chunks) or cancel.
+  // -----------------------------------------------------------------------
+  const handleReformat = async () => {
+    if (!localContent.trim()) return;
+    try {
+      const result = await reformatDoc({ content: localContent });
+      setReformatResult(result);
+    } catch (_e) {
+      // swallow — the button re-enables; nothing is persisted
+    }
+  };
+
+  const acceptReformat = () => {
+    if (!reformatResult) return;
+    handleChange(reformatResult.reformatted); // same save path as normal edits
+    setReformatResult(null);
   };
 
   // -----------------------------------------------------------------------
@@ -295,6 +320,23 @@ export function DocEditorArea({ spaceId }: IDocEditorAreaProps) {
           {/* Index status badge */}
           {indexBadge()}
 
+          {/* P1-11 — Mise en page IA */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 gap-1 px-2 text-xs"
+            disabled={isReformatting || !localContent.trim()}
+            onClick={handleReformat}
+            title="Restructurer la mise en page avec l'IA (sans perte d'information)"
+          >
+            {isReformatting ? (
+              <Loader2 className="size-3 animate-spin" />
+            ) : (
+              <Sparkles className="size-3" />
+            )}
+            Mise en page IA
+          </Button>
+
           {/* Mode toggle */}
           <ToggleGroup
             type="single"
@@ -367,6 +409,61 @@ export function DocEditorArea({ spaceId }: IDocEditorAreaProps) {
 
       {/* Phase 3: agent memory graph (entities + relations) extracted from this doc */}
       {selectedDocId && hasMemory && <MemoryPanel spaceId={spaceId} docId={selectedDocId} />}
+
+      {/* P1-11 — before/after reformat modal (propose→accept) */}
+      {reformatResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6">
+          <div className="flex max-h-[85vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border bg-background shadow-xl">
+            <div className="flex items-center justify-between border-b px-4 py-3">
+              <h2 className="flex items-center gap-2 text-sm font-semibold">
+                <Sparkles className="size-4" />
+                Mise en page IA — aperçu avant / après
+              </h2>
+              <span className="text-xs text-muted-foreground">
+                {reformatResult.originalLength} → {reformatResult.reformattedLength} caractères
+              </span>
+            </div>
+
+            {reformatResult.possibleLoss && (
+              <div className="flex items-center gap-2 border-b bg-amber-500/10 px-4 py-2 text-xs text-amber-700 dark:text-amber-400">
+                <AlertTriangle className="size-4 shrink-0" />
+                Perte possible d&apos;information : la sortie est nettement plus courte que
+                l&apos;original. Comparez attentivement avant d&apos;accepter.
+              </div>
+            )}
+
+            <div className="grid min-h-0 flex-1 grid-cols-2 divide-x overflow-hidden">
+              <div className="flex min-h-0 flex-col">
+                <div className="border-b px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                  Avant
+                </div>
+                <pre className="flex-1 overflow-auto whitespace-pre-wrap px-3 py-2 text-xs">
+                  {localContent}
+                </pre>
+              </div>
+              <div className="flex min-h-0 flex-col">
+                <div className="border-b px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                  Après
+                </div>
+                <div className="prose prose-sm max-w-none flex-1 overflow-auto px-3 py-2 dark:prose-invert">
+                  <ReactMarkdown rehypePlugins={[rehypeSanitize]}>
+                    {reformatResult.reformatted}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 border-t px-4 py-3">
+              <Button variant="ghost" size="sm" onClick={() => setReformatResult(null)}>
+                Annuler
+              </Button>
+              <Button size="sm" onClick={acceptReformat}>
+                Accepter
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
