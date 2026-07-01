@@ -3,6 +3,9 @@
 > Ancré dans l'audit du code réel (2026-07-01). Complète [AI-SYSTEM.md](./AI-SYSTEM.md) et [AI-GENERATION-ROADMAP.md](./AI-GENERATION-ROADMAP.md).
 > **Règle d'or** : chaque case cochée = un diff revuable + son test vert avant de passer à la suivante. On ne coche « ✅ Vérifié » qu'après `tsc --noEmit` + `eslint --fix` (fichiers touchés) + `vitest run` (suite concernée) + repro manuelle dans le navigateur (UI en français, session persistée).
 
+
+> **Vérification runtime réelle (2026-07-01)** : les 6 générations (Table, Interface, Automation, Agent, App, Données fictives) ont été testées **deux fois chacune** contre le vrai LLM via un e2e (`apps/nestjs-backend/test/ai-generation.e2e-spec.ts`) — **12/12 OK, 0 erreur**. A nécessité de corriger au passage : boot Node (node@22), cycle de modules P1-8 (ModuleRef), et le harnais e2e (dedupe `@nestjs/core`).
+
 ---
 
 ## Carte des dépendances
