@@ -142,11 +142,18 @@ function ChatPanelInner({ spaceId }: { spaceId: string }) {
     fetchAgents();
   }, [fetchAgents]);
 
-  // Re-fetch when a new agent is created from the chat (e.g. via accept-proposal)
+  // Re-fetch when a new agent is created from the chat, then navigate to agent page
   useEffect(() => {
-    window.addEventListener('agent-created', fetchAgents);
-    return () => window.removeEventListener('agent-created', fetchAgents);
-  }, [fetchAgents]);
+    const handler = (e: Event) => {
+      fetchAgents();
+      const { agentId, baseId } =
+        (e as CustomEvent<{ agentId?: string; baseId?: string }>).detail ?? {};
+      const targetBaseId = baseId ?? base?.id;
+      if (agentId && targetBaseId) void router.push(`/base/${targetBaseId}/agent/${agentId}`);
+    };
+    window.addEventListener('agent-created', handler);
+    return () => window.removeEventListener('agent-created', handler);
+  }, [fetchAgents, base?.id, router]);
 
   if (status === 'close') return null;
 
@@ -234,14 +241,6 @@ function ChatPanelInner({ spaceId }: { spaceId: string }) {
           suggestionGroups={suggestionGroups}
           pageContext={table ? { tableId: table.id, tableName: table.name } : undefined}
           onSubmit={isAppBuilderMode ? handleGeneratorSubmit : undefined}
-          onFullApp={
-            base?.id
-              ? () => {
-                  resetFullAppGeneration();
-                  setFullAppMode(true);
-                }
-              : undefined
-          }
         />
       )}
 

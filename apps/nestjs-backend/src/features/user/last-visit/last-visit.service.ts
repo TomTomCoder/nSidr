@@ -418,6 +418,35 @@ export class LastVisitService {
     return undefined;
   }
 
+  async agentVisit(userId: string, parentResourceId: string) {
+    const query = this.knex
+      .select({ resourceId: 'ulv.resource_id' })
+      .from('user_last_visit as ulv')
+      .join('agent as a', 'a.id', 'ulv.resource_id')
+      .where('ulv.user_id', userId)
+      .where('ulv.resource_type', LastVisitResourceType.Agent)
+      .where('ulv.parent_resource_id', parentResourceId)
+      .limit(1)
+      .toQuery();
+
+    const results = await this.prismaService.$queryRawUnsafe<IUserLastVisitVo[]>(query);
+    const lastVisit = results[0];
+    if (lastVisit)
+      return { resourceId: lastVisit.resourceId, resourceType: LastVisitResourceType.Agent };
+
+    const agentQuery = this.knex('agent')
+      .select({ id: 'id' })
+      .where('base_id', parentResourceId)
+      .orderBy('last_modified_time', 'desc')
+      .limit(1)
+      .toQuery();
+
+    const agentResults = await this.prismaService.$queryRawUnsafe<{ id: string }[]>(agentQuery);
+    const agent = agentResults[0];
+    if (agent) return { resourceId: agent.id, resourceType: LastVisitResourceType.Agent };
+    return undefined;
+  }
+
   async baseVisit(): Promise<IUserLastVisitListBaseVo> {
     const userId = this.cls.get('user.id');
     const departmentIds = this.cls.get('organization.departments')?.map((d) => d.id);
@@ -505,6 +534,8 @@ export class LastVisitService {
         return this.workflowVisit(userId, params.parentResourceId);
       case LastVisitResourceType.App:
         return this.appVisit(userId, params.parentResourceId);
+      case LastVisitResourceType.Agent:
+        return this.agentVisit(userId, params.parentResourceId);
       default:
         throw new CustomHttpException('Invalid resource type', HttpErrorCode.VALIDATION_ERROR, {
           localization: {

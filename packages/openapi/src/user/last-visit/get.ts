@@ -14,6 +14,7 @@ export enum LastVisitResourceType {
   Dashboard = ResourceType.Dashboard,
   Workflow = ResourceType.Workflow,
   App = ResourceType.App,
+  Agent = ResourceType.Agent,
 }
 
 export const userLastVisitVoSchema = z.object({

@@ -131,7 +131,7 @@ const AGENT_CARDS = [
   },
 ];
 
-type TargetType = 'table' | 'interface' | 'automation' | 'agent' | 'app' | 'mock_data' | 'docs';
+type TargetType = 'table' | 'interface' | 'automation' | 'agent' | 'app' | 'mock_data';
 
 const TARGET_TYPES: { key: TargetType; label: string; icon: React.ElementType }[] = [
   { key: 'table', label: 'Table', icon: Table2 },
@@ -140,7 +140,6 @@ const TARGET_TYPES: { key: TargetType; label: string; icon: React.ElementType }[
   { key: 'agent', label: 'Agent', icon: Bot },
   { key: 'app', label: 'Application complète', icon: AppWindow },
   { key: 'mock_data', label: 'Données fictives', icon: Wand2 },
-  { key: 'docs', label: 'Docs', icon: FileIcon },
 ];
 
 const TARGET_PLACEHOLDERS: Record<TargetType, string> = {
@@ -150,7 +149,6 @@ const TARGET_PLACEHOLDERS: Record<TargetType, string> = {
   agent: 'Décrivez les objectifs, les rôles, les tâches ou les processus de votre agent.',
   app: 'Décrivez l’application complète que vous voulez générer…',
   mock_data: 'Décrivez le thème des données fictives à générer pour cette table…',
-  docs: 'Recherchez, créez ou modifiez un document de la base de connaissances…',
 };
 
 const TABLE_CARDS = [
@@ -330,27 +328,6 @@ const MOCK_DATA_CARDS = [
   },
 ];
 
-const DOCS_CARDS = [
-  {
-    icon: FileIcon,
-    color: '#fbbf24',
-    bg: 'rgba(251,191,36,0.12)',
-    border: 'rgba(251,191,36,0.25)',
-    label: 'Créer un document',
-    desc: 'Rédige un document markdown',
-    prompt: 'Crée un document de synthèse sur…',
-  },
-  {
-    icon: Search,
-    color: '#38bdf8',
-    bg: 'rgba(56,189,248,0.12)',
-    border: 'rgba(56,189,248,0.25)',
-    label: 'Rechercher',
-    desc: 'Cherche dans la base de connaissances',
-    prompt: 'Recherche dans mes documents…',
-  },
-];
-
 const CARDS_BY_TARGET: Record<TargetType, typeof TABLE_CARDS> = {
   table: TABLE_CARDS,
   interface: INTERFACE_CARDS,
@@ -358,7 +335,6 @@ const CARDS_BY_TARGET: Record<TargetType, typeof TABLE_CARDS> = {
   agent: AGENT_CARDS,
   app: APP_CARDS,
   mock_data: MOCK_DATA_CARDS,
-  docs: DOCS_CARDS,
 };
 
 const AGENT_CATEGORIES = [
@@ -389,9 +365,6 @@ interface UnifiedChatContainerProps {
   pageContext?: { tableId?: string; tableName?: string; viewId?: string; viewName?: string };
   // When provided, intercepts submit — return true to skip normal chat flow
   onSubmit?: (text: string) => boolean | Promise<boolean>;
-  // When provided, clicking the "Application complète" target hands off to the dedicated
-  // full-app saga (FullAppPanel) instead of the weak targetType='app' chat path.
-  onFullApp?: () => void;
 }
 
 function isToolMsg(msg: UnifiedChatEvent) {
@@ -406,7 +379,6 @@ export function UnifiedChatContainer({
   suggestionGroups,
   pageContext,
   onSubmit,
-  onFullApp,
 }: UnifiedChatContainerProps) {
   const {
     messages,
@@ -547,7 +519,6 @@ export function UnifiedChatContainer({
       readerRef.current = reader;
       const decoder = new TextDecoder();
       let buffer = '';
-      let sawParseError = false;
       // eslint-disable-next-line no-constant-condition
       while (true) {
         const { done, value } = await reader.read();
@@ -564,18 +535,9 @@ export function UnifiedChatContainer({
             appendMessage(ev);
             if (ev.type === 'done' && ev.conversationId) setConversationId(ev.conversationId);
           } catch {
-            // ponytail: surface a single one-liner instead of silently swallowing SSE parse
-            // failures (P0-1). i18n as a follow-up.
-            sawParseError = true;
+            /* ignore */
           }
         }
-      }
-      if (sawParseError) {
-        appendMessage({
-          type: 'error',
-          content:
-            'Réponse partielle interrompue — une partie de la réponse IA n’a pas pu être affichée.',
-        } as UnifiedChatEvent);
       }
     } catch (err) {
       if (err instanceof Error && err.name !== 'AbortError')
@@ -717,13 +679,7 @@ export function UnifiedChatContainer({
               <button
                 key={key}
                 type="button"
-                onClick={() => {
-                  if (key === 'app' && onFullApp) {
-                    onFullApp();
-                    return;
-                  }
-                  setTargetType(active ? null : key);
-                }}
+                onClick={() => setTargetType(active ? null : key)}
                 className="flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors duration-200"
                 style={
                   active
@@ -1054,7 +1010,6 @@ export function UnifiedChatContainer({
                       spaceId={spaceId}
                       conversationId={conversationId ?? ''}
                       activeBaseId={activeBaseId}
-                      isStreaming={isStreaming && gi === messageGroups.length - 1}
                     />
                   );
                 const expanded = expandedGroups.has(group.groupIndex);
