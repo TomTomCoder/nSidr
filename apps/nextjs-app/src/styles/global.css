@@ -332,6 +332,20 @@ body {
   animation: ai-thinking-sweep 1.3s ease-in-out infinite;
 }
 
+/* Blinking caret shown at the end of the assistant bubble while a response streams. */
+@keyframes ai-stream-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+.ai-stream-cursor {
+  animation: ai-stream-blink 1s step-end infinite;
+}
+
 /* Ambient glow — frames the viewport while an AI request is streaming, using
    the same violet→indigo→sky→cyan accent as the rest of the AI surfaces
    (.ai-gradient-ring / .ai-thinking-bar) instead of a clashing one-off palette. */

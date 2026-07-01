@@ -1,6 +1,9 @@
 'use client';
 
+import { Sparkles } from 'lucide-react';
 import { memo } from 'react';
+import ReactMarkdown from 'react-markdown';
+import rehypeSanitize from 'rehype-sanitize';
 import type { UnifiedChatEvent, AgentRunEvent } from '@/types/agent';
 import { ProposalCard } from './ProposalCard';
 import { ToolExecutionCard } from './ToolExecutionCard';
@@ -13,6 +16,40 @@ interface MessageItemProps {
   spaceId?: string;
   conversationId?: string;
   activeBaseId?: string;
+  /** True only for the last assistant message while the response is still streaming. */
+  isStreaming?: boolean;
+}
+
+/**
+ * AI-themed assistant bubble: small accent avatar + markdown-rendered body (sanitized via
+ * rehype-sanitize), with a blinking cursor while streaming. Colors go through theme tokens /
+ * dark: variants so both themes stay legible; the streaming region is aria-live for a11y.
+ */
+function AssistantBubble({ content, isStreaming }: { content?: string; isStreaming?: boolean }) {
+  return (
+    <div className="flex w-full justify-start gap-2 py-1">
+      <div
+        className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-white shadow-sm"
+        style={{ background: 'linear-gradient(135deg,#7c3aed,#4f46e5)' }}
+        aria-hidden="true"
+      >
+        <Sparkles className="size-3.5" />
+      </div>
+      <div
+        className="prose prose-sm dark:prose-invert min-w-0 max-w-none flex-1 break-words rounded-lg border border-violet-200/60 bg-violet-50/40 px-3 py-2 text-sm text-foreground dark:border-violet-900/40 dark:bg-violet-950/20 dark:text-slate-200"
+        aria-live={isStreaming ? 'polite' : undefined}
+        aria-busy={isStreaming || undefined}
+      >
+        <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{content ?? ''}</ReactMarkdown>
+        {isStreaming && (
+          <span
+            className="ai-stream-cursor ml-0.5 inline-block h-4 w-[2px] translate-y-0.5 rounded-full bg-violet-500 align-middle"
+            aria-hidden="true"
+          />
+        )}
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -25,6 +62,7 @@ export const MessageItem = memo(function MessageItem({
   spaceId,
   conversationId,
   activeBaseId,
+  isStreaming,
 }: MessageItemProps) {
   const { type, content } = message;
 
@@ -59,13 +97,7 @@ export const MessageItem = memo(function MessageItem({
   // Assistant text — the backend never sets `role` on its SSE text_chunk events, so
   // anything that isn't explicitly tagged 'user' is assistant output.
   if ((type === 'text' || type === 'text_chunk') && message.role !== 'user') {
-    return (
-      <div className="flex w-full justify-start py-1">
-        <div className="min-w-0 w-full rounded-lg border border-border bg-background px-3 py-2 text-foreground dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-200">
-          <p className="whitespace-pre-wrap break-words text-sm">{content}</p>
-        </div>
-      </div>
-    );
+    return <AssistantBubble content={content} isStreaming={isStreaming} />;
   }
 
   // Tool execution (legacy AgentRunEvent)
