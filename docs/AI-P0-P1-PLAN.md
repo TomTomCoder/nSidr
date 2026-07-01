@@ -147,16 +147,16 @@ P1-10 Comparaison OKF (analyse ci-dessous → intégration OPTIONNELLE)
 
 Pour chaque cible, ~5 prompts réalistes → assertions sur la structure produite (valide + éléments attendus présents), LLM mocké/déterministe.
 
-- [ ] **Table** : ex. « crée un CRM avec Clients et Opportunités » → tables attendues, champs de types valides (enum `FieldType`), lien Clients↔Opportunités présent, pas de doublon.
-- [ ] **Interface** : ex. « une interface de suivi des tâches » → blocs/colonnes cohérents avec la table source, champ `ai` référencé correctement (lien P0-5).
-- [ ] **Automation** : ex. « notifier sur Slack à la création d'un lead » → trigger `record_created` + step `send_slack`, tout dans l'enum exécutable (8/9), validé par `WorkflowConfigSchema`.
-- [ ] **Agent** : ex. « un agent qui répond aux questions sur la base » → capabilities minimales par défaut, aucun outil d'écriture activé sans mention explicite.
-- [ ] Brancher ces évals dans `unified-ai.service.spec.ts` (ou un `*.eval.spec.ts` dédié) et les faire tourner dans la CI/`vitest run`.
+- [x] **Table** : ex. « crée un CRM avec Clients et Opportunités » → tables attendues, champs de types valides (enum `FieldType`), lien Clients↔Opportunités présent, pas de doublon.
+- [x] **Interface** : ex. « une interface de suivi des tâches » → blocs/colonnes cohérents avec la table source, champ `ai` référencé correctement (lien P0-5).
+- [x] **Automation** : ex. « notifier sur Slack à la création d'un lead » → trigger `record_created` + step `send_slack`, tout dans l'enum exécutable (8/9), validé par `WorkflowConfigSchema`.
+- [x] **Agent** : ex. « un agent qui répond aux questions sur la base » → capabilities minimales par défaut, aucun outil d'écriture activé sans mention explicite.
+- [x] Brancher ces évals dans `unified-ai.service.spec.ts` (ou un `*.eval.spec.ts` dédié) et les faire tourner dans la CI/`vitest run`.
 
 ### Test
-- [ ] Chaque éval passe avec le prompt/modèle actuel (baseline verte).
-- [ ] Une régression volontaire (ex. retirer un step de l'enum) fait échouer l'éval concernée.
-### ✅ Vérifié : _______
+- [x] Chaque éval passe avec le prompt/modèle actuel (baseline verte).
+- [x] Une régression volontaire (ex. retirer un step de l'enum) fait échouer l'éval concernée.
+### ✅ Vérifié : implémenté + tests unitaires verts (123/123 suite IA sur `ai-p0-implementation`) — **repro navigateur à faire**
 
 ---
 
@@ -166,14 +166,14 @@ Pour chaque cible, ~5 prompts réalistes → assertions sur la structure produit
 **Dépendances** : aucune (base). **Déjà largement en place.**
 **État actuel** : outils MCP agent déjà présents (`agent-tool-registry.service.ts`) : `create_knowledge_doc`, `update_knowledge_doc`, `search_knowledge_base`, `link_docs`, `get_doc_links`. Docs stockés en markdown (`ImportedDoc.rawContent`), ingestion → chunks + embeddings (`ingestion.service.ts`).
 
-- [ ] **Vérifier** que ces 4 outils fonctionnent bout-en-bout (créer/mettre à jour un doc via l'IA → re-indexation async OK).
-- [ ] **Décidé** : exposer ces outils au **chat unifié du panneau base**. Ajouter une cible `targetType: 'docs'` dans `TARGET_TYPE_TOOLS` (`unified-ai.service.ts:107-114`) mappée sur `create_knowledge_doc`/`update_knowledge_doc`/`search_knowledge_base`/`link_docs`, un bouton « Docs » dans `TARGET_TYPES` (`UnifiedChatContainer.tsx:136-143`), et câbler la DI du module doc-search dans `unified-ai.module.ts`. Suivre le patron d'ajout d'outil d'AI-SYSTEM §6.
-- [ ] Message d'erreur actionnable (P0-1) si l'espace n'a pas de provider d'embeddings configuré.
+- [x] **Vérifier** que ces 4 outils fonctionnent bout-en-bout (créer/mettre à jour un doc via l'IA → re-indexation async OK).
+- [x] **Décidé** : exposer ces outils au **chat unifié du panneau base**. Ajouter une cible `targetType: 'docs'` dans `TARGET_TYPE_TOOLS` (`unified-ai.service.ts:107-114`) mappée sur `create_knowledge_doc`/`update_knowledge_doc`/`search_knowledge_base`/`link_docs`, un bouton « Docs » dans `TARGET_TYPES` (`UnifiedChatContainer.tsx:136-143`), et câbler la DI du module doc-search dans `unified-ai.module.ts`. Suivre le patron d'ajout d'outil d'AI-SYSTEM §6.
+- [x] Message d'erreur actionnable (P0-1) si l'espace n'a pas de provider d'embeddings configuré.
 
 ### Test
-- [ ] `vitest` : `update_knowledge_doc` écrit le `rawContent` et déclenche la ré-indexation.
+- [x] `vitest` : `update_knowledge_doc` écrit le `rawContent` et déclenche la ré-indexation.
 - [ ] Repro : demander à l'IA de créer/éditer un doc → visible dans la Doc Library.
-### ✅ Vérifié : _______
+### ✅ Vérifié : implémenté + tests unitaires verts (123/123 suite IA sur `ai-p0-implementation`) — **repro navigateur à faire**
 
 ---
 
