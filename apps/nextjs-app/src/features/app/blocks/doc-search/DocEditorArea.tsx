@@ -13,6 +13,7 @@ import ReactMarkdown from 'react-markdown';
 import rehypeSanitize from 'rehype-sanitize';
 import { useDoc, useDocFolders, useUpdateDoc } from './hooks';
 import { LinkedDocsPanel } from './LinkedDocsPanel';
+import { MilkdownEditor } from './MilkdownEditor';
 import { MemoryPanel } from './MemoryPanel';
 import { useDocEditorStore } from './useDocEditorStore';
 
@@ -140,7 +141,9 @@ export function DocEditorArea({ spaceId }: IDocEditorAreaProps) {
   ];
 
   // Init effect — deps [theme] only (Pitfall 2 compliance)
+  // Only the raw-markdown mode mounts the CodeMirror container; skip otherwise.
   useEffect(() => {
+    if (mode !== 'markdown') return;
     if (!containerRef.current) return;
 
     const extensions = [...baseExtensions, drawSelection(), dropCursor()];
@@ -297,16 +300,16 @@ export function DocEditorArea({ spaceId }: IDocEditorAreaProps) {
             type="single"
             value={mode}
             onValueChange={(val) => {
-              if (val) setMode(val as 'edit' | 'split' | 'preview');
+              if (val) setMode(val as 'wysiwyg' | 'markdown' | 'preview');
             }}
             aria-label="Editor mode"
             className="h-7"
           >
-            <ToggleGroupItem value="edit" className="h-7 px-2 text-xs">
-              Edit
+            <ToggleGroupItem value="wysiwyg" className="h-7 px-2 text-xs">
+              Editor
             </ToggleGroupItem>
-            <ToggleGroupItem value="split" className="h-7 px-2 text-xs">
-              Split
+            <ToggleGroupItem value="markdown" className="h-7 px-2 text-xs">
+              Markdown
             </ToggleGroupItem>
             <ToggleGroupItem value="preview" className="h-7 px-2 text-xs">
               Preview
@@ -327,22 +330,25 @@ export function DocEditorArea({ spaceId }: IDocEditorAreaProps) {
       </div>
 
       {/* Editor area */}
-      {mode === 'edit' && (
-        <div className="flex-1 overflow-hidden">
-          <div ref={containerRef} className="size-full overflow-hidden" />
+      {/* WYSIWYG (default): Milkdown is markdown-native — it seeds from rawContent and
+          serializes edits back to markdown via handleChange (same save path as raw mode,
+          so the ingestion pipeline still re-chunks valid markdown). Keyed by doc id so a
+          new document remounts the uncontrolled editor with fresh content. */}
+      {mode === 'wysiwyg' && (
+        <div className="flex-1 overflow-y-auto">
+          <div className="prose prose-sm max-w-none px-6 py-4 dark:prose-invert">
+            <MilkdownEditor
+              key={selectedDocId}
+              defaultValue={doc?.rawContent ?? ''}
+              onChange={handleChange}
+            />
+          </div>
         </div>
       )}
 
-      {mode === 'split' && (
-        // flex-1 + min-h-0 (not h-full): take the remaining height after the toolbar
-        // and title without overflowing, so the LinkedDocsPanel below stays visible.
-        <div className="flex min-h-0 flex-1 overflow-hidden">
-          <div className="w-1/2 min-w-0 overflow-hidden">
-            <div ref={containerRef} className="size-full overflow-hidden" />
-          </div>
-          <div className="prose prose-sm w-1/2 min-w-0 max-w-none overflow-y-auto border-l px-6 py-4 dark:prose-invert">
-            <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{localContent}</ReactMarkdown>
-          </div>
+      {mode === 'markdown' && (
+        <div className="flex-1 overflow-hidden">
+          <div ref={containerRef} className="size-full overflow-hidden" />
         </div>
       )}
 
