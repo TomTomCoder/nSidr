@@ -256,3 +256,25 @@ export function useReindexDoc(spaceId: string) {
     },
   });
 }
+
+/** P1-11 — "Mise en page IA": ask the backend to restructure markdown. Does NOT persist. */
+export interface IReformatDocResult {
+  reformatted: string;
+  originalLength: number;
+  reformattedLength: number;
+  possibleLoss: boolean;
+}
+
+export function useReformatDoc(spaceId: string) {
+  return useMutation<IReformatDocResult, Error, { docId?: string; content?: string }>({
+    mutationFn: (body) =>
+      fetch(`/api/spaces/${spaceId}/docs/reformat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }).then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      }),
+  });
+}
