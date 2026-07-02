@@ -201,6 +201,7 @@ export class FieldService implements IReadonlyAdapterService {
       await this.prismaService.txClient().field.findMany({
         where: { tableId, deletedTime: null },
         select: { id: true },
+        take: 500, // ponytail: bounded — tables rarely exceed 500 fields
       })
     ).map(({ id }) => id);
     const data: Prisma.FieldCreateManyInput[] = fieldInstances
@@ -840,6 +841,7 @@ export class FieldService implements IReadonlyAdapterService {
           createdTime: 'asc',
         },
       ],
+      take: 500, // ponytail: bounded — hot path called on every table open
     });
 
     let result = fieldsPlain.map(rawField2FieldObj);

@@ -82,6 +82,7 @@ export class ViewService implements IReadonlyAdapterService {
       where: { tableId, deletedTime: null },
       select: { name: true, order: true },
       orderBy: { order: 'asc' },
+      take: 200, // ponytail: bounded
     });
 
     let { name } = viewRo;
@@ -170,6 +171,7 @@ export class ViewService implements IReadonlyAdapterService {
         const fields = await this.prismaService.txClient().field.findMany({
           where: { tableId, deletedTime: null },
           select: { id: true, type: true },
+          take: 500, // ponytail: bounded
         });
         const galleryOptions = (innerViewRo.options ?? {}) as IGalleryViewOptions;
         const coverFieldId =
@@ -218,6 +220,7 @@ export class ViewService implements IReadonlyAdapterService {
           isComputed: true,
         },
         orderBy: [{ order: 'asc' }, { createdTime: 'asc' }],
+        take: 500, // ponytail: bounded
       });
 
       if (!fields?.length) return innerViewRo;
@@ -322,6 +325,7 @@ export class ViewService implements IReadonlyAdapterService {
         id: { in: ids },
       },
       orderBy: { order: 'asc' },
+      take: 200, // ponytail: bounded — hot path called on every table open
     });
 
     return viewRaws.map((viewRaw) => convertViewVoAttachmentUrl(createViewVoByRaw(viewRaw)));
@@ -560,6 +564,7 @@ export class ViewService implements IReadonlyAdapterService {
     const viewRaws = await this.prismaService.txClient().view.findMany({
       select: { id: true, columnMeta: true },
       where: { tableId, deletedTime: null },
+      take: 200, // ponytail: bounded
     });
 
     const viewRawMap = viewRaws.reduce<{ [viewId: string]: IColumnMeta }>((pre, cur) => {
@@ -788,6 +793,7 @@ export class ViewService implements IReadonlyAdapterService {
       where: { tableId, deletedTime: null, id: { in: query?.includeIds } },
       select: { id: true },
       orderBy: { order: 'asc' },
+      take: 200, // ponytail: bounded
     });
 
     return { ids: views.map((v) => v.id) };
@@ -802,6 +808,7 @@ export class ViewService implements IReadonlyAdapterService {
         { order: 'asc' },
         { createdTime: 'asc' },
       ],
+      take: 500, // ponytail: bounded
     });
 
     if (isEmpty(fields)) {
@@ -823,6 +830,7 @@ export class ViewService implements IReadonlyAdapterService {
     const view = await this.prismaService.txClient().view.findMany({
       where: { tableId, deletedTime: null },
       select: { columnMeta: true, id: true },
+      take: 200, // ponytail: bounded
     });
 
     if (isEmpty(view)) {
@@ -869,6 +877,7 @@ export class ViewService implements IReadonlyAdapterService {
         type: true,
       },
       where: { tableId, deletedTime: null },
+      take: 200, // ponytail: bounded
     });
 
     if (!view) {

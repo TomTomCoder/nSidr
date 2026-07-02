@@ -228,6 +228,7 @@ export class BaseNodeService {
         name: true,
         icon: true,
       },
+      take: 500, // ponytail: bounded — sidebar nav, called on every page load
     });
   }
 
@@ -238,6 +239,7 @@ export class BaseNodeService {
         id: true,
         name: true,
       },
+      take: 200, // ponytail: bounded
     });
   }
 
@@ -248,6 +250,7 @@ export class BaseNodeService {
         id: true,
         name: true,
       },
+      take: 200, // ponytail: bounded
     });
   }
 
@@ -271,6 +274,7 @@ export class BaseNodeService {
         return this.prismaService.agent.findMany({
           where: { baseId, id: { in: ids ? ids : undefined } },
           select: { id: true, name: true },
+          take: 200, // ponytail: bounded
         });
       default:
         throw new CustomHttpException(
@@ -292,6 +296,7 @@ export class BaseNodeService {
     return this.prismaService.txClient().app.findMany({
       where: { ...(ids?.length ? { id: { in: ids } } : {}), baseId },
       select: { id: true, name: true },
+      take: 200, // ponytail: bounded
     });
   }
 
@@ -301,6 +306,7 @@ export class BaseNodeService {
   ): Promise<{ id: string; name: string }[]> {
     const workflows = await this.prismaService.txClient().workflow.findMany({
       where: { baseId, ...(ids?.length ? { id: { in: ids } } : {}) },
+      take: 200, // ponytail: bounded
     });
     return workflows.map((w) => ({ id: w.id, name: w.name }));
   }
@@ -333,6 +339,7 @@ export class BaseNodeService {
       where: { baseId },
       select: this.getSelect(),
       orderBy: { order: 'asc' },
+      take: 1000, // ponytail: bounded — nav sync, one entry per table/view/dashboard/agent
     });
 
     const nodeKeys = new Set(nodes.map((n) => `${n.resourceType}_${n.resourceId}`));
@@ -410,6 +417,7 @@ export class BaseNodeService {
         where: { baseId },
         select: this.getSelect(),
         orderBy: { order: 'asc' },
+        take: 1000, // ponytail: bounded
       });
     });
 
