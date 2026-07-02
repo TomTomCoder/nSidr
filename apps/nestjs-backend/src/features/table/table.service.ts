@@ -153,6 +153,8 @@ export class TableService implements IReadonlyAdapterService {
       table.string('__created_by').notNullable();
       table.string('__last_modified_by');
       table.integer('__version').notNullable();
+      // ponytail: sort/filter by Created Time is a common user op; without this it's a full scan
+      table.index(['__created_time']);
     });
 
     try {
@@ -219,12 +221,16 @@ export class TableService implements IReadonlyAdapterService {
     if (tableMeta) {
       const cached = await this.cacheService.get(`tableSchema:${tableId}` as const);
       if (!cached) {
-        await this.cacheService.setDetail(`tableSchema:${tableId}` as const, {
-          id: tableMeta.id,
-          name: tableMeta.name,
-          dbTableName: tableMeta.dbTableName,
-          baseId: tableMeta.baseId,
-        }, 300);
+        await this.cacheService.setDetail(
+          `tableSchema:${tableId}` as const,
+          {
+            id: tableMeta.id,
+            name: tableMeta.name,
+            dbTableName: tableMeta.dbTableName,
+            baseId: tableMeta.baseId,
+          },
+          300
+        );
       }
     }
 
