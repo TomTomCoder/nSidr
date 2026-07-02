@@ -127,7 +127,7 @@ export function CompactAiFieldConfig({
           onChange={(e) => onChange({ ...options, prompt: e.target.value })}
           placeholder={
             outputMode === 'image'
-              ? "ex. Génère une illustration représentant {fieldId}."
+              ? 'ex. Génère une illustration représentant {fieldId}.'
               : outputMode === 'audio'
                 ? 'ex. Lis le texte suivant à voix haute : {fieldId}.'
                 : outputMode === 'video'
@@ -186,6 +186,7 @@ export function CompactAiFieldConfig({
           className="w-full"
           placeholder="Sélectionner un modèle..."
           onlyImageOutput={outputMode === 'image'}
+          onlyAudioOutput={outputMode === 'audio'}
         />
       </div>
 

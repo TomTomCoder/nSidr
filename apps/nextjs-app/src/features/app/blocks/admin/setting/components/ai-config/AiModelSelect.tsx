@@ -42,6 +42,7 @@ export function AIModelSelect({
   needGroup,
   children,
   onlyImageOutput = false,
+  onlyAudioOutput = false,
   placeholder,
   onBeforePickerOpen,
 }: IAIModelSelectProps) {
@@ -68,6 +69,7 @@ export function AIModelSelect({
   const { gatewayOptions, spaceOptions, instanceOptions } = useModelCategories({
     options,
     onlyImageOutput,
+    onlyAudioOutput,
     modelDefinationMap,
   });
 

@@ -53,6 +53,7 @@ export interface IAIModelSelectProps {
   modelDefinationMap?: IModelDefinationMap;
   children?: ReactNode;
   onlyImageOutput?: boolean; // if true, only show image output models
+  onlyAudioOutput?: boolean; // if true, only show OpenAI TTS-capable models
   placeholder?: string; // Custom placeholder when no model is selected
   onBeforePickerOpen?: () => Promise<boolean> | boolean; // return false to prevent picker from opening
 }

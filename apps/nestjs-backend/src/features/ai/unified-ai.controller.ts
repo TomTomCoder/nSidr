@@ -17,6 +17,7 @@ import type { IClsStore } from '../../types/cls';
 import { TokenAccess } from '../auth/decorators/token.decorator';
 import { ActionProposalService } from './action-proposal.service';
 import { AppBlueprintService } from './app-blueprint.service';
+import type { IAcceptProposalRo, IChatRo, IFullAppRo } from './dto/unified-ai.dto';
 import { UnifiedAiService, UnifiedChatContext } from './unified-ai.service';
 
 @Controller('api/spaces/:spaceId/ai')
@@ -48,17 +49,7 @@ export class UnifiedAiController {
   @Post('chat')
   async chat(
     @Param('spaceId') spaceId: string,
-    @Body()
-    body: {
-      message: string;
-      conversationId?: string;
-      modelKey: string;
-      baseId?: string;
-      activeBaseId?: string;
-      attachments?: { url: string; name: string; mimetype: string }[];
-      targetType?: 'table' | 'interface' | 'automation' | 'agent' | 'app' | 'mock_data' | 'docs';
-      pageContext?: { tableId?: string; tableName?: string };
-    },
+    @Body() body: IChatRo,
     @Res() res: Response,
     @Req() req: Request
   ) {
@@ -107,7 +98,7 @@ export class UnifiedAiController {
   @Post('full-app')
   async fullApp(
     @Param('spaceId') spaceId: string,
-    @Body() body: { baseId: string; prompt: string; modelKey: string; conversationId?: string },
+    @Body() body: IFullAppRo,
     @Res() res: Response,
     @Req() req: Request
   ) {
@@ -202,10 +193,7 @@ export class UnifiedAiController {
   @TokenAccess()
   @Post('accept-proposal')
   @HttpCode(200)
-  async acceptProposal(
-    @Param('spaceId') spaceId: string,
-    @Body() body: { proposalId: string; conversationId: string }
-  ) {
+  async acceptProposal(@Param('spaceId') spaceId: string, @Body() body: IAcceptProposalRo) {
     const userId = this.cls.get('user.id');
     this.logger.log(
       `acceptProposal → proposalId=${body.proposalId} conversationId=${body.conversationId} spaceId=${spaceId} userId=${userId}`
