@@ -65,7 +65,7 @@ export interface UnifiedChatEvent {
 }
 
 // FullAppEvent — matches backend AppBlueprintService's FullAppEvent (Phase 6 saga)
-export type FullAppStage = 'tables' | 'subgenerators' | 'agents' | 'mock_data' | 'done';
+export type FullAppStage = 'tables' | 'links' | 'subgenerators' | 'agents' | 'mock_data' | 'done';
 
 export interface FullAppEvent {
   type: 'phase' | 'proposal' | 'error' | 'done' | 'awaiting_acceptance' | 'report';

@@ -20,7 +20,15 @@ interface IAiService {
 
 export interface FullAppEvent {
   type: 'phase' | 'proposal' | 'error' | 'done' | 'awaiting_acceptance' | 'report';
-  phase?: 'analysis' | 'blueprint' | 'tables' | 'subgenerators' | 'agents' | 'mock_data' | 'report';
+  phase?:
+    | 'analysis'
+    | 'blueprint'
+    | 'tables'
+    | 'links'
+    | 'subgenerators'
+    | 'agents'
+    | 'mock_data'
+    | 'report';
   status?: 'start' | 'done';
   data?: unknown;
   proposal?: { proposalId: string; action: string; preview: unknown };
@@ -31,7 +39,7 @@ export interface FullAppEvent {
   content?: string;
 }
 
-export type FullAppStage = 'tables' | 'subgenerators' | 'agents' | 'mock_data' | 'done';
+export type FullAppStage = 'tables' | 'links' | 'subgenerators' | 'agents' | 'mock_data' | 'done';
 
 // Persisted as a WorkspaceConversationMessage(type: 'full_app_run').metadata — no schema
 // migration needed, reuses the same flexible storage proposals already use. One run per
@@ -43,6 +51,7 @@ export interface IFullAppRunState {
   modelKey: string;
   blueprint: IAppBlueprint;
   tableProposalIds: string[];
+  linkProposalIds?: string[];
   interfaceProposalId?: string;
   automationProposalId?: string;
   agentProposalIds?: string[];
@@ -103,6 +112,22 @@ const blueprintSchema = z.object({
     .max(10),
 });
 export type IAppBlueprint = z.infer<typeof blueprintSchema>;
+
+// Inferred relations between blueprint entities — resolved to real IDs after tables are created.
+const linkProposalsSchema = z.object({
+  links: z
+    .array(
+      z.object({
+        fromTable: z.string().describe('Table that holds the link field (the "many" side for N:1)'),
+        toTable: z.string().describe('Table being referenced'),
+        fieldName: z.string().describe('Name of the link field on fromTable'),
+        relationship: z
+          .enum(['many-one', 'one-many', 'many-many', 'one-one'])
+          .describe('Cardinality'),
+      })
+    )
+    .max(10),
+});
 
 // Mirrors create_app_interface's declarative `modules` shape (Phase 5) — tableName resolved
 // to a real tableId only at proposal-accept time, so this is safe to generate even though the
@@ -258,6 +283,105 @@ export class AppBlueprintService {
     });
     if (messages.length !== proposalIds.length) return false;
     return messages.every((m) => (m.metadata as { accepted?: boolean } | null)?.accepted === true);
+  }
+
+  /**
+   * Asks the LLM to infer relations from the blueprint entities, then creates one
+   * `link_tables` proposal per inferred link. Runs after tables are accepted (so real
+   * tableIds are available for immediate resolution). Returns [] if no relations are found.
+   */
+  private async generateLinkProposals(
+    ctx: FullAppContext,
+    blueprint: IAppBlueprint,
+    model: Parameters<typeof generateObject>[0]['model']
+  ): Promise<Array<{ proposalId: string; action: string; preview: unknown }>> {
+    const entityNames = blueprint.entities.map((e) => e.name);
+    if (entityNames.length < 2) return [];
+
+    const { object } = await generateObject({
+      model,
+      schema: linkProposalsSchema,
+      prompt:
+        `Ces tables viennent d'être créées : ${entityNames.join(', ')}.\n` +
+        `Propose les relations (champs de liaison) nécessaires entre elles, uniquement celles qui sont ` +
+        `logiquement évidentes pour ce domaine. Ne propose PAS de relation si les deux tables sont ` +
+        `indépendantes. Maximum 5 relations.`,
+    });
+
+    if (!object.links.length) return [];
+
+    // Resolve names → real IDs (tables exist by this point)
+    const realTables = await this.prismaService.tableMeta.findMany({
+      where: { baseId: ctx.baseId, name: { in: entityNames }, deletedTime: null },
+      select: { id: true, name: true },
+      take: entityNames.length, // ponytail: bounded
+    });
+    const nameToId = new Map(realTables.map((t) => [t.name, t.id]));
+
+    const proposals: Array<{ proposalId: string; action: string; preview: unknown }> = [];
+    for (const link of object.links) {
+      const tableId = nameToId.get(link.fromTable);
+      const foreignTableId = nameToId.get(link.toTable);
+      if (!tableId || !foreignTableId) continue;
+      const proposal = await this.actionProposalService.createProposal({
+        action: 'link_tables',
+        args: {
+          tableId,
+          foreignTableId,
+          fieldName: link.fieldName,
+          relationship: link.relationship,
+        },
+        conversationId: ctx.conversationId,
+        preview: {
+          fromTable: link.fromTable,
+          toTable: link.toTable,
+          fieldName: link.fieldName,
+          relationship: link.relationship,
+        },
+      });
+      proposals.push(proposal);
+    }
+    return proposals;
+  }
+
+  private async *advanceToLinks(
+    ctx: FullAppContext,
+    state: IFullAppRunState,
+    model: Parameters<typeof generateObject>[0]['model']
+  ): AsyncGenerator<FullAppEvent> {
+    yield { type: 'phase', phase: 'links', status: 'start' };
+    let linkProposals: Array<{ proposalId: string; action: string; preview: unknown }> = [];
+    try {
+      linkProposals = await this.generateLinkProposals(ctx, state.blueprint, model);
+    } catch (err) {
+      yield {
+        type: 'error',
+        generator: 'links',
+        content: `La génération des relations a échoué : ${(err as Error).message}`,
+      };
+    }
+    for (const proposal of linkProposals) {
+      yield {
+        type: 'proposal',
+        proposal: {
+          proposalId: proposal.proposalId,
+          action: proposal.action,
+          preview: proposal.preview,
+        },
+      };
+    }
+    yield { type: 'phase', phase: 'links', status: 'done' };
+
+    const linkProposalIds = linkProposals.map((p) => p.proposalId);
+    await this.saveRunState(ctx.conversationId, { ...state, stage: 'links', linkProposalIds });
+
+    // No links inferred — skip gating, advance immediately to subgenerators
+    if (linkProposalIds.length === 0) {
+      yield* this.advanceToSubgenerators(ctx, { ...state, stage: 'links', linkProposalIds }, model);
+      return;
+    }
+    yield { type: 'awaiting_acceptance', stage: 'links' };
+    yield { type: 'done' };
   }
 
   private async generateInterfaceProposal(
@@ -523,6 +647,10 @@ export class AppBlueprintService {
     const model = modelInstance as Parameters<typeof generateObject>[0]['model'];
 
     if (state.stage === 'tables') {
+      yield* this.advanceToLinks(ctx, state, model);
+      return;
+    }
+    if (state.stage === 'links') {
       yield* this.advanceToSubgenerators(ctx, state, model);
       return;
     }
@@ -549,6 +677,7 @@ export class AppBlueprintService {
   /** Which proposal IDs gate moving past the run's CURRENT stage. */
   private pendingProposalIdsForStage(state: IFullAppRunState): string[] {
     if (state.stage === 'tables') return state.tableProposalIds;
+    if (state.stage === 'links') return state.linkProposalIds ?? [];
     if (state.stage === 'subgenerators') {
       return [
         state.interfaceProposalId,

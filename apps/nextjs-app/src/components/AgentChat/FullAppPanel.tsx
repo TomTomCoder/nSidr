@@ -15,13 +15,14 @@ import { ProposalCard } from './ProposalCard';
 // before this change) still renders correctly in StageProgress.
 const STAGE_LABELS: Record<FullAppStage, string> = {
   tables: 'Tables',
+  links: 'Relations',
   subgenerators: 'Interface, automatisation & données fictives',
   agents: 'Agent IA',
   mock_data: 'Données fictives',
   done: 'Terminé',
 };
 
-const STAGE_ORDER: FullAppStage[] = ['tables', 'subgenerators', 'agents', 'done'];
+const STAGE_ORDER: FullAppStage[] = ['tables', 'links', 'subgenerators', 'agents', 'done'];
 
 function StageProgress({ stage }: { stage: FullAppStage | 'idle' }) {
   if (stage === 'idle') return null;
