@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import { PassThrough } from 'stream';
-import { text } from 'stream/consumers';
 import { InjectQueue, OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import {
@@ -454,25 +453,23 @@ export class ImportTableCsvQueueProcessor extends WorkerHost {
 
   private async getChunkData(job: Job<ITableImportCsvJob>): Promise<unknown[][]> {
     const { path } = job.data;
-    const stream = await this.storageAdapter.downloadFile(
+    const downloadStream = await this.storageAdapter.downloadFile(
       StorageAdapter.getBucket(UploadType.Import),
       path
     );
-    // Read full content so PapaParse can correctly handle newlines inside quoted cells.
-    // toLineDelimitedStream would split on ALL newlines (including inside quotes),
-    // causing "product\nProduct image" to become two rows instead of one.
-    const csvString = await text(stream);
+    // ponytail: stream via Papa.NODE_STREAM_INPUT so the file is never fully buffered.
+    // PapaParse's own state machine handles quoted cells with embedded newlines correctly.
     return new Promise((resolve, reject) => {
-      Papa.parse(csvString, {
-        download: false,
+      const rows: unknown[][] = [];
+      const papaStream = Papa.parse(Papa.NODE_STREAM_INPUT, {
         dynamicTyping: false,
-        complete: (result) => {
-          resolve(result.data as unknown[][]);
+        step: (result: Papa.ParseStepResult<unknown[]>) => {
+          rows.push(result.data);
         },
-        error: (err: Error) => {
-          reject(err);
-        },
+        complete: () => resolve(rows),
+        error: (err: Error) => reject(err),
       });
+      downloadStream.pipe(papaStream);
     });
   }
 
