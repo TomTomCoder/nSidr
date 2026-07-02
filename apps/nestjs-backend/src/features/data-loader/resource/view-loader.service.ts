@@ -56,4 +56,29 @@ export class ViewLoaderService extends TableCommonLoader<IViewLoaderItem> {
     }
     return Array.from(viewMap.values()).filter((view) => view.tableId === tableId);
   }
+
+  invalidateTables(tableIds: string | string[]) {
+    if (!this.cls.isActive() || !this.isEnable?.()) {
+      return;
+    }
+    const ids = (Array.isArray(tableIds) ? tableIds : [tableIds]).filter(Boolean);
+    if (!ids.length) return;
+
+    const loaderData = this.cls.get('dataLoaderCache.viewData');
+    if (!loaderData) return;
+
+    const { dataMap, fullParentIds } = loaderData;
+    if (fullParentIds?.length) {
+      loaderData.fullParentIds = fullParentIds.filter((parentId) => !ids.includes(parentId));
+    }
+    if (dataMap?.size) {
+      const tableIdSet = new Set(ids);
+      for (const [viewId, view] of dataMap.entries()) {
+        if (view?.tableId && tableIdSet.has(view.tableId)) {
+          dataMap.delete(viewId);
+        }
+      }
+    }
+    this.cls.set('dataLoaderCache.viewData', loaderData);
+  }
 }

@@ -22,8 +22,7 @@ import type { IClsStore } from '../../types/cls';
  */
 @Injectable()
 export class DataLoaderCacheInterceptor implements NestInterceptor {
-  // DataLoaderService only wires `field` + `table` (view loader is unused).
-  private static readonly REQUIRED_KEYS = ['table', 'field'] as const;
+  private static readonly REQUIRED_KEYS = ['table', 'field', 'view'] as const;
 
   constructor(private readonly cls: ClsService<IClsStore>) {}
 

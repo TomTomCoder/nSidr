@@ -50,6 +50,7 @@ import { RawOpType } from '../../share-db/interface';
 import type { IClsStore } from '../../types/cls';
 import { convertViewVoAttachmentUrl } from '../../utils/convert-view-vo-attachment-url';
 import { BatchService } from '../calculation/batch.service';
+import { DataLoaderService } from '../data-loader/data-loader.service';
 import { ROW_ORDER_FIELD_PREFIX } from './constant';
 import { createViewInstanceByRaw, createViewVoByRaw } from './model/factory';
 import { validateGanttViewOptions } from './model/view-option-validate';
@@ -64,10 +65,15 @@ export class ViewService implements IReadonlyAdapterService {
     private readonly batchService: BatchService,
     private readonly prismaService: PrismaService,
     private readonly dataPrismaService: DataPrismaService,
+    private readonly dataLoaderService: DataLoaderService,
     @InjectModel(CUSTOM_KNEX) private readonly knex: Knex,
     @InjectModel(DATA_KNEX) private readonly dataKnex: Knex,
     @InjectDbProvider() private readonly dbProvider: IDbProvider
   ) {}
+
+  private invalidateViewLoader(tableId: string | string[]) {
+    this.dataLoaderService.view.invalidateTables(tableId);
+  }
 
   getRowIndexFieldName(viewId: string) {
     return `${ROW_ORDER_FIELD_PREFIX}_${viewId}`;
@@ -310,23 +316,19 @@ export class ViewService implements IReadonlyAdapterService {
   }
 
   async getViewById(viewId: string): Promise<IViewVo> {
-    const viewRaw = await this.prismaService.txClient().view.findUniqueOrThrow({
-      where: { id: viewId, deletedTime: null },
-    });
-
+    const [viewRaw] = await this.dataLoaderService.view.loadByIds([viewId]);
+    if (!viewRaw) {
+      throw new CustomHttpException(`View not found: ${viewId}`, HttpErrorCode.NOT_FOUND, {
+        localization: { i18nKey: 'httpErrors.view.notFound' },
+      });
+    }
     return convertViewVoAttachmentUrl(createViewInstanceByRaw(viewRaw) as IViewVo);
   }
 
   async getViews(tableId: string, ids?: string[]): Promise<IViewVo[]> {
-    const viewRaws = await this.prismaService.txClient().view.findMany({
-      where: {
-        tableId,
-        deletedTime: null,
-        id: { in: ids },
-      },
-      orderBy: { order: 'asc' },
-      take: 200, // ponytail: bounded — hot path called on every table open
-    });
+    const viewRaws = ids?.length
+      ? await this.dataLoaderService.view.loadByIds(ids)
+      : await this.dataLoaderService.view.load(tableId);
 
     return viewRaws.map((viewRaw) => convertViewVoAttachmentUrl(createViewVoByRaw(viewRaw)));
   }
@@ -346,6 +348,7 @@ export class ViewService implements IReadonlyAdapterService {
       { docId: viewRaw.id, version: 0, data: viewRaw },
     ]);
 
+    this.invalidateViewLoader(tableId);
     return convertViewVoAttachmentUrl(createViewVoByRaw(viewRaw));
   }
 
@@ -392,6 +395,8 @@ export class ViewService implements IReadonlyAdapterService {
     await this.batchService.saveRawOps(tableId, RawOpType.Del, IdPrefix.View, [
       { docId: viewId, version: viewToDelete.version },
     ]);
+
+    this.invalidateViewLoader(tableId);
   }
 
   async updateViewSort(tableId: string, viewId: string, sort: ISort) {
@@ -443,6 +448,7 @@ export class ViewService implements IReadonlyAdapterService {
       },
     ]);
 
+    this.invalidateViewLoader(tableId);
     return viewRawAfter;
   }
 
@@ -544,10 +550,12 @@ export class ViewService implements IReadonlyAdapterService {
     });
 
     this.batchService.saveRawOps(tableId, RawOpType.Edit, IdPrefix.View, opDataList);
+    this.invalidateViewLoader(tableId);
   }
 
   async create(tableId: string, view: IViewVo) {
     await this.createDbView(tableId, view);
+    this.invalidateViewLoader(tableId);
   }
 
   async del(_version: number, _tableId: string, viewId: string) {
