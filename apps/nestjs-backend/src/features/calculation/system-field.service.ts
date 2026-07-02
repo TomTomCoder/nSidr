@@ -153,29 +153,29 @@ export class SystemFieldService {
     });
 
     // Persist tracked Last Modified Time columns that are not generated
-    for (const [columnName, recordIds] of Object.entries(trackedLastModifiedColumnUpdates)) {
-      const nativeQuery = this.knex(dbTableName)
-        .update({
-          [columnName]: timeStr,
-        })
-        .whereIn('__id', recordIds)
-        .toQuery();
-      await this.dataPrismaService.txClient().$executeRawUnsafe(nativeQuery);
-    }
+    await Promise.all(
+      Object.entries(trackedLastModifiedColumnUpdates).map(([columnName, recordIds]) => {
+        const nativeQuery = this.knex(dbTableName)
+          .update({ [columnName]: timeStr })
+          .whereIn('__id', recordIds)
+          .toQuery();
+        return this.dataPrismaService.txClient().$executeRawUnsafe(nativeQuery);
+      })
+    );
 
     // Persist tracked Last Modified By columns that are not generated from the system column
     if (Object.keys(trackedLastModifiedByColumnUpdates).length) {
       const persistedUserValue = sanitizeAuditUserValue();
       const serializedUserValue = persistedUserValue ? JSON.stringify(persistedUserValue) : null;
-      for (const [columnName, recordIds] of Object.entries(trackedLastModifiedByColumnUpdates)) {
-        const nativeQuery = this.knex(dbTableName)
-          .update({
-            [columnName]: serializedUserValue,
-          })
-          .whereIn('__id', recordIds)
-          .toQuery();
-        await this.dataPrismaService.txClient().$executeRawUnsafe(nativeQuery);
-      }
+      await Promise.all(
+        Object.entries(trackedLastModifiedByColumnUpdates).map(([columnName, recordIds]) => {
+          const nativeQuery = this.knex(dbTableName)
+            .update({ [columnName]: serializedUserValue })
+            .whereIn('__id', recordIds)
+            .toQuery();
+          return this.dataPrismaService.txClient().$executeRawUnsafe(nativeQuery);
+        })
+      );
     }
 
     return updatedRecords;

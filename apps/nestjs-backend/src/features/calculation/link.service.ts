@@ -1666,23 +1666,19 @@ export class LinkService {
   }
 
   private async saveForeignKeyToDb(fieldMap: IFieldMap, fkRecordMap: IFkRecordMap) {
-    for (const fieldId in fkRecordMap) {
-      const fkMap = fkRecordMap[fieldId];
-      const field = fieldMap[fieldId] as LinkFieldDto;
-      const relationship = field.options.relationship;
-      if (relationship === Relationship.ManyMany) {
-        await this.saveForeignKeyForManyMany(field, fkMap);
-      }
-      if (relationship === Relationship.ManyOne) {
-        await this.saveForeignKeyForManyOne(field, fkMap);
-      }
-      if (relationship === Relationship.OneMany) {
-        await this.saveForeignKeyForOneMany(field, fkMap);
-      }
-      if (relationship === Relationship.OneOne) {
-        await this.saveForeignKeyForOneOne(field, fkMap);
-      }
-    }
+    await Promise.all(
+      Object.entries(fkRecordMap).map(async ([fieldId, fkMap]) => {
+        const field = fieldMap[fieldId] as LinkFieldDto;
+        const relationship = field.options.relationship;
+        if (relationship === Relationship.ManyMany)
+          await this.saveForeignKeyForManyMany(field, fkMap);
+        if (relationship === Relationship.ManyOne)
+          await this.saveForeignKeyForManyOne(field, fkMap);
+        if (relationship === Relationship.OneMany)
+          await this.saveForeignKeyForOneMany(field, fkMap);
+        if (relationship === Relationship.OneOne) await this.saveForeignKeyForOneOne(field, fkMap);
+      })
+    );
   }
 
   /**
