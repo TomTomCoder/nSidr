@@ -721,6 +721,7 @@ export class ComputedDependencyCollectorService {
     const refRows = await this.prismaService.txClient().reference.findMany({
       where: { toFieldId: { in: ids } },
       select: { fromFieldId: true },
+      take: ids.length * 20, // ponytail: bounded — each field rarely has >20 dependents
     });
     const fromIds = Array.from(
       new Set(refRows.map((row) => row.fromFieldId).filter((id): id is string => !!id))
@@ -732,6 +733,7 @@ export class ComputedDependencyCollectorService {
     const fields = await this.prismaService.txClient().field.findMany({
       where: { id: { in: fromIds }, deletedTime: null },
       select: { id: true, tableId: true },
+      take: fromIds.length, // ponytail: bounded — exact id set
     });
 
     const result: Record<string, Set<string>> = {};

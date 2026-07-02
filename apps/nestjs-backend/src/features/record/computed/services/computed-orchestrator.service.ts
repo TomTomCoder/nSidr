@@ -243,6 +243,7 @@ export class ComputedOrchestratorService {
       const rows = await this.prismaService.txClient().field.findMany({
         where: { tableId: tid, id: { in: ids }, deletedTime: null },
         select: { id: true },
+        take: ids.length, // ponytail: bounded — exact id set
       });
       const existing = new Set(rows.map((r) => r.id));
       const kept = new Set(Array.from(group.fieldIds).filter((fid) => existing.has(fid)));
@@ -261,6 +262,7 @@ export class ComputedOrchestratorService {
       const existingStartFields = await this.prismaService.txClient().field.findMany({
         where: { id: { in: startFieldIdList }, deletedTime: null },
         select: { id: true },
+        take: startFieldIdList.length, // ponytail: bounded — exact id set
       });
       const existingSet = new Set(existingStartFields.map((r) => r.id));
       const deletedStartIds = startFieldIdList.filter((id) => !existingSet.has(id));
@@ -295,6 +297,7 @@ export class ComputedOrchestratorService {
       const rows = await this.prismaService.txClient().field.findMany({
         where: { tableId: tid, id: { in: ids }, deletedTime: null },
         select: { id: true },
+        take: ids.length, // ponytail: bounded — exact id set
       });
       const existing = new Set(rows.map((r) => r.id));
       for (const fid of ids) if (!existing.has(fid)) actuallyDeleted.add(fid);

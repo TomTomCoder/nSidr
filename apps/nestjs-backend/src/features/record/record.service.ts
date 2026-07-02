@@ -1432,6 +1432,7 @@ export class RecordService {
     const views = await this.prismaService.txClient().view.findMany({
       where: { tableId: table.id, deletedTime: null },
       select: { id: true },
+      take: 200, // ponytail: bounded
     });
 
     const allViewIndexes = await this.getAllViewIndexesField(dbTableName);
@@ -1680,6 +1681,7 @@ export class RecordService {
     const attachments = await this.prismaService.attachments.findMany({
       where: { token: { in: thumbnailTokens }, thumbnailPath: { not: null } },
       select: { token: true, thumbnailPath: true },
+      take: thumbnailTokens.length, // ponytail: bounded — exact token set
     });
     return attachments.reduce<
       Record<

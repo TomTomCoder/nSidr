@@ -449,6 +449,7 @@ export class TypeCastAndValidate {
         height: true,
         path: true,
       },
+      take: tokens.length, // ponytail: bounded — exact token set
     });
     return keyBy(
       attachmentMetadata.map((a) => ({ ...a, size: Number(a.size) })),
@@ -580,6 +581,7 @@ export class TypeCastAndValidate {
     const attachmentMetadata = await this.services.prismaService.attachmentsTable.findMany({
       where: { attachmentId: { in: attachmentIds } },
       select: { attachmentId: true, token: true, name: true },
+      take: attachmentIds.length, // ponytail: bounded — exact id set
     });
 
     const tokens = attachmentMetadata.map((item) => item.token);
@@ -596,6 +598,7 @@ export class TypeCastAndValidate {
         width: true,
         height: true,
       },
+      take: tokens.length, // ponytail: bounded — exact token set
     });
 
     // Combine metadata and details into a single map

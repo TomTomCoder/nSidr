@@ -311,6 +311,7 @@ export class RecordOpenApiService {
         email: true,
         avatar: true,
       },
+      take: createdBySet.size, // ponytail: bounded — exact user set
     });
 
     const handledUserList = userList.map((user) => {

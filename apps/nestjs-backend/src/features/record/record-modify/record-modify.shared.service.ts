@@ -330,6 +330,7 @@ export class RecordModifySharedService {
     const usersRaw = await this.prismaService.txClient().user.findMany({
       where: { id: { in: userIds }, deletedTime: null },
       select: { id: true, name: true, email: true },
+      take: userIds.length, // ponytail: bounded — exact id set
     });
     return keyBy(
       usersRaw.map((u) => ({ id: u.id, title: u.name, email: u.email })),
@@ -397,6 +398,7 @@ export class RecordModifySharedService {
         fromFieldId: { in: baseFieldIds },
       },
       select: { fromFieldId: true },
+      take: baseFieldIds.length * 20, // ponytail: bounded — each field rarely has >20 refs
     });
 
     const referencedFieldIds = referencedRows.reduce<Set<string>>((acc, row) => {

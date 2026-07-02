@@ -32,6 +32,7 @@ export class PersistedComputedBackfillService {
         deletedTime: null,
       },
       select: { id: true, tableId: true, type: true, isLookup: true, isComputed: true },
+      take: tableIds.length * 500, // ponytail: bounded — up to 500 fields per table
     });
 
     const persistedComputedTypes = new Set<string>([
