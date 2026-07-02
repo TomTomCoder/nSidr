@@ -129,6 +129,7 @@ export class TableDuplicateService {
         orderBy: {
           order: 'asc',
         },
+        take: 200, // ponytail: bounded
       });
 
       const fieldPlain = await this.prismaService.txClient().field.findMany({
@@ -139,6 +140,7 @@ export class TableDuplicateService {
         orderBy: {
           createdTime: 'asc',
         },
+        take: 500, // ponytail: bounded
       });
 
       await this.prismaService.tableMeta.update({
@@ -231,6 +233,7 @@ export class TableDuplicateService {
         const computedFields = await metaPrisma.field.findMany({
           where: { tableId: targetTable.id, deletedTime: null, isComputed: true },
           select: { dbFieldName: true },
+          take: 500, // ponytail: bounded
         });
         computedDbFieldNames = computedFields.map((f) => f.dbFieldName);
       }
@@ -284,6 +287,7 @@ export class TableDuplicateService {
       select: {
         dbFieldName: true,
       },
+      take: Object.keys(sourceToTargetFieldMap).length || 500, // ponytail: bounded
     });
     const excludeDbFieldNames = excludeFields.map(({ dbFieldName }) => dbFieldName);
     const excludeColumnsSet = new Set([
@@ -386,6 +390,7 @@ export class TableDuplicateService {
       orderBy: {
         createdTime: 'asc',
       },
+      take: 500, // ponytail: bounded
     });
     const fieldsInstances = fieldsRaw
       .map((f) => ({
@@ -639,6 +644,7 @@ export class TableDuplicateService {
   ) {
     const views = await this.prismaService.view.findMany({
       where: { tableId: sourceTableId, deletedTime: null },
+      take: 200, // ponytail: bounded
     });
     const viewsWithoutPlugin = views.filter((v) => v.type !== ViewType.Plugin);
     const pluginViews = views.filter(({ type }) => type === ViewType.Plugin);
@@ -706,6 +712,7 @@ export class TableDuplicateService {
           in: pluginViews.map((v) => (v.options ? JSON.parse(v.options).pluginInstallId : null)),
         },
       },
+      take: pluginViews.length, // ponytail: bounded
     });
 
     for (const view of pluginViews) {
@@ -807,6 +814,7 @@ export class TableDuplicateService {
       orderBy: {
         createdTime: 'asc',
       },
+      take: 500, // ponytail: bounded
     });
 
     const selfLinkFields = fieldRaw.filter(
@@ -865,6 +873,7 @@ export class TableDuplicateService {
       select: {
         id: true,
       },
+      take: 200, // ponytail: bounded
     });
     const qb = this.knex.queryBuilder();
 
@@ -903,6 +912,7 @@ export class TableDuplicateService {
         type: FieldType.Link,
         deletedTime: null,
       },
+      take: Object.keys(tableIdMap).length * 500, // ponytail: bounded
     });
 
     const targetLinkFieldRaws = await metaPrisma.field.findMany({
@@ -911,6 +921,7 @@ export class TableDuplicateService {
         type: FieldType.Link,
         deletedTime: null,
       },
+      take: Object.values(tableIdMap).length * 500, // ponytail: bounded
     });
 
     const sourceFields = sourceLinkFieldRaws

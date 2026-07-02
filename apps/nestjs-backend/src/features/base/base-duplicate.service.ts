@@ -180,6 +180,7 @@ export class BaseDuplicateService {
         tableId: { in: Object.keys(tableIdMap) },
         deletedTime: null,
       },
+      take: Object.keys(tableIdMap).length * 500, // ponytail: bounded
     });
 
     const fields = allFieldRaws.map((f) => createFieldInstanceByRaw(f));
@@ -233,6 +234,7 @@ export class BaseDuplicateService {
       orderBy: {
         order: 'asc',
       },
+      take: 500, // ponytail: bounded
     });
     const tableIds = tableRaws.map(({ id }) => id);
     const fieldRaws = await prisma.field.findMany({
@@ -242,6 +244,7 @@ export class BaseDuplicateService {
         },
         deletedTime: null,
       },
+      take: tableIds.length * 500, // ponytail: bounded
     });
     const viewRaws = await prisma.view.findMany({
       where: {
@@ -253,6 +256,7 @@ export class BaseDuplicateService {
       orderBy: {
         order: 'asc',
       },
+      take: tableIds.length * 200, // ponytail: bounded
     });
 
     const structure = await this.baseExportService.generateBaseStructConfig({
@@ -329,6 +333,7 @@ export class BaseDuplicateService {
           resourceId: true,
           resourceType: true,
         },
+        take: 1000, // ponytail: bounded
       });
 
       // Build a map for quick lookup
@@ -455,6 +460,7 @@ export class BaseDuplicateService {
         tableId: { in: Object.keys(tableIdMap) },
         deletedTime: null,
       },
+      take: Object.keys(tableIdMap).length * 500, // ponytail: bounded
     });
 
     const disconnectedLinkFields = allFieldRaws
@@ -518,6 +524,7 @@ export class BaseDuplicateService {
         tableId: { in: Object.keys(tableIdMap) },
         deletedTime: null,
       },
+      take: Object.keys(tableIdMap).length * 500, // ponytail: bounded
     });
 
     const crossBaseLinkFields = allFieldRaws
@@ -570,6 +577,7 @@ export class BaseDuplicateService {
         id: true,
         dbTableName: true,
       },
+      take: allTableId.length, // ponytail: bounded
     });
     const targetTableRaws = await metaPrisma.tableMeta.findMany({
       where: { id: { in: allTableId }, deletedTime: null },
@@ -577,6 +585,7 @@ export class BaseDuplicateService {
         id: true,
         dbTableName: true,
       },
+      take: allTableId.length, // ponytail: bounded
     });
     sourceTableRaws.forEach((tableRaw) => {
       tableId2DbTableNameMap[tableRaw.id] = tableRaw.dbTableName;

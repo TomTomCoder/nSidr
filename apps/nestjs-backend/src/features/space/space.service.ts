@@ -153,6 +153,7 @@ export class SpaceService {
         principalId: { in: [userId, ...(departmentIds || [])] },
         resourceType: CollaboratorType.Space,
       },
+      take: 500, // ponytail: bounded
     });
     const spaceIds = map(collaboratorSpaceList, 'resourceId') as string[];
     const spaceList = await this.prismaService.space.findMany({
@@ -163,6 +164,7 @@ export class SpaceService {
       },
       select: { id: true, name: true },
       orderBy: { createdTime: 'asc' },
+      take: spaceIds.length, // ponytail: bounded
     });
     const roleMap = collaboratorSpaceList.reduce(
       (acc, curr) => {
@@ -205,6 +207,7 @@ export class SpaceService {
     const spaceList = await this.prismaService.space.findMany({
       where: { deletedTime: null, createdBy: userId },
       select: { name: true },
+      take: 200, // ponytail: bounded
     });
 
     const names = spaceList.map((space) => space.name);
@@ -299,6 +302,7 @@ export class SpaceService {
       orderBy: {
         order: 'asc',
       },
+      take: 200, // ponytail: bounded
     });
 
     const baseIds = baseList.map((base) => base.id);
@@ -307,10 +311,12 @@ export class SpaceService {
       this.prismaService.user.findMany({
         where: { id: { in: baseList.map((base) => base.createdBy) } },
         select: { id: true, name: true, avatar: true },
+        take: baseList.length, // ponytail: bounded
       }),
       this.prismaService.baseShare.findMany({
         where: { baseId: { in: baseIds }, nodeId: null, enabled: true },
         select: { baseId: true },
+        take: baseIds.length, // ponytail: bounded
       }),
     ]);
     const userMap = keyBy(userList, 'id');
@@ -372,6 +378,7 @@ export class SpaceService {
     const bases = await this.prismaService.base.findMany({
       where: { spaceId, deletedTime: null },
       select: { id: true, name: true, createdBy: true, spaceId: true },
+      take: 200, // ponytail: bounded
     });
     const baseMap = keyBy(bases, 'id');
     const baseIds = bases.map((base) => base.id);
@@ -487,6 +494,7 @@ export class SpaceService {
     const userList = await this.prismaService.user.findMany({
       where: { id: { in: allUserIds } },
       select: { id: true, name: true, avatar: true },
+      take: allUserIds.length, // ponytail: bounded
     });
     const userMap = keyBy(userList, 'id');
 
@@ -551,6 +559,7 @@ export class SpaceService {
         const bases = await prisma.base.findMany({
           where: { spaceId },
           select: { id: true },
+          take: 200, // ponytail: bounded
         });
 
         for (const { id } of bases) {
@@ -608,6 +617,7 @@ export class SpaceService {
   async getIntegrationList(spaceId: string): Promise<IIntegrationItemVo[]> {
     const integrationList = await this.prismaService.integration.findMany({
       where: { resourceId: spaceId },
+      take: 100, // ponytail: bounded
     });
     return integrationList.map(({ id, config, type, enable, createdTime, lastModifiedTime }) => {
       return {

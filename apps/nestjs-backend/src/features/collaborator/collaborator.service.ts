@@ -91,6 +91,7 @@ export class CollaboratorService {
         spaceId,
         deletedTime: null,
       },
+      take: 200, // ponytail: bounded
     });
 
     await this.prismaService.txClient().collaborator.deleteMany({
@@ -307,6 +308,7 @@ export class CollaboratorService {
     if (includeBase) {
       const bases = await this.prismaService.txClient().base.findMany({
         where: { spaceId, deletedTime: null, space: { deletedTime: null } },
+        take: 200, // ponytail: bounded
       });
       baseIds = map(bases, 'id') as string[];
       baseMap = bases.reduce(
@@ -515,6 +517,7 @@ export class CollaboratorService {
       where: {
         OR: [currentUserWhere, targetUserWhere],
       },
+      take: 500, // ponytail: bounded
     });
 
     const currentColl = colls.find((coll) => coll.principalId === currentPrincipalId);
@@ -714,6 +717,7 @@ export class CollaboratorService {
         resourceId: true,
         resourceType: true,
       },
+      take: 1000, // ponytail: bounded
     });
     const roleMap: Record<string, IRole> = {};
     const baseIds = new Set<string>();
@@ -805,6 +809,7 @@ export class CollaboratorService {
         resourceId: true,
         roleName: true,
       },
+      take: 500, // ponytail: bounded
     });
 
     if (!coll.length) {
@@ -830,11 +835,13 @@ export class CollaboratorService {
           },
         },
       },
+      take: baseIds.length, // ponytail: bounded
     });
 
     const createdUserList = await this.prismaService.txClient().user.findMany({
       where: { id: { in: bases.map((base) => base.createdBy) } },
       select: { id: true, name: true, avatar: true },
+      take: bases.length, // ponytail: bounded
     });
     const createdUserMap = keyBy(createdUserList, 'id');
     return bases.map((base) => ({
@@ -866,6 +873,7 @@ export class CollaboratorService {
       select: {
         id: true,
       },
+      take: userIds.length, // ponytail: bounded
     });
     const diffIds = difference(
       userIds,
@@ -968,6 +976,7 @@ export class CollaboratorService {
           in: [spaceId, resourceId],
         },
       },
+      take: 100, // ponytail: bounded
     });
     if (collaborators.length === 0) {
       throw new CustomHttpException(
@@ -1044,6 +1053,7 @@ export class CollaboratorService {
         principalType: PrincipalType.User,
       },
       select: { resourceId: true, principalId: true, roleName: true },
+      take: spaceIds.length * 500, // ponytail: bounded
     });
 
     const validCreatorSet = new Set(

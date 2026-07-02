@@ -423,6 +423,7 @@ export class TemplateOpenApiService {
     const categories = await this.prismaService.txClient().templateCategory.findMany({
       select: { id: true },
       orderBy: { order: 'asc' },
+      take: 500, // ponytail: bounded
     });
 
     this.logger.log(`category shuffle!`, 'shuffleCategories');
@@ -447,6 +448,7 @@ export class TemplateOpenApiService {
       select: {
         order: true,
       },
+      take: 500, // ponytail: bounded
     });
 
     const uniqOrder = [...new Set(categoriesOrder.map((c) => c.order))];
@@ -621,6 +623,7 @@ export class TemplateOpenApiService {
         avatar: true,
         email: true,
       },
+      take: userIds.length, // ponytail: bounded
     });
 
     return users.reduce(
@@ -641,6 +644,7 @@ export class TemplateOpenApiService {
     const templates = await this.prismaService.txClient().template.findMany({
       select: { id: true },
       orderBy: { order: 'asc' },
+      take: 1000, // ponytail: bounded
     });
 
     this.logger.log(`lucky template shuffle!`, 'shuffle');
@@ -665,6 +669,7 @@ export class TemplateOpenApiService {
       select: {
         order: true,
       },
+      take: 1000, // ponytail: bounded
     });
 
     const uniqOrder = [...new Set(templatesOrder.map((t) => t.order))];

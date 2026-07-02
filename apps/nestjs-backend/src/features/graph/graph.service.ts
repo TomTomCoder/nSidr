@@ -132,6 +132,7 @@ export class GraphService {
         isConditionalLookup: true,
         tableId: true,
       },
+      take: allFieldIds.length, // ponytail: bounded
     });
 
     fieldRaws.push({
@@ -146,6 +147,7 @@ export class GraphService {
     const tableRaws = await this.prismaService.tableMeta.findMany({
       where: { id: { in: uniq(fieldRaws.map((item) => item.tableId)) } },
       select: { id: true, name: true, dbTableName: true },
+      take: 1000, // ponytail: bounded
     });
 
     const tableMap = keyBy(tableRaws, 'id');
@@ -232,6 +234,7 @@ export class GraphService {
         deletedTime: null,
       },
       select: { id: true },
+      take: 500, // ponytail: bounded
     });
     oldRefernce.push(...selfLookupReference.map((f) => f.id));
     lookupGraph.push(
@@ -254,6 +257,7 @@ export class GraphService {
             deletedTime: null,
           },
           select: { id: true },
+          take: 500, // ponytail: bounded
         });
         oldRefernce.push(
           ...suplimentLookupRefernce.map((field) => field.id),
@@ -353,6 +357,7 @@ export class GraphService {
     const tableRaws = await this.prismaService.tableMeta.findMany({
       where: { id: { in: tableIds } },
       select: { id: true, name: true },
+      take: tableIds.length, // ponytail: bounded
     });
 
     const combos = tableRaws.map<IGraphCombo>((table) => ({
@@ -632,6 +637,7 @@ export class GraphService {
         deletedTime: null,
       },
       select: { id: true, name: true, icon: true },
+      take: 500, // ponytail: bounded
     });
 
     const { tableMap, fieldMap, linkFieldRaws, tableNodes } = await this.getBaseErdContext(
@@ -694,6 +700,7 @@ export class GraphService {
       orderBy: {
         order: 'asc',
       },
+      take: tableIds.length, // ponytail: bounded
     });
     const tableMap = keyBy(tableRaws, 'id');
 
@@ -714,6 +721,7 @@ export class GraphService {
       orderBy: {
         order: 'asc',
       },
+      take: Object.keys(tableMap).length * 500, // ponytail: bounded
     });
 
     const fieldMap = keyBy(fieldRaws, 'id');
@@ -765,6 +773,7 @@ export class GraphService {
         fromFieldId: true,
         toFieldId: true,
       },
+      take: allFieldIds.length * 10, // ponytail: bounded
     });
 
     const referenceFieldIds = uniq(
@@ -779,6 +788,7 @@ export class GraphService {
         id: true,
         tableId: true,
       },
+      take: referenceFieldIds.length, // ponytail: bounded
     });
 
     return {

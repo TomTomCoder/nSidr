@@ -295,6 +295,7 @@ export class BaseExportService {
       orderBy: {
         order: 'asc',
       },
+      take: 500, // ponytail: bounded
     });
     const tableIds = tableRaws.map(({ id }) => id);
     const fieldRaws = await prisma.field.findMany({
@@ -304,6 +305,7 @@ export class BaseExportService {
         },
         deletedTime: null,
       },
+      take: tableIds.length * 200, // ponytail: bounded
     });
     const viewRaws = await prisma.view.findMany({
       where: {
@@ -312,6 +314,7 @@ export class BaseExportService {
         },
         deletedTime: null,
       },
+      take: tableIds.length * 50, // ponytail: bounded
       orderBy: {
         order: 'asc',
       },
@@ -489,6 +492,7 @@ export class BaseExportService {
         token: true,
         name: true,
       },
+      take: tableIds.length * 1000, // ponytail: bounded
     });
     const attachments = (
       await prisma.attachments.findMany({
@@ -497,6 +501,7 @@ export class BaseExportService {
             in: attachmentTokenRaws.map(({ token }) => token),
           },
         },
+        take: attachmentTokenRaws.length, // ponytail: bounded
         select: {
           token: true,
           path: true,
@@ -645,6 +650,7 @@ export class BaseExportService {
       select: {
         token: true,
       },
+      take: tableRaws.length * 1000, // ponytail: bounded
     });
 
     const attachments = await prisma.attachments.findMany({
@@ -654,6 +660,7 @@ export class BaseExportService {
         },
         deletedTime: null,
       },
+      take: tokens.length, // ponytail: bounded
     });
 
     if (!attachments.length) {
@@ -1219,6 +1226,7 @@ export class BaseExportService {
         id: true,
         name: true,
       },
+      take: 500, // ponytail: bounded
     });
 
     return folderRaws.map((folderRaw) => ({
@@ -1253,6 +1261,7 @@ export class BaseExportService {
       orderBy: {
         createdTime: 'asc',
       },
+      take: 1000, // ponytail: bounded
       select: {
         id: true,
         parentId: true,
@@ -1305,6 +1314,7 @@ export class BaseExportService {
         baseId,
         deletedTime: null,
       },
+      take: 500, // ponytail: bounded
     });
 
     const prisma = this.prismaService.txClient();
@@ -1320,6 +1330,7 @@ export class BaseExportService {
       orderBy: {
         createdTime: 'asc',
       },
+      take: tableIds.length * 20, // ponytail: bounded
     });
 
     const viewPluginInstallRaws = await prisma.pluginInstall.findMany({
@@ -1328,6 +1339,7 @@ export class BaseExportService {
           in: viewPluginRaws.map(({ id }) => id),
         },
       },
+      take: viewPluginRaws.length, // ponytail: bounded
     });
 
     return viewPluginRaws.map((viewRaw) => {
@@ -1360,6 +1372,7 @@ export class BaseExportService {
       select: {
         id: true,
       },
+      take: 500, // ponytail: bounded
     });
 
     const pluginPanelRaws = await prisma.pluginPanel.findMany({
@@ -1377,6 +1390,7 @@ export class BaseExportService {
         layout: true,
         tableId: true,
       },
+      take: tableIds.length * 20, // ponytail: bounded
     });
 
     const panelInstallPluginRaws = await prisma.pluginInstall.findMany({
@@ -1385,6 +1399,7 @@ export class BaseExportService {
           in: pluginPanelRaws.map(({ id }) => id),
         },
       },
+      take: pluginPanelRaws.length, // ponytail: bounded
       select: {
         id: true,
         name: true,
@@ -1440,6 +1455,7 @@ export class BaseExportService {
         name: true,
         layout: true,
       },
+      take: 200, // ponytail: bounded
     });
 
     const dashboardInstallPluginRaws = await prisma.pluginInstall.findMany({
@@ -1448,6 +1464,7 @@ export class BaseExportService {
           in: dashboardRaws.map(({ id }) => id),
         },
       },
+      take: dashboardRaws.length * 20, // ponytail: bounded
       select: {
         id: true,
         name: true,

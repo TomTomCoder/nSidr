@@ -63,6 +63,7 @@ export class PluginPanelService {
         id: true,
         name: true,
       },
+      take: 200, // ponytail: bounded
     });
   }
 
@@ -103,6 +104,7 @@ export class PluginPanelService {
           },
         },
       },
+      take: 200, // ponytail: bounded
     });
 
     return {
@@ -429,6 +431,7 @@ export class PluginPanelService {
         positionId: true,
         baseId: true,
       },
+      take: 200, // ponytail: bounded
     });
 
     pluginPanel.pluginInstall = installedPlugins.map((plugin) => ({
@@ -446,6 +449,7 @@ export class PluginPanelService {
       select: {
         name: true,
       },
+      take: 200, // ponytail: bounded
     });
 
     const newName = getUniqName(
@@ -500,6 +504,7 @@ export class PluginPanelService {
         select: {
           name: true,
         },
+        take: 200, // ponytail: bounded
       });
 
       const newName = getUniqName(

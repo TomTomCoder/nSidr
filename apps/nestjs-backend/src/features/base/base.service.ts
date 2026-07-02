@@ -77,6 +77,7 @@ export class BaseService {
         resourceId: { in: [baseId, spaceId] },
         principalId: { in: [userId, ...(departmentIds || [])] },
       },
+      take: 100, // ponytail: bounded
     });
 
     if (!collaborators.length) {
@@ -168,6 +169,7 @@ export class BaseService {
         OR: [{ id: { in: baseIds } }, { spaceId: { in: spaceIds }, space: { deletedTime: null } }],
       },
       orderBy: [{ spaceId: 'asc' }, { order: 'asc' }],
+      take: 1000, // ponytail: bounded
     });
 
     if (!baseList.length) {
@@ -184,10 +186,12 @@ export class BaseService {
       this.prismaService.user.findMany({
         where: { id: { in: allUserIds } },
         select: { id: true, name: true, avatar: true },
+        take: allUserIds.length, // ponytail: bounded
       }),
       this.prismaService.baseShare.findMany({
         where: { baseId: { in: allBaseIds }, nodeId: null, enabled: true },
         select: { baseId: true },
+        take: allBaseIds.length, // ponytail: bounded
       }),
     ]);
 
@@ -302,6 +306,7 @@ export class BaseService {
       where: { spaceId, deletedTime: null },
       select: { id: true },
       orderBy: { order: 'asc' },
+      take: 200, // ponytail: bounded
     });
 
     this.logger.log(`lucky base shuffle! ${spaceId}`, 'shuffle');
@@ -563,6 +568,7 @@ export class BaseService {
         const tables = await prisma.tableMeta.findMany({
           where: { baseId },
           select: { id: true },
+          take: 500, // ponytail: bounded
         });
         const tableIds = tables.map(({ id }) => id);
 
@@ -583,6 +589,7 @@ export class BaseService {
         const tables = await prisma.tableMeta.findMany({
           where: { baseId },
           select: { id: true },
+          take: 500, // ponytail: bounded
         });
         const tableIds = tables.map(({ id }) => id);
 

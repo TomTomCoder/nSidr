@@ -254,6 +254,7 @@ export class AppBlueprintService {
     const messages = await this.prismaService.workspaceConversationMessage.findMany({
       where: { proposalId: { in: proposalIds } },
       select: { metadata: true },
+      take: proposalIds.length, // ponytail: bounded
     });
     if (messages.length !== proposalIds.length) return false;
     return messages.every((m) => (m.metadata as { accepted?: boolean } | null)?.accepted === true);
@@ -274,6 +275,7 @@ export class AppBlueprintService {
     const realTables = await this.prismaService.tableMeta.findMany({
       where: { baseId: ctx.baseId, name: { in: entityNames }, deletedTime: null },
       select: { id: true, name: true },
+      take: entityNames.length, // ponytail: bounded
     });
     const tableIdToName = new Map(realTables.map((t) => [t.id, t.name]));
     const linkFields =
@@ -285,6 +287,7 @@ export class AppBlueprintService {
               deletedTime: null,
             },
             select: { name: true, tableId: true, options: true },
+            take: realTables.length * 200, // ponytail: bounded
           })
         : [];
     const relations = linkFields.flatMap((f) => {
@@ -652,6 +655,7 @@ export class AppBlueprintService {
     const tables = await this.prismaService.tableMeta.findMany({
       where: { baseId: ctx.baseId, name: { in: entityNames }, deletedTime: null },
       select: { id: true, name: true },
+      take: entityNames.length, // ponytail: bounded
     });
 
     const proposals: Array<{ proposalId: string; action: string; preview: unknown }> = [];
@@ -659,6 +663,7 @@ export class AppBlueprintService {
       const fieldMetas = await this.prismaService.field.findMany({
         where: { tableId: table.id, deletedTime: null, type: { not: 'link' } },
         select: { name: true, type: true },
+        take: 500, // ponytail: bounded
       });
       if (fieldMetas.length === 0) continue;
 
@@ -826,10 +831,12 @@ export class AppBlueprintService {
     const tables = await this.prismaService.tableMeta.findMany({
       where: { baseId, deletedTime: null },
       select: { id: true, name: true },
+      take: 500, // ponytail: bounded
     });
     const fields = await this.prismaService.field.findMany({
       where: { tableId: { in: tables.map((t) => t.id) }, deletedTime: null },
       select: { name: true, tableId: true, type: true, options: true },
+      take: tables.length * 500, // ponytail: bounded
     });
 
     return [

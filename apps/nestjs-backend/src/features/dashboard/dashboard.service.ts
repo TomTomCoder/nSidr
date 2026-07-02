@@ -50,6 +50,7 @@ export class DashboardService {
       orderBy: {
         createdTime: 'asc',
       },
+      take: 200, // ponytail: bounded
     });
   }
 
@@ -89,6 +90,7 @@ export class DashboardService {
           },
         },
       },
+      take: 200, // ponytail: bounded
     });
 
     return {
@@ -501,6 +503,7 @@ export class DashboardService {
         position: true,
         positionId: true,
       },
+      take: 200, // ponytail: bounded
     });
 
     dashboard.pluginInstall = installedPlugins.map((plugin) => ({
@@ -518,6 +521,7 @@ export class DashboardService {
       select: {
         name: true,
       },
+      take: 200, // ponytail: bounded
     });
 
     const newName = getUniqName(
@@ -568,6 +572,7 @@ export class DashboardService {
         select: {
           name: true,
         },
+        take: 200, // ponytail: bounded
       });
 
       const newName = getUniqName(

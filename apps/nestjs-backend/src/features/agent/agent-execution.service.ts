@@ -1278,12 +1278,14 @@ export class AgentExecutionService {
           const nodes = await this.prismaService.baseNode.findMany({
             where: { baseId: agent.baseId },
             select: { id: true, parentId: true, resourceType: true, resourceId: true },
+            take: 1000, // ponytail: bounded
           });
           const tableIds = nodes.filter((n) => n.resourceType === 'table').map((n) => n.resourceId);
           const fields = tableIds.length
             ? await this.prismaService.field.findMany({
                 where: { tableId: { in: tableIds }, deletedTime: null },
                 select: { id: true, tableId: true, name: true, type: true },
+                take: tableIds.length * 500, // ponytail: bounded
               })
             : [];
           const fieldIds = fields.map((f) => f.id);
@@ -1291,6 +1293,7 @@ export class AgentExecutionService {
             ? await this.prismaService.reference.findMany({
                 where: { OR: [{ fromFieldId: { in: fieldIds } }, { toFieldId: { in: fieldIds } }] },
                 select: { fromFieldId: true, toFieldId: true },
+                take: fieldIds.length * 10, // ponytail: bounded
               })
             : [];
           return { nodes, fields, edges };

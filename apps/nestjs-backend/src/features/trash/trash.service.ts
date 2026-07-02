@@ -79,6 +79,7 @@ export class TrashService {
         resourceId: true,
         resourceType: true,
       },
+      take: 500, // ponytail: bounded
     });
 
     const baseIds = new Set<string>();
@@ -102,10 +103,12 @@ export class TrashService {
           },
         },
       },
+      take: 500, // ponytail: bounded
     });
     const spaces = await this.prismaService.space.findMany({
       where: { id: { in: Array.from(spaceIds) } },
       select: { id: true, name: true },
+      take: 200, // ponytail: bounded
     });
 
     return {
@@ -191,6 +194,7 @@ export class TrashService {
         resourceId: { in: authorizedBaseSpaceIds },
       },
       select: { resourceId: true },
+      take: authorizedBaseSpaceIds.length, // ponytail: bounded
     });
     // Defensive cap on the base-trash list — see the matching note in getSpaceTrash.
     const list = await this.prismaService.trash.findMany({
@@ -363,6 +367,7 @@ export class TrashService {
             name: true,
             type: true,
           },
+          take: resourceIds.length, // ponytail: bounded
         });
         return keyBy(views, 'id');
       }
@@ -377,6 +382,7 @@ export class TrashService {
             isLookup: true,
             isConditionalLookup: true,
           },
+          take: resourceIds.length, // ponytail: bounded
         });
         return fields.reduce((acc, { id, name, type, options, isLookup, isConditionalLookup }) => {
           acc[id] = {
@@ -397,6 +403,7 @@ export class TrashService {
             recordId: true,
             snapshot: true,
           },
+          take: resourceIds.length, // ponytail: bounded
         });
 
         return await this.getRecordTrashResourceMap(tableId, recordList);
@@ -508,6 +515,7 @@ export class TrashService {
         id: true,
         name: true,
       },
+      take: 500, // ponytail: bounded
     });
   }
 
@@ -836,6 +844,7 @@ export class TrashService {
             createdTime: true,
           },
           orderBy: [{ recordId: 'asc' }, { createdTime: 'desc' }, { id: 'desc' }],
+          take: recordIds.length * 5, // ponytail: bounded — a record can be trashed multiple times
         });
 
         // A record can be deleted, restored through undo, then deleted again with the same id.
@@ -952,6 +961,7 @@ export class TrashService {
         deletedTime: { not: null },
       },
       select: { id: true },
+      take: 500, // ponytail: bounded
     });
 
     if (!tables.length) return;
@@ -996,6 +1006,7 @@ export class TrashService {
     const deletedList = await this.dataPrismaService.tableTrash.findMany({
       where: { tableId },
       select: { resourceType: true, snapshot: true },
+      take: 2000, // ponytail: bounded
     });
     let deletedViewIds: string[] = [];
     let deletedFieldIds: string[] = [];
