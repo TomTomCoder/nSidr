@@ -303,6 +303,13 @@ export const GridViewBaseInner: React.FC<IGridViewBaseInnerProps> = (
 
   const { onRowOrdered, setDraggingRecordIds } = useGridRowOrder(recordMap);
 
+  // ponytail: stable array ref — Array.from() on every render caused useSelectionOperation hooks to re-run
+  const selectionCollapsedGroupIds = useMemo(
+    () => (viewQuery?.collapsedGroupIds ? Array.from(viewQuery.collapsedGroupIds) : undefined),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [viewQuery?.collapsedGroupIds]
+  );
+
   const {
     copy,
     paste,
@@ -348,9 +355,7 @@ export const GridViewBaseInner: React.FC<IGridViewBaseInnerProps> = (
     syncCopy,
     fill,
   } = useSelectionOperation({
-    collapsedGroupIds: viewQuery?.collapsedGroupIds
-      ? Array.from(viewQuery?.collapsedGroupIds)
-      : undefined,
+    collapsedGroupIds: selectionCollapsedGroupIds,
   });
 
   const { copyRecordUrl, viewRecordHistory, addRecordComment } = useContextMenu();

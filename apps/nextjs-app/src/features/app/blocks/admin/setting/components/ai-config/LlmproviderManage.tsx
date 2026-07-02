@@ -24,9 +24,15 @@ import {
   TooltipTrigger,
 } from '@teable/ui-lib/shadcn';
 import { SlidersHorizontalIcon, XIcon } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { useTranslation } from 'next-i18next';
 
-import { NewLLMProviderForm, UpdateLLMProviderForm } from './LlmProviderForm';
+const NewLLMProviderForm = dynamic(() =>
+  import('./LlmProviderForm').then((m) => m.NewLLMProviderForm)
+);
+const UpdateLLMProviderForm = dynamic(() =>
+  import('./LlmProviderForm').then((m) => m.UpdateLLMProviderForm)
+);
 
 // Model test result interface
 export interface IModelTestResult {

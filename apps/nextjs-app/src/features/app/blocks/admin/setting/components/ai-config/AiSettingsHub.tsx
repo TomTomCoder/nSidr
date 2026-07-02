@@ -2,12 +2,16 @@
 
 import type { ITestLLMRo, ITestLLMVo, LLMProvider, ISettingVo } from '@teable/openapi';
 import { ChevronDown } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { useTranslation } from 'next-i18next';
 import { useCallback, useState } from 'react';
 import { useGatewayModels } from './ai-model-select';
-import { AIConfigFormWizard } from './AiFormWizard';
 import { InlineProviderKeyList } from './InlineProviderKeyList';
 import { UnifiedModelPicker } from './UnifiedModelPicker';
+
+const AIConfigFormWizard = dynamic(() =>
+  import('./AiFormWizard').then((m) => m.AIConfigFormWizard)
+);
 
 export interface IAiSettingsHubProps {
   aiConfig: ISettingVo['aiConfig'];

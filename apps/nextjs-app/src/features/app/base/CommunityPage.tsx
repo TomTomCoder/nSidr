@@ -1,5 +1,9 @@
 import { useBase } from '@teable/sdk/hooks/use-base';
-import { UnifiedChatContainer } from '@/components/AgentChat/UnifiedChatContainer';
+import dynamic from 'next/dynamic';
+
+const UnifiedChatContainer = dynamic(() =>
+  import('@/components/AgentChat/UnifiedChatContainer').then((m) => m.UnifiedChatContainer)
+);
 
 export const CommunityPage = () => {
   const base = useBase();

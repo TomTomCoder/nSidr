@@ -1,11 +1,15 @@
 'use client';
 
 import { ArrowLeft } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { useEffect, useRef, useState } from 'react';
 import type { AgentRunEvent } from '@/types/agent';
-import { AgentProfilePanel } from './AgentProfilePanel';
 import { ChatInput } from './ChatInput';
 import { MessageList } from './MessageList';
+
+const AgentProfilePanel = dynamic(() =>
+  import('./AgentProfilePanel').then((m) => m.AgentProfilePanel)
+);
 
 interface ChatContainerProps {
   agentId: string;

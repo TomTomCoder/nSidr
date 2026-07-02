@@ -3,17 +3,21 @@ import type { IGetBaseVo, ITableVo } from '@teable/openapi';
 import type { IUser } from '@teable/sdk';
 import { ExpandRecordNavigationContext, NotificationProvider, SessionProvider } from '@teable/sdk';
 import { AnchorContext, AppProvider, BaseProvider, TableProvider } from '@teable/sdk/context';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/router';
 import { useTranslation } from 'next-i18next';
 import React, { Fragment, useCallback, useMemo } from 'react';
 import { AppLayout } from '@/features/app/layouts';
-import { WorkFlowPanelModal } from '../automation/workflow-panel/WorkFlowPanelModal';
 import { BaseNodeProvider } from '../blocks/base/base-node/BaseNodeProvider';
 import { BaseSideBar } from '../blocks/base/base-side-bar/BaseSideBar';
 import { BaseSidebarHeaderLeft } from '../blocks/base/base-side-bar/BaseSidebarHeaderLeft';
 import { QuickAction } from '../blocks/base/base-side-bar/QuickAction';
 import { BasePermissionListener } from '../blocks/base/BasePermissionListener';
 import { useTableHref } from '../blocks/table-list/useTableHref';
+
+const WorkFlowPanelModal = dynamic(() =>
+  import('../automation/workflow-panel/WorkFlowPanelModal').then((m) => m.WorkFlowPanelModal)
+);
 import { useGridSearchStore } from '../blocks/view/grid/useGridSearchStore';
 import { UsageLimitModal } from '../components/billing/UsageLimitModal';
 import { LinkConnectorLine } from '../components/LinkConnectorLine';

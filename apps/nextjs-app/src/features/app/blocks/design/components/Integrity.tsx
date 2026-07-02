@@ -7,9 +7,13 @@ import {
 import { useBase, useTables } from '@teable/sdk/hooks';
 import { Button, Popover, PopoverContent, PopoverTrigger } from '@teable/ui-lib/shadcn';
 import { Check, Loader2 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { useSearchParams } from 'next/navigation';
 import { useTranslation } from 'next-i18next';
-import { IntegrityV2Dialog } from './IntegrityV2Dialog';
+
+const IntegrityV2Dialog = dynamic(() =>
+  import('./IntegrityV2Dialog').then((m) => m.IntegrityV2Dialog)
+);
 
 const LegacyIntegrityButton = ({ baseId, tableId }: { baseId: string; tableId: string }) => {
   const { t } = useTranslation(['table']);

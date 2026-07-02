@@ -19,18 +19,24 @@ import {
   Wand2,
   Zap,
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { useParams } from 'next/navigation';
 import { useRouter } from 'next/router';
 import { useCallback, useEffect, useState } from 'react';
-import { AgentProfilePanel } from '@/components/AgentChat/AgentProfilePanel';
 import { ConversationHistory } from '@/components/AgentChat/ConversationHistory';
 import { FullAppPanel } from '@/components/AgentChat/FullAppPanel';
-import { UnifiedChatContainer } from '@/components/AgentChat/UnifiedChatContainer';
 import { useBaseResource } from '../../hooks/useBaseResource';
 import { useAppBuilderStore } from '../../stores/useAppBuilderStore';
 import { useFullAppGenerationStore } from '../../stores/useFullAppGenerationStore';
 import { useUnifiedChatStore } from '../../stores/useUnifiedChatStore';
 import { useChatPanelStore } from '../sidebar/useChatPanelStore';
+
+const AgentProfilePanel = dynamic(() =>
+  import('@/components/AgentChat/AgentProfilePanel').then((m) => m.AgentProfilePanel)
+);
+const UnifiedChatContainer = dynamic(() =>
+  import('@/components/AgentChat/UnifiedChatContainer').then((m) => m.UnifiedChatContainer)
+);
 
 interface ISuggestion {
   label: string;
