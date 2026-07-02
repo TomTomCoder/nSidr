@@ -11,6 +11,7 @@ export const aiFieldOptionsSchema = z.object({
   prompt: z.string().optional(),
   sourceFieldIds: z.array(z.string()).optional(),
   outputMode: z.enum(AI_OUTPUT_MODES).optional(),
+  modelKey: z.string().optional(),
 });
 
 export type IAiFieldOptions = z.infer<typeof aiFieldOptionsSchema>;

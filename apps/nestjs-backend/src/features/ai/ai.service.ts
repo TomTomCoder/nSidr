@@ -726,16 +726,18 @@ export class AiService {
     field: IFieldInstance,
     prompt: string
   ): Promise<{ value: unknown; validated: boolean; attempts: 1 | 2; error?: string }> {
-    const outputMode = (field.type === FieldType.Ai ? (field.options as IAiFieldOptions)?.outputMode : undefined) ?? 'text';
+    const aiOpts = field.type === FieldType.Ai ? (field.options as IAiFieldOptions) : undefined;
+    const outputMode = aiOpts?.outputMode ?? 'text';
+    const fieldModelKey = aiOpts?.modelKey;
 
     if (outputMode === 'image') {
-      return this.generateImageForAiField(baseId, field, prompt);
+      return this.generateImageForAiField(baseId, field, prompt, fieldModelKey);
     }
     if (outputMode === 'audio' || outputMode === 'video') {
       return { value: null, validated: false, attempts: 1, error: `La génération de ${outputMode} n'est pas encore supportée — configurez un modèle compatible dans Paramètres ▸ IA.` };
     }
 
-    const modelInstance = await this.getGenerationModelInstance(baseId, { prompt });
+    const modelInstance = await this.getGenerationModelInstance(baseId, { prompt, modelKey: fieldModelKey });
 
     if (this.isStructuredOutputProvider(modelInstance)) {
       try {
@@ -796,11 +798,12 @@ export class AiService {
   private async generateImageForAiField(
     baseId: string,
     field: IFieldInstance,
-    prompt: string
+    prompt: string,
+    fieldModelKey?: string
   ): Promise<{ value: unknown; validated: boolean; attempts: 1 | 2; error?: string }> {
     try {
       const config = await this.getAIConfig(baseId);
-      const modelKey = getTaskModelKey(config, Task.Coding);
+      const modelKey = fieldModelKey ?? getTaskModelKey(config, Task.Coding);
       if (!modelKey) throw new Error('Model key is not set');
       const imageModel = await this.getModelInstance(modelKey, config.llmProviders, true);
       const { images } = await generateImage({ model: imageModel, prompt, n: 1 });

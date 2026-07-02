@@ -177,11 +177,15 @@ export function CompactAiFieldConfig({
       <div className="space-y-1.5">
         <Label className="text-xs font-medium">Modèle</Label>
         <AIModelSelect
-          value={modelValue}
-          onValueChange={onModelChange ?? (() => undefined)}
+          value={options.modelKey ?? modelValue}
+          onValueChange={(v) => {
+            onChange({ ...options, modelKey: v || undefined });
+            onModelChange?.(v);
+          }}
           options={modelOptions}
           className="w-full"
           placeholder="Sélectionner un modèle..."
+          onlyImageOutput={outputMode === 'image'}
         />
       </div>
 
