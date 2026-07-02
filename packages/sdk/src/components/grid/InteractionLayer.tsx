@@ -7,6 +7,7 @@ import {
   useEffect,
   useCallback,
   forwardRef,
+  memo,
   useImperativeHandle,
   useMemo,
   useLayoutEffect,
@@ -920,4 +921,4 @@ export const InteractionLayerBase: ForwardRefRenderFunction<
   );
 };
 
-export const InteractionLayer = forwardRef(InteractionLayerBase);
+export const InteractionLayer = memo(forwardRef(InteractionLayerBase));

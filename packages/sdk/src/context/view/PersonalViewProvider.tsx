@@ -20,7 +20,8 @@ export const PersonalViewProvider = ({ children }: IPersonalViewProviderProps) =
   const viewId = view?.id ?? '';
   const cachedView = personalViewMap?.[viewId];
   const isPersonalView = Boolean(cachedView);
-  const visibleFieldIds = visibleFields.map(({ id }) => id);
+  // ponytail: inline .map() created new array every render, breaking useMemo dep stability below
+  const visibleFieldIds = useMemo(() => visibleFields.map(({ id }) => id), [visibleFields]);
 
   const { personalViewCommonQuery, personalViewAggregationQuery } = useMemo(() => {
     if (!cachedView) {
