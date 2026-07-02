@@ -29,6 +29,7 @@ import { keyBy, sortBy, omit } from 'lodash';
 import { InjectModel } from 'nest-knexjs';
 import { ClsService } from 'nestjs-cls';
 import { CustomHttpException } from '../../custom.exception';
+import { PerformanceCache, PerformanceCacheService } from '../../performance-cache';
 import { InjectDbProvider } from '../../db-provider/db.provider';
 import { IDbProvider } from '../../db-provider/db.provider.interface';
 import { DropColumnOperationType } from '../../db-provider/drop-database-column-query/drop-database-column-field-visitor.interface';
@@ -72,7 +73,8 @@ export class FieldService implements IReadonlyAdapterService {
 
     private readonly formulaFieldService: FormulaFieldService,
     private readonly linkFieldQueryService: LinkFieldQueryService,
-    private readonly tableDomainQueryService: TableDomainQueryService
+    private readonly tableDomainQueryService: TableDomainQueryService,
+    private readonly performanceCacheService: PerformanceCacheService
   ) {}
 
   private invalidateFieldLoader(tableIds: string | string[]) {
@@ -803,6 +805,7 @@ export class FieldService implements IReadonlyAdapterService {
     });
   }
 
+  @PerformanceCache({ ttl: 30 }) // ponytail: 30s TTL — field schema is stable between admin changes
   async getField(tableId: string, fieldId: string): Promise<IFieldVo> {
     const field = await this.prismaService.txClient().field.findFirst({
       where: { id: fieldId, tableId, deletedTime: null },
@@ -824,6 +827,7 @@ export class FieldService implements IReadonlyAdapterService {
     return omit(fieldVo, ['meta']) as IFieldVo;
   }
 
+  @PerformanceCache({ ttl: 30 }) // ponytail: 30s TTL — field list is stable between admin changes
   async getFieldsByQuery(tableId: string, query?: IGetFieldsQuery): Promise<IFieldVo[]> {
     const fieldsPlain = await this.prismaService.txClient().field.findMany({
       where: { tableId, deletedTime: null },
