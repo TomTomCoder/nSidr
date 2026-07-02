@@ -123,6 +123,7 @@ export class AttachmentsService {
         Math.floor(lastModifiedTimestamp / 1000)
     ) {
       res.set('Last-Modified', new Date(lastModifiedTimestamp).toUTCString());
+      res.set('Cache-Control', 'private, max-age=3600');
       return false;
     }
     return true;
