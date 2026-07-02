@@ -80,6 +80,7 @@ export class ReferenceService {
 
     const fieldRaws = await this.prismaService.txClient().field.findMany({
       where: { id: { in: fieldIds }, deletedTime: null },
+      take: fieldIds.length, // ponytail: bounded
     });
 
     return fieldRaws.reduce<{ [fieldId: string]: IFieldInstance }>((pre, f) => {
@@ -92,6 +93,7 @@ export class ReferenceService {
     const prisma = this.prismaService.txClient();
     const fieldRaws = await prisma.field.findMany({
       where: { id: { in: allFieldIds }, deletedTime: null },
+      take: allFieldIds.length, // ponytail: bounded
     });
 
     // if a field that has been looked up  has changed, the link field should be retrieved as context
@@ -104,6 +106,7 @@ export class ReferenceService {
 
     const extraLinkFieldRaws = await prisma.field.findMany({
       where: { id: { in: extraLinkFieldIds }, deletedTime: null },
+      take: Math.max(extraLinkFieldIds.length, 1), // ponytail: bounded
     });
 
     fieldRaws.push(...extraLinkFieldRaws);
@@ -117,6 +120,7 @@ export class ReferenceService {
     const tableMeta = await prisma.tableMeta.findMany({
       where: { id: { in: tableIds } },
       select: { id: true, dbTableName: true },
+      take: tableIds.length, // ponytail: bounded
     });
 
     const tableId2DbTableName = tableMeta.reduce<{ [tableId: string]: string }>((pre, t) => {
@@ -260,6 +264,7 @@ export class ReferenceService {
     const initialFields = await this.prismaService.txClient().field.findMany({
       where: { id: { in: startFieldIds }, deletedTime: null },
       select: { id: true, tableId: true },
+      take: startFieldIds.length, // ponytail: bounded
     });
     for (const f of initialFields) {
       tableIds.add(f.tableId);

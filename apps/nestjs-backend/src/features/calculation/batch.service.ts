@@ -77,10 +77,12 @@ export class BatchService {
     const tableRaw = await this.prismaService.txClient().tableMeta.findMany({
       where: { id: { in: tableIds }, deletedTime: null },
       select: { id: true, dbTableName: true },
+      take: tableIds.length, // ponytail: bounded
     });
 
     const fieldsRaw = await this.prismaService.txClient().field.findMany({
       where: { id: { in: missingFieldIds }, deletedTime: null },
+      take: missingFieldIds.length, // ponytail: bounded
     });
 
     const fields = fieldsRaw.map(createFieldInstanceByRaw);
@@ -342,6 +344,7 @@ export class BatchService {
           const tables = await this.prismaService.tableMeta.findMany({
             where: { dbTableName },
             select: { id: true, name: true },
+            take: 1, // ponytail: bounded — dbTableName is unique
           });
           const table = tables[0];
           const fieldRaws = await this.prismaService.field.findMany({
@@ -352,6 +355,7 @@ export class BatchService {
               deletedTime: null,
             },
             select: { id: true, name: true },
+            take: validDbFieldNames.length, // ponytail: bounded
           });
 
           throw new CustomHttpException(
@@ -372,6 +376,7 @@ export class BatchService {
           const tables = await this.prismaService.tableMeta.findMany({
             where: { dbTableName },
             select: { id: true, name: true },
+            take: 1, // ponytail: bounded — dbTableName is unique
           });
           const table = tables[0];
           const fieldRaws = await this.prismaService.field.findMany({
@@ -382,6 +387,7 @@ export class BatchService {
               deletedTime: null,
             },
             select: { id: true, name: true },
+            take: validDbFieldNames.length, // ponytail: bounded
           });
 
           throw new CustomHttpException(

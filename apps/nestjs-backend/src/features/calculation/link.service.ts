@@ -150,29 +150,30 @@ export class LinkService {
   private async getRelatedFieldMap(fieldIds: string[]): Promise<IFieldMapByTableId> {
     const fieldRaws = await this.prismaService.txClient().field.findMany({
       where: { id: { in: fieldIds }, isLookup: null },
+      take: fieldIds.length, // ponytail: bounded
     });
     const fields = fieldRaws.map(createFieldInstanceByRaw) as LinkFieldDto[];
 
+    const symmetricIds = fields
+      .filter((field) => field.options.symmetricFieldId)
+      .map((field) => field.options.symmetricFieldId as string);
     const symmetricFieldRaws = await this.prismaService.txClient().field.findMany({
-      where: {
-        id: {
-          in: fields
-            .filter((field) => field.options.symmetricFieldId)
-            .map((field) => field.options.symmetricFieldId as string),
-        },
-      },
+      where: { id: { in: symmetricIds } },
+      take: Math.max(symmetricIds.length, 1), // ponytail: bounded
     });
 
     const symmetricFields = symmetricFieldRaws.map(createFieldInstanceByRaw) as LinkFieldDto[];
 
+    const lookedIds = fields
+      .map((field) => field.options.lookupFieldId)
+      .concat(symmetricFields.map((field) => field.options.lookupFieldId));
     const lookedFieldRaws = await this.prismaService.txClient().field.findMany({
       where: {
         id: {
-          in: fields
-            .map((field) => field.options.lookupFieldId)
-            .concat(symmetricFields.map((field) => field.options.lookupFieldId)),
+          in: lookedIds,
         },
       },
+      take: Math.max(lookedIds.length, 1), // ponytail: bounded
     });
     const lookedFields = lookedFieldRaws.map(createFieldInstanceByRaw);
 
@@ -1050,6 +1051,7 @@ export class LinkService {
         id: true,
         dbTableName: true,
       },
+      take: tableIds.length, // ponytail: bounded
     });
     return tableRaws.reduce<{ [tableId: string]: string }>((acc, cur) => {
       acc[cur.id] = cur.dbTableName;
@@ -1951,11 +1953,14 @@ export class LinkService {
     const fieldRaws = await this.prismaService.txClient().field.findMany({
       where: { tableId, deletedTime: null },
       select: { id: true },
+      take: 500, // ponytail: bounded
     });
 
+    const fromIds = fieldRaws.map((f) => f.id);
     const references = await this.prismaService.txClient().reference.findMany({
-      where: { fromFieldId: { in: fieldRaws.map((f) => f.id) } },
+      where: { fromFieldId: { in: fromIds } },
       select: { toFieldId: true },
+      take: fromIds.length * 10, // ponytail: bounded — fan-out per field
     });
 
     const referenceFieldIds = references.map((ref) => ref.toFieldId);
@@ -1968,6 +1973,7 @@ export class LinkService {
             isLookup: null,
             deletedTime: null,
           },
+          take: referenceFieldIds.length, // ponytail: bounded
         })
       : [];
 
@@ -2001,6 +2007,7 @@ export class LinkService {
         isLookup: null,
         deletedTime: null,
       },
+      take: 500, // ponytail: bounded
     });
 
     return await this.getContextByDelete(
