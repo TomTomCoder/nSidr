@@ -128,6 +128,7 @@ export class WorkflowAiService {
     const tables = await this.prismaService.tableMeta.findMany({
       where: { baseId, deletedTime: null },
       select: { id: true, name: true },
+      take: 200, // ponytail: bounded
     });
     const tableContext =
       tables.length > 0
@@ -140,6 +141,7 @@ export class WorkflowAiService {
     const agents = await this.prismaService.agent.findMany({
       where: { baseId, isActive: true },
       select: { id: true, name: true },
+      take: 200, // ponytail: bounded
     });
     const agentContext =
       agents.length > 0

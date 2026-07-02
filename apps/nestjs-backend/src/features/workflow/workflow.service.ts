@@ -73,6 +73,7 @@ export class WorkflowService {
     const workflows = await this.prismaService.txClient().workflow.findMany({
       where: { baseId },
       orderBy: { createdTime: 'asc' },
+      take: 200, // ponytail: bounded
     });
     return workflows.map((w) => ({
       id: w.id,

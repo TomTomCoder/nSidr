@@ -321,6 +321,7 @@ export class ImportOpenApiService {
         name: true,
         type: true,
       },
+      take: 500, // ponytail: bounded
     });
 
     if (projection) {
