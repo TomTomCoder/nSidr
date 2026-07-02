@@ -70,6 +70,8 @@
 | Background job queues with monitoring (BullMQ) | ✅ |
 | OpenTelemetry tracing (OTLP export) | ✅ |
 
+> 📋 Liste complète des fonctionnalités et de leurs dépendances internes : [docs/FEATURES.md](docs/FEATURES.md)
+
 ---
 
 ## Use cases
