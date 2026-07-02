@@ -31,6 +31,7 @@ import {
   embedMany,
   generateImage,
   generateObject,
+  experimental_generateSpeech as generateSpeech,
   generateText,
   jsonSchema,
   stepCountIs,
@@ -733,11 +734,22 @@ export class AiService {
     if (outputMode === 'image') {
       return this.generateImageForAiField(baseId, field, prompt, fieldModelKey);
     }
-    if (outputMode === 'audio' || outputMode === 'video') {
-      return { value: null, validated: false, attempts: 1, error: `La génération de ${outputMode} n'est pas encore supportée — configurez un modèle compatible dans Paramètres ▸ IA.` };
+    if (outputMode === 'audio') {
+      return this.generateAudioForAiField(baseId, field, prompt, fieldModelKey);
+    }
+    if (outputMode === 'video') {
+      return {
+        value: null,
+        validated: false,
+        attempts: 1,
+        error: `La génération vidéo n'est pas encore supportée.`,
+      };
     }
 
-    const modelInstance = await this.getGenerationModelInstance(baseId, { prompt, modelKey: fieldModelKey });
+    const modelInstance = await this.getGenerationModelInstance(baseId, {
+      prompt,
+      modelKey: fieldModelKey,
+    });
 
     if (this.isStructuredOutputProvider(modelInstance)) {
       try {
@@ -811,10 +823,68 @@ export class AiService {
         return { value: null, validated: false, attempts: 1, error: 'No image returned by model' };
       }
       const img = images[0];
-      const dataUrl = img.base64 ? `data:image/png;base64,${img.base64}` : (img.url ?? null);
+      const dataUrl = img.base64 ? `data:image/png;base64,${img.base64}` : img.url ?? null;
       return { value: dataUrl, validated: true, attempts: 1 };
     } catch (err) {
-      this.logger.error(`generateImageForAiField failed for field ${field.id}: ${(err as Error).message}`);
+      this.logger.error(
+        `generateImageForAiField failed for field ${field.id}: ${(err as Error).message}`
+      );
+      return { value: null, validated: false, attempts: 1, error: (err as Error).message };
+    }
+  }
+
+  /**
+   * Audio generation for AI fields with outputMode='audio'.
+   * Uses the configured OpenAI provider to call tts-1; stores result as a data URL.
+   */
+  private async generateAudioForAiField(
+    baseId: string,
+    field: IFieldInstance,
+    prompt: string,
+    fieldModelKey?: string
+  ): Promise<{ value: unknown; validated: boolean; attempts: 1; error?: string }> {
+    try {
+      const config = await this.getAIConfig(baseId);
+      const modelKey = fieldModelKey ?? getTaskModelKey(config, Task.Coding);
+      if (!modelKey) throw new Error('Model key is not set');
+
+      const {
+        type,
+        model: _model,
+        baseUrl,
+        apiKey,
+      } = await this.getModelConfig(modelKey, config.llmProviders);
+
+      if (type !== LLMProviderType.OPENAI) {
+        return {
+          value: null,
+          validated: false,
+          attempts: 1,
+          error: `Audio generation requires an OpenAI provider (configured: ${type})`,
+        };
+      }
+      if (!baseUrl || !apiKey) throw new Error('AI configuration is incomplete');
+
+      const providerOptions = getAdaptedProviderOptions(type, {
+        name: 'tts-1',
+        baseURL: baseUrl,
+        apiKey,
+      });
+      // ponytail: always tts-1; upgrade when model picker exposes speech model IDs
+      const openaiProvider = modelProviders[LLMProviderType.OPENAI](
+        providerOptions as never
+      ) as OpenAIProvider;
+      const { audio } = await generateSpeech({
+        model: openaiProvider.speech('tts-1'),
+        text: prompt,
+      });
+      if (!audio?.base64)
+        return { value: null, validated: false, attempts: 1, error: 'No audio returned by model' };
+      return { value: `data:audio/mp3;base64,${audio.base64}`, validated: true, attempts: 1 };
+    } catch (err) {
+      this.logger.error(
+        `generateAudioForAiField failed for field ${field.id}: ${(err as Error).message}`
+      );
       return { value: null, validated: false, attempts: 1, error: (err as Error).message };
     }
   }
